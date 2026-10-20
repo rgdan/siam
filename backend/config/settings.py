@@ -7,12 +7,14 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = False
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
-INSTALLED_APPS = ["rest_framework", "api"]
+INSTALLED_APPS = ["corsheaders", "rest_framework", "api"]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
 ]
 APPEND_SLASH = False
+CORS_ALLOWED_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"]
 
 ROOT_URLCONF = "config.urls"
 
