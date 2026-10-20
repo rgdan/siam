@@ -9,6 +9,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .authentication import SessionAuthentication
+from .permissions import permisos_para
 
 
 class LoginSerializer(serializers.Serializer):
@@ -61,6 +62,7 @@ def me(request):
         "full_name": user.full_name,
         "email": user.email,
         "role": user.role,
+        "permissions": sorted(permisos_para(user)),
     })
 
 
