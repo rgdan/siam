@@ -3,7 +3,13 @@ from django.urls import path
 from api import views
 
 
-urlpatterns = [path("api/health/", views.health, name="health")]
+urlpatterns = [
+    path("api/health/", views.health, name="health"),
+    path("api/auth/csrf/", views.csrf, name="csrf"),
+    path("api/auth/login/", views.sign_in, name="login"),
+    path("api/auth/me/", views.me, name="me"),
+    path("api/auth/logout/", views.sign_out, name="logout"),
+]
 
 handler400 = views.bad_request
 handler403 = views.permission_denied
