@@ -16,7 +16,9 @@ python manage.py migrate --run-syncdb
 python manage.py runserver 127.0.0.1:8000
 ```
 
-En una terminal nueva, activa `.venv` y vuelve a definir `DJANGO_SECRET_KEY`.
+En una terminal nueva, active `.venv` y vuelva a definir `DJANGO_SECRET_KEY`.
+
+Para salir del entorno virtual, detenga el servidor con `Ctrl+C` y ejecute `deactivate`.
 
 ## Endpoint
 
