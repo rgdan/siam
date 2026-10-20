@@ -27,14 +27,3 @@ En Postman: `GET http://127.0.0.1:8000/api/health/`.
 
 Respuesta: `200 OK` con `{"estado":"ok"}`. Solo comprueba que el servidor responde.
 
-## Login en Postman
-
-Use `http://127.0.0.1:8000` y conserve las cookies de Postman.
-
-1. Solicite `GET /api/auth/csrf/` y copie `csrfToken`.
-2. Envíe `POST /api/auth/login/` con JSON `{"email":"su correo","password":"su contraseña"}`
-   y el encabezado `X-CSRFToken` con ese token. Guarde el nuevo `csrfToken` de la respuesta.
-3. Consulte `GET /api/auth/me/` para ver su cuenta. Sin sesión devuelve `401`.
-4. Envíe `POST /api/auth/logout/` con el nuevo token en `X-CSRFToken` para cerrar sesión.
-
-Necesita una cuenta creada con `User.objects.create_user(...)` desde `python manage.py shell`.
