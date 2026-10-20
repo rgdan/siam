@@ -2,6 +2,6 @@ from rest_framework.authentication import SessionAuthentication as DRFSessionAut
 
 
 class SessionAuthentication(DRFSessionAuthentication):
+    # Permite responder 401 sin sesión; DRF usaría 403 si faltara este encabezado.
     def authenticate_header(self, request):
-        # DRF convierte los errores de sesión en 403 si no hay este encabezado.
         return "Session"

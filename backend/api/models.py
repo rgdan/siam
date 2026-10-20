@@ -2,7 +2,9 @@ from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
 
 
+# Centraliza la creación de cuentas para validar sus datos y guardar contraseñas como hashes.
 class UserManager(BaseUserManager):
+    # Normaliza el correo, genera el hash de la contraseña y valida antes de guardar.
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError("El correo es obligatorio.")
@@ -13,7 +15,9 @@ class UserManager(BaseUserManager):
         return user
 
 
+# Representa una cuenta interna y reutiliza la gestión de contraseñas de Django.
 class User(AbstractBaseUser):
+    # Define los cinco roles posibles; cada cuenta almacena solo uno.
     class Role(models.TextChoices):
         GUARDA = "guarda", "Guarda"
         COORDINADOR = "coordinador", "Coordinador"
@@ -31,6 +35,7 @@ class User(AbstractBaseUser):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["full_name", "role"]
 
+    # Configura restricciones de la tabla, no campos adicionales de la cuenta.
     class Meta:
         constraints = [
             models.CheckConstraint(
@@ -42,5 +47,6 @@ class User(AbstractBaseUser):
             ),
         ]
 
+    # Identifica la cuenta por su correo cuando Django muestra el objeto como texto.
     def __str__(self):
         return self.email
