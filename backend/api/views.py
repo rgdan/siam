@@ -1,4 +1,6 @@
 from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import IntegrityError
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.views.decorators.cache import never_cache
@@ -9,7 +11,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .authentication import SessionAuthentication
-from .permissions import permisos_para
+from .permissions import permisos_para, requiere_permiso
+from .serializers import UserSerializer
 
 
 class LoginSerializer(serializers.Serializer):
@@ -72,6 +75,26 @@ def me(request):
 def sign_out(request):
     logout(request)
     return Response({"detail": "Sesión cerrada."})
+
+
+# Lista cuentas o crea una nueva; cada método exige su propio permiso de administración.
+@never_cache
+@api_view(["GET", "POST"])
+@requiere_permiso({"GET": "usuarios.consultar", "POST": "usuarios.crear"})
+def users(request):
+    if request.method == "GET":
+        accounts = get_user_model().objects.order_by("id")
+        return Response(UserSerializer(accounts, many=True).data)
+
+    account = UserSerializer(data=request.data)
+    account.is_valid(raise_exception=True)
+    try:
+        account.save()
+    except DjangoValidationError as error:
+        raise serializers.ValidationError(error.message_dict) from None
+    except IntegrityError:
+        raise serializers.ValidationError({"email": ["Ya existe una cuenta con este correo."]}) from None
+    return Response(account.data, status=201)
 
 
 # Sustituye la página HTML de rechazo CSRF por una respuesta JSON sin detalles internos.

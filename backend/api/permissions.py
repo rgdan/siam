@@ -43,6 +43,7 @@ PERMISOS_POR_ROL[User.Role.ADMINISTRADOR_GENERAL] = (
 PERMISOS_POR_ROL[User.Role.ADMINISTRADOR_SISTEMA] = (
     PERMISOS_POR_ROL[User.Role.ADMINISTRADOR_GENERAL]
     | {
+        "usuarios.consultar",
         "usuarios.crear",
         "usuarios.actualizar",
         "usuarios.eliminar",
@@ -60,7 +61,7 @@ def permisos_para(user):
     return PERMISOS_POR_ROL.get(user.role, frozenset())
 
 
-# Declara el permiso de un endpoint; DRF comprueba la sesión antes de autorizar su ejecución.
+# Acepta un permiso común o uno por método HTTP; DRF comprueba la sesión primero.
 def requiere_permiso(permiso):
     # El permiso queda asociado a esta vista, no al cuerpo de la solicitud del navegador.
     class PermisoRequerido(BasePermission):
@@ -68,6 +69,7 @@ def requiere_permiso(permiso):
 
         # Un permiso desconocido tampoco pertenece al conjunto y queda denegado.
         def has_permission(self, request, view):
-            return permiso in permisos_para(request.user)
+            requerido = permiso.get(request.method) if isinstance(permiso, dict) else permiso
+            return requerido in permisos_para(request.user)
 
     return permission_classes([IsAuthenticated, PermisoRequerido])
