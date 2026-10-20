@@ -47,6 +47,15 @@ class User(AbstractBaseUser):
             ),
         ]
 
+    # Incluye relaciones ocultas y gestores sin filtros para no borrar registros asociados.
+    def has_related_records(self):
+        return any(
+            relation.related_model._base_manager.filter(**{relation.field.name: self}).exists()
+            for relation in self._meta.get_fields(include_hidden=True)
+            if relation.auto_created and not relation.concrete
+            and (relation.one_to_many or relation.one_to_one)
+        )
+
     # Identifica la cuenta por su correo cuando Django muestra el objeto como texto.
     def __str__(self):
         return self.email

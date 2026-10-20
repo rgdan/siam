@@ -98,22 +98,40 @@ def users(request):
     return Response(account.data, status=201)
 
 
-# Actualiza una cuenta sin permitir que dos cambios simultáneos eliminen al último administrador.
+# Edita o elimina cuentas, preservando sus registros relacionados y los administradores activos.
 @never_cache
-@api_view(["PATCH"])
-@requiere_permiso("usuarios.actualizar")
+@api_view(["PATCH", "DELETE"])
+@requiere_permiso({"PATCH": "usuarios.actualizar", "DELETE": "usuarios.eliminar"})
 def user_detail(request, user_id):
     try:
         with transaction.atomic():
             # Vuelve a comprobar al actor por si perdió acceso mientras esperaba la transacción.
             actor = get_user_model().objects.filter(pk=request.user.pk).first()
             allowed = permisos_para(actor)
-            if "usuarios.actualizar" not in allowed:
+            required = "usuarios.eliminar" if request.method == "DELETE" else "usuarios.actualizar"
+            if required not in allowed:
                 raise PermissionDenied("Acceso denegado.")
-            if "role" in request.data and "usuarios.asignar_rol" not in allowed:
+            if request.method == "PATCH" and "role" in request.data and "usuarios.asignar_rol" not in allowed:
                 raise PermissionDenied("Acceso denegado.")
 
             account = get_object_or_404(get_user_model(), pk=user_id)
+            if request.method == "DELETE":
+                if not isinstance(request.data, dict) or request.data.get("confirm") is not True:
+                    raise serializers.ValidationError({"confirm": "Confirme la eliminación con true."})
+                if account.pk == request.user.pk:
+                    raise serializers.ValidationError("No puede eliminar su propia cuenta.")
+
+                # Reutiliza la protección del último administrador antes de borrar o desactivar.
+                deactivation = UserUpdateSerializer(
+                    account, data={"is_active": False}, partial=True, context={"request": request},
+                )
+                deactivation.is_valid(raise_exception=True)
+                if account.has_related_records():
+                    deactivation.save()
+                    return Response({"detail": "La cuenta tiene registros relacionados y fue desactivada.", "action": "deactivated"})
+                account.delete()
+                return Response({"detail": "Cuenta eliminada.", "action": "deleted"})
+
             changes = UserUpdateSerializer(
                 account, data=request.data, partial=True, context={"request": request},
             )
@@ -121,6 +139,8 @@ def user_detail(request, user_id):
             changes.save()
             return Response(changes.data)
     except IntegrityError:
+        if request.method == "DELETE":
+            raise serializers.ValidationError("No se pudo eliminar la cuenta por sus registros relacionados.") from None
         raise serializers.ValidationError({"email": ["Ya existe una cuenta con este correo."]}) from None
 
 
