@@ -38,6 +38,8 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
+        # Reserva la escritura antes de comprobar cuántos administradores activos quedan.
+        "OPTIONS": {"transaction_mode": "IMMEDIATE"},
     }
 }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

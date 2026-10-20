@@ -1,18 +1,19 @@
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
+from django.shortcuts import get_object_or_404
 from django.views.decorators.cache import never_cache
 from rest_framework import serializers
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .authentication import SessionAuthentication
 from .permissions import permisos_para, requiere_permiso
-from .serializers import UserSerializer
+from .serializers import UserSerializer, UserUpdateSerializer
 
 
 class LoginSerializer(serializers.Serializer):
@@ -95,6 +96,32 @@ def users(request):
     except IntegrityError:
         raise serializers.ValidationError({"email": ["Ya existe una cuenta con este correo."]}) from None
     return Response(account.data, status=201)
+
+
+# Actualiza una cuenta sin permitir que dos cambios simultáneos eliminen al último administrador.
+@never_cache
+@api_view(["PATCH"])
+@requiere_permiso("usuarios.actualizar")
+def user_detail(request, user_id):
+    try:
+        with transaction.atomic():
+            # Vuelve a comprobar al actor por si perdió acceso mientras esperaba la transacción.
+            actor = get_user_model().objects.filter(pk=request.user.pk).first()
+            allowed = permisos_para(actor)
+            if "usuarios.actualizar" not in allowed:
+                raise PermissionDenied("Acceso denegado.")
+            if "role" in request.data and "usuarios.asignar_rol" not in allowed:
+                raise PermissionDenied("Acceso denegado.")
+
+            account = get_object_or_404(get_user_model(), pk=user_id)
+            changes = UserUpdateSerializer(
+                account, data=request.data, partial=True, context={"request": request},
+            )
+            changes.is_valid(raise_exception=True)
+            changes.save()
+            return Response(changes.data)
+    except IntegrityError:
+        raise serializers.ValidationError({"email": ["Ya existe una cuenta con este correo."]}) from None
 
 
 # Sustituye la página HTML de rechazo CSRF por una respuesta JSON sin detalles internos.

@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/auth/me/", views.me, name="me"),
     path("api/auth/logout/", views.sign_out, name="logout"),
     path("api/users/", views.users, name="users"),
+    path("api/users/<int:user_id>/", views.user_detail, name="user-detail"),
 ]
 
 handler400 = views.bad_request
