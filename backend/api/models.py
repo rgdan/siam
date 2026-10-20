@@ -25,8 +25,6 @@ class User(AbstractBaseUser):
     full_name = models.CharField(max_length=200)
     role = models.CharField(max_length=25, choices=Role.choices)
     is_active = models.BooleanField(default=True)
-    failed_login_attempts = models.PositiveIntegerField(default=0)
-    locked_until = models.DateTimeField(null=True, blank=True)
 
     objects = UserManager()
 
