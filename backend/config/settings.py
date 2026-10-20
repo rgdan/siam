@@ -7,7 +7,15 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = False
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
-INSTALLED_APPS = ["corsheaders", "rest_framework", "api"]
+INSTALLED_APPS = [
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "corsheaders",
+    "rest_framework",
+    "api",
+]
+AUTH_USER_MODEL = "api.User"
+PASSWORD_HASHERS = ["django.contrib.auth.hashers.PBKDF2PasswordHasher"]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
