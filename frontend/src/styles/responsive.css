@@ -1,0 +1,110 @@
+
+/* Configuración general del sistema */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-width: 0;
+  background: #ffffff;
+  color: #111111;
+}
+
+#app {
+  min-height: 100vh;
+  min-width: 0;
+}
+
+/* Evita que las imágenes excedan su contenedor */
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Controles cómodos para pantallas táctiles */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  min-height: 44px;
+}
+
+button,
+a {
+  touch-action: manipulation;
+}
+
+/* Formularios adaptables */
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+.formulario {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  max-width: 480px;
+}
+
+/* Contenedor reutilizable para tablas */
+.tabla-responsive {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabla-responsive table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* Contenedores y listas adaptables */
+.contenedor-responsive {
+  width: 100%;
+  max-width: 1200px;
+  min-width: 0;
+  margin-inline: auto;
+  padding-inline: 16px;
+}
+
+.lista-responsive {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+}
+
+/* Estilos para dispositivos móviles */
+@media (max-width: 767px) {
+  .contenedor-responsive {
+    padding-inline: 12px;
+  }
+
+  .formulario {
+    max-width: 100%;
+  }
+
+  .formulario input,
+  .formulario select,
+  .formulario textarea,
+  .formulario button {
+    width: 100%;
+  }
+}
+
+/* Indicador de navegación con teclado */
+:focus-visible {
+  outline: 3px solid #1f4a5b;
+  outline-offset: 3px;
+}
