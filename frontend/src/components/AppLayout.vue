@@ -1,19 +1,29 @@
 
 <script setup>
 import { ref } from "vue"
+import { useI18n } from "vue-i18n"
+import { cambiarIdioma } from "../i18n/index.js"
 
 // Controla si el menú móvil está abierto o cerrado.
 const menuAbierto = ref(false)
 
+// Permite acceder al idioma y a las traducciones.
+const { t, locale } = useI18n({ useScope: "global" })
+
 // Enlaces de navegación del sistema.
 const enlaces = [
-  { nombre: "Inicio", ruta: "/" },
-  { nombre: "Información del museo", ruta: "/informacion" },
-  { nombre: "Eventos", ruta: "/eventos" },
+  { nombre: "common.home", ruta: "/" },
+  { nombre: "common.museumInfo", ruta: "/informacion" },
+  { nombre: "common.events", ruta: "/eventos" },
 ]
 
 function cerrarMenu() {
   menuAbierto.value = false
+}
+
+// Actualiza el idioma de toda la aplicación.
+function seleccionarIdioma(evento) {
+  cambiarIdioma(evento.target.value)
 }
 </script>
 
@@ -25,21 +35,39 @@ function cerrarMenu() {
           SIAM
         </a>
 
-        <button
-          class="menu-boton"
-          type="button"
-          aria-controls="navegacion-principal"
-          :aria-expanded="menuAbierto"
-          @click="menuAbierto = !menuAbierto"
-        >
-          {{ menuAbierto ? "Cerrar menú" : "Menú" }}
-        </button>
+        <div class="header-acciones">
+          <!-- Selector de idioma -->
+          <div class="selector-idioma">
+            <label for="idioma">{{ locale === "es" ? "Idioma" : "Language" }}</label>
 
+            <select
+              id="idioma"
+              :value="locale"
+              @change="seleccionarIdioma"
+            >
+              <option value="es">Español</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+
+          <!-- Menú móvil -->
+          <button
+            class="menu-boton"
+            type="button"
+            aria-controls="navegacion-principal"
+            :aria-expanded="menuAbierto"
+            @click="menuAbierto = !menuAbierto"
+          >
+            {{ menuAbierto ? t("common.closeMenu") : t("common.menu") }}
+          </button>
+        </div>
+
+        <!-- Navegación -->
         <nav
           id="navegacion-principal"
           class="app-nav"
           :class="{ 'nav-abierta': menuAbierto }"
-          aria-label="Navegación principal"
+          :aria-label="locale === 'es' ? 'Navegación principal' : 'Main navigation'"
         >
           <a
             v-for="enlace in enlaces"
@@ -47,7 +75,7 @@ function cerrarMenu() {
             :href="enlace.ruta"
             @click="cerrarMenu"
           >
-            {{ enlace.nombre }}
+            {{ t(enlace.nombre) }}
           </a>
         </nav>
       </div>
@@ -58,7 +86,7 @@ function cerrarMenu() {
     </main>
 
     <footer class="app-footer">
-      <p>SIAM - Sistema de Información y Analítica Museal</p>
+      <p>SIAM - {{ t("common.systemName") }}</p>
     </footer>
   </div>
 </template>
@@ -79,7 +107,7 @@ function cerrarMenu() {
 .header-contenido {
   max-width: 1200px;
   margin: auto;
-  padding: 0 16px;
+  padding: 12px 16px;
   min-height: 72px;
   display: flex;
   align-items: center;
@@ -87,7 +115,6 @@ function cerrarMenu() {
   flex-wrap: wrap;
   gap: 12px;
 }
-
 
 .app-logo {
   display: inline-flex;
@@ -101,9 +128,38 @@ function cerrarMenu() {
   text-decoration: none;
 }
 
+.header-acciones {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.selector-idioma {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selector-idioma label {
+  color: #fff;
+  font-size: 14px;
+}
+
+.selector-idioma select {
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid #fff;
+  border-radius: 6px;
+  background: #fff;
+  color: #111;
+  font: inherit;
+  max-width: 100%;
+}
 
 .app-nav {
   display: flex;
+  align-items: center;
   gap: 12px;
 }
 
@@ -154,6 +210,10 @@ function cerrarMenu() {
 }
 
 @media (max-width: 767px) {
+  .header-contenido {
+    padding: 12px;
+  }
+
   .menu-boton {
     display: flex;
   }
@@ -161,6 +221,7 @@ function cerrarMenu() {
   .app-nav {
     display: none;
     flex-direction: column;
+    align-items: stretch;
     width: 100%;
     padding-bottom: 12px;
     gap: 4px;
@@ -172,6 +233,29 @@ function cerrarMenu() {
 
   .app-nav a {
     justify-content: flex-start;
+  }
+}
+
+@media (max-width: 380px) {
+  .header-acciones {
+    gap: 6px;
+  }
+
+  .selector-idioma {
+    gap: 4px;
+  }
+
+  .selector-idioma label {
+    font-size: 12px;
+  }
+
+  .selector-idioma select {
+    padding: 6px 4px;
+    font-size: 13px;
+  }
+
+  .menu-boton {
+    padding: 8px;
   }
 }
 </style>

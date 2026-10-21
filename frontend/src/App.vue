@@ -1,17 +1,24 @@
 
 <script setup>
 import { onMounted, ref } from "vue"
+import { useI18n } from "vue-i18n"
 import AppLayout from "./components/AppLayout.vue"
 
-// Vue actualiza la pantalla cuando cambia alguno de estos valores.
+// Traducciones de SIAM.
+const { t } = useI18n({ useScope: "global" })
+
+// Estado de autenticación.
 const usuario = ref(null)
 const correo = ref("")
 const contrasena = ref("")
 const comprobando = ref(true)
 const enviando = ref(false)
+
+// Guardamos la clave del error para que cambie con el idioma.
 const error = ref("")
 
-// Todas las solicitudes usan la URL configurada, incluyen cookies y esperan hasta 5 segundos.
+// Todas las solicitudes usan la URL configurada,
+// incluyen cookies y esperan hasta 5 segundos.
 function solicitar(ruta, opciones = {}) {
   return fetch(`${import.meta.env.VITE_API_BASE_URL}${ruta}`, {
     ...opciones,
@@ -20,12 +27,14 @@ function solicitar(ruta, opciones = {}) {
   })
 }
 
-// Obtiene un token CSRF vigente antes de cada POST, incluso después de recargar.
+// Obtiene un token CSRF vigente antes de cada POST.
 async function enviar(ruta, datos = {}) {
   const respuesta = await solicitar("auth/csrf/")
+
   if (!respuesta.ok) throw new Error()
 
   const { csrfToken } = await respuesta.json()
+
   if (typeof csrfToken !== "string") throw new Error()
 
   return solicitar(ruta, {
@@ -38,7 +47,7 @@ async function enviar(ruta, datos = {}) {
   })
 }
 
-// Django confirma la identidad; la URL por sí sola no demuestra que exista una sesión.
+// Django confirma la identidad del usuario.
 async function cargarSesion() {
   const respuesta = await solicitar("auth/me/")
 
@@ -63,7 +72,7 @@ async function cargarSesion() {
   )
 }
 
-// Envía las credenciales y consulta la cuenta; la contraseña se borra al terminar.
+// Inicia sesión utilizando Django.
 async function ingresar() {
   if (enviando.value) return
 
@@ -77,7 +86,7 @@ async function ingresar() {
     })
 
     if (respuesta.status === 401) {
-      error.value = "Correo o contraseña incorrectos"
+      error.value = "auth.invalidCredentials"
       return
     }
 
@@ -86,17 +95,17 @@ async function ingresar() {
     await cargarSesion()
 
     if (!usuario.value) {
-      error.value = "La sesión no está disponible. Intente ingresar de nuevo."
+      error.value = "auth.sessionUnavailable"
     }
   } catch {
-    error.value = "No se pudo iniciar sesión. Revise la conexión y vuelva a intentarlo."
+    error.value = "auth.loginError"
   } finally {
     contrasena.value = ""
     enviando.value = false
   }
 }
 
-// Conserva la sesión en pantalla hasta que Django confirme que terminó o ya no existe.
+// Cierra la sesión del usuario.
 async function cerrarSesion() {
   if (enviando.value) return
 
@@ -115,19 +124,19 @@ async function cerrarSesion() {
 
     window.history.replaceState(null, "", "/login")
   } catch {
-    error.value = "No se pudo confirmar el cierre de sesión. Revise la conexión e inténtelo de nuevo."
+    error.value = "auth.logoutError"
   } finally {
     enviando.value = false
   }
 }
 
-// Comprueba la sesión al abrir o recargar, sin mostrar antes el contenido interno.
+// Comprueba la sesión al abrir o recargar la página.
 onMounted(async () => {
   try {
     await cargarSesion()
   } catch {
     window.history.replaceState(null, "", "/login")
-    error.value = "No se pudo comprobar la sesión. Revise la conexión y recargue la página."
+    error.value = "auth.sessionError"
   } finally {
     comprobando.value = false
   }
@@ -138,11 +147,12 @@ onMounted(async () => {
   <AppLayout>
     <div class="pagina-autenticacion">
       <h1>SIAM</h1>
-      <p>Sistema de Información y Analítica Museal</p>
+
+      <p>{{ t("common.systemName") }}</p>
 
       <!-- Comprobación de sesión -->
       <p v-if="comprobando" role="status">
-        Comprobando sesión…
+        {{ t("auth.checking") }}
       </p>
 
       <!-- Área interna -->
@@ -150,14 +160,16 @@ onMounted(async () => {
         v-else-if="usuario"
         aria-labelledby="titulo-interno"
       >
-        <h2 id="titulo-interno">Área interna</h2>
+        <h2 id="titulo-interno">
+          {{ t("auth.internalArea") }}
+        </h2>
 
         <p>
-          Sesión iniciada como {{ usuario.full_name }}.
+          {{ t("auth.loggedInAs", { name: usuario.full_name }) }}
         </p>
 
         <p>
-          Las funciones internas todavía no están implementadas.
+          {{ t("auth.notImplemented") }}
         </p>
 
         <button
@@ -165,7 +177,7 @@ onMounted(async () => {
           :disabled="enviando"
           @click="cerrarSesion"
         >
-          {{ enviando ? "Cerrando sesión…" : "Cerrar sesión" }}
+          {{ enviando ? t("auth.loggingOut") : t("auth.logout") }}
         </button>
       </section>
 
@@ -175,10 +187,10 @@ onMounted(async () => {
         :aria-busy="enviando"
         @submit.prevent="ingresar"
       >
-        <h2>Inicio de sesión</h2>
+        <h2>{{ t("auth.loginTitle") }}</h2>
 
         <label for="correo">
-          Correo electrónico
+          {{ t("auth.email") }}
         </label>
 
         <input
@@ -193,7 +205,7 @@ onMounted(async () => {
         />
 
         <label for="contrasena">
-          Contraseña
+          {{ t("auth.password") }}
         </label>
 
         <input
@@ -210,24 +222,24 @@ onMounted(async () => {
           type="submit"
           :disabled="enviando"
         >
-          {{ enviando ? "Ingresando…" : "Ingresar" }}
+          {{ enviando ? t("auth.loggingIn") : t("auth.login") }}
         </button>
       </form>
 
       <!-- Mensajes del sistema -->
       <p role="status">
-        {{ enviando ? "Procesando solicitud…" : "" }}
+        {{ enviando ? t("common.processing") : "" }}
       </p>
 
       <p role="alert" class="error">
-        {{ error }}
+        {{ error ? t(error) : "" }}
       </p>
     </div>
   </AppLayout>
 </template>
 
 <style scoped>
-/* Contenedor de inicio de sesión */
+/* Contenedor del inicio de sesión */
 .pagina-autenticacion {
   width: 100%;
   max-width: 448px;
@@ -236,7 +248,6 @@ onMounted(async () => {
   overflow-wrap: anywhere;
 }
 
-/* Título */
 h1 {
   color: #1f4a5b;
 }
