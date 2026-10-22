@@ -246,10 +246,11 @@ onMounted(async () => {
   min-width: 0;
   margin: 24px auto;
   overflow-wrap: anywhere;
+  color: var(--color-texto);
 }
 
 h1 {
-  color: #1f4a5b;
+  color: var(--color-enlace);
 }
 
 /* Formulario */
@@ -267,19 +268,19 @@ button {
   min-width: 0;
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px solid #666;
+  border: 1px solid var(--color-borde);
   border-radius: 6px;
   font: inherit;
 }
 
 input {
-  background: #fff;
-  color: #111;
+  background: var(--color-control);
+  color: var(--color-texto);
 }
 
 button {
-  background: #1f4a5b;
-  color: #fff;
+  background: var(--color-header);
+  color: #ffffff;
   cursor: pointer;
 }
 
@@ -290,7 +291,7 @@ button:disabled {
 
 /* Mensajes de error */
 .error {
-  color: #8b1d1d;
+  color: var(--color-error);
 }
 
 /* Adaptación para celulares */

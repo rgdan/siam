@@ -12,6 +12,8 @@ const mensajes = {
       menu: "Menú",
       closeMenu: "Cerrar menú",
       processing: "Procesando solicitud…",
+      lightMode: "Modo claro",
+      darkMode: "Modo oscuro",
     },
 
     auth: {
@@ -43,6 +45,8 @@ const mensajes = {
       menu: "Menu",
       closeMenu: "Close menu",
       processing: "Processing request…",
+      lightMode: "Light mode",
+      darkMode: "Dark mode",
     },
 
     auth: {

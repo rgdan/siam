@@ -1,4 +1,38 @@
 
+/* Colores del modo claro */
+:root {
+  color-scheme: light;
+
+  --color-fondo: #ffffff;
+  --color-texto: #172b36;
+  --color-superficie: #ffffff;
+  --color-control: #ffffff;
+  --color-borde: #637782;
+  --color-header: #1f4a5b;
+  --color-header-hover: #356579;
+  --color-footer: #f1f4f5;
+  --color-error: #a32020;
+  --color-enlace: #145579;
+  --color-foco: #1f4a5b;
+}
+
+/* Colores del modo oscuro */
+:root[data-theme="oscuro"] {
+  color-scheme: dark;
+
+  --color-fondo: #121b22;
+  --color-texto: #f1f5f7;
+  --color-superficie: #1e2b34;
+  --color-control: #253641;
+  --color-borde: #9aadb8;
+  --color-header: #162e3a;
+  --color-header-hover: #315365;
+  --color-footer: #1a2932;
+  --color-error: #ffb3b3;
+  --color-enlace: #9bd5fa;
+  --color-foco: #9bd5fa;
+}
+
 /* Configuración general del sistema */
 *,
 *::before,
@@ -13,8 +47,8 @@ html {
 body {
   margin: 0;
   min-width: 0;
-  background: #ffffff;
-  color: #111111;
+  background: var(--color-fondo);
+  color: var(--color-texto);
 }
 
 #app {
@@ -48,6 +82,15 @@ input,
 select,
 textarea {
   max-width: 100%;
+  background: var(--color-control);
+  color: var(--color-texto);
+  border-color: var(--color-borde);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-texto);
+  opacity: 0.75;
 }
 
 .formulario {
@@ -68,6 +111,17 @@ textarea {
 .tabla-responsive table {
   width: 100%;
   border-collapse: collapse;
+}
+
+.tabla-responsive th,
+.tabla-responsive td {
+  padding: 10px;
+  border: 1px solid var(--color-borde);
+  color: var(--color-texto);
+}
+
+.tabla-responsive th {
+  background: var(--color-superficie);
 }
 
 /* Contenedores y listas adaptables */
@@ -105,6 +159,6 @@ textarea {
 
 /* Indicador de navegación con teclado */
 :focus-visible {
-  outline: 3px solid #1f4a5b;
+  outline: 3px solid var(--color-foco);
   outline-offset: 3px;
 }

@@ -3,6 +3,7 @@
 import { ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { cambiarIdioma } from "../i18n/index.js"
+import { tema, cambiarTema } from "../theme/index.js"
 
 // Controla si el menú móvil está abierto o cerrado.
 const menuAbierto = ref(false)
@@ -25,6 +26,11 @@ function cerrarMenu() {
 function seleccionarIdioma(evento) {
   cambiarIdioma(evento.target.value)
 }
+
+// Cambia entre modo claro y oscuro.
+function alternarTema() {
+  cambiarTema(tema.value === "claro" ? "oscuro" : "claro")
+}
 </script>
 
 <template>
@@ -38,7 +44,9 @@ function seleccionarIdioma(evento) {
         <div class="header-acciones">
           <!-- Selector de idioma -->
           <div class="selector-idioma">
-            <label for="idioma">{{ locale === "es" ? "Idioma" : "Language" }}</label>
+            <label for="idioma">
+              {{ locale === "es" ? "Idioma" : "Language" }}
+            </label>
 
             <select
               id="idioma"
@@ -49,6 +57,18 @@ function seleccionarIdioma(evento) {
               <option value="en">English</option>
             </select>
           </div>
+
+          <!-- Botón de modo claro y oscuro -->
+          <button
+            class="boton-tema"
+            type="button"
+            :aria-label="tema === 'claro' ? t('common.darkMode') : t('common.lightMode')"
+            :title="tema === 'claro' ? t('common.darkMode') : t('common.lightMode')"
+            :aria-pressed="tema === 'oscuro'"
+            @click="alternarTema"
+          >
+            {{ tema === "claro" ? "☾" : "☀" }}
+          </button>
 
           <!-- Menú móvil -->
           <button
@@ -100,7 +120,7 @@ function seleccionarIdioma(evento) {
 }
 
 .app-header {
-  background: #1f4a5b;
+  background: var(--color-header, #1f4a5b);
   color: #fff;
 }
 
@@ -151,10 +171,31 @@ function seleccionarIdioma(evento) {
   padding: 8px;
   border: 1px solid #fff;
   border-radius: 6px;
-  background: #fff;
-  color: #111;
+  background: var(--color-control, #fff);
+  color: var(--color-texto, #111);
   font: inherit;
   max-width: 100%;
+}
+
+.boton-tema {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid #fff;
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.boton-tema:hover,
+.boton-tema:focus-visible {
+  background: var(--color-header-hover, #356579);
 }
 
 .app-nav {
@@ -176,7 +217,7 @@ function seleccionarIdioma(evento) {
 }
 
 .app-nav a:hover {
-  background: #356579;
+  background: var(--color-header-hover, #356579);
 }
 
 .menu-boton {
@@ -200,9 +241,9 @@ function seleccionarIdioma(evento) {
 
 .app-footer {
   padding: 16px;
-  background: #f1f4f5;
+  background: var(--color-footer, #f1f4f5);
   text-align: center;
-  color: #263b45;
+  color: var(--color-texto, #263b45);
 }
 
 .app-footer p {
@@ -239,6 +280,8 @@ function seleccionarIdioma(evento) {
 @media (max-width: 380px) {
   .header-acciones {
     gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .selector-idioma {
