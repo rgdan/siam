@@ -1,24 +1,43 @@
 
 <script setup>
-import { onMounted, ref } from "vue"
+import { onMounted, onUnmounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import AppLayout from "./components/AppLayout.vue"
+import MuseoPublico from "./components/MuseoPublico.vue"
 
 // Traducciones de SIAM.
 const { t } = useI18n({ useScope: "global" })
+
+// Navegación entre la información pública y la autenticación.
+const rutaActual = ref(window.location.pathname)
+
+function actualizarRuta() {
+  rutaActual.value = window.location.pathname
+}
+
+function navegar(ruta) {
+  if (window.location.pathname !== ruta) {
+    window.history.pushState(null, "", ruta)
+  }
+
+  actualizarRuta()
+}
+
+const rutasPublicas = ["/", "/informacion", "/horarios"]
+
+function esRutaPublica() {
+  return rutasPublicas.includes(rutaActual.value)
+}
 
 // Estado de autenticación.
 const usuario = ref(null)
 const correo = ref("")
 const contrasena = ref("")
-const comprobando = ref(true)
+const comprobando = ref(false)
 const enviando = ref(false)
-
-// Guardamos la clave del error para que cambie con el idioma.
 const error = ref("")
 
-// Todas las solicitudes usan la URL configurada,
-// incluyen cookies y esperan hasta 5 segundos.
+// Todas las solicitudes incluyen cookies y esperan hasta 5 segundos.
 function solicitar(ruta, opciones = {}) {
   return fetch(`${import.meta.env.VITE_API_BASE_URL}${ruta}`, {
     ...opciones,
@@ -27,7 +46,7 @@ function solicitar(ruta, opciones = {}) {
   })
 }
 
-// Obtiene un token CSRF vigente antes de cada POST.
+// Obtiene un token CSRF antes de cada solicitud POST.
 async function enviar(ruta, datos = {}) {
   const respuesta = await solicitar("auth/csrf/")
 
@@ -65,11 +84,9 @@ async function cargarSesion() {
     usuario.value = datos
   }
 
-  window.history.replaceState(
-    null,
-    "",
-    usuario.value ? "/interno" : "/login"
-  )
+  if (!esRutaPublica()) {
+    navegar(usuario.value ? "/interno" : "/login")
+  }
 }
 
 // Inicia sesión utilizando Django.
@@ -121,8 +138,7 @@ async function cerrarSesion() {
 
     usuario.value = null
     correo.value = ""
-
-    window.history.replaceState(null, "", "/login")
+    navegar("/login")
   } catch {
     error.value = "auth.logoutError"
   } finally {
@@ -130,22 +146,43 @@ async function cerrarSesion() {
   }
 }
 
-// Comprueba la sesión al abrir o recargar la página.
-onMounted(async () => {
+// Comprueba la sesión únicamente en las rutas de autenticación.
+async function comprobarSesion() {
+  if (esRutaPublica()) return
+
+  comprobando.value = true
+
   try {
     await cargarSesion()
   } catch {
-    window.history.replaceState(null, "", "/login")
+    navegar("/login")
     error.value = "auth.sessionError"
   } finally {
     comprobando.value = false
   }
+}
+
+onMounted(() => {
+  window.addEventListener("popstate", actualizarRuta)
+  comprobarSesion()
+})
+
+onUnmounted(() => {
+  window.removeEventListener("popstate", actualizarRuta)
 })
 </script>
 
 <template>
   <AppLayout>
-    <div class="pagina-autenticacion">
+    <!-- Información pública: no requiere iniciar sesión -->
+    <MuseoPublico
+      v-if="esRutaPublica()"
+      :key="rutaActual"
+      :vista-inicial="rutaActual === '/horarios' ? 'horarios' : 'inicio'"
+    />
+
+    <!-- Autenticación y área interna -->
+    <div v-else class="pagina-autenticacion">
       <h1>SIAM</h1>
 
       <p>{{ t("common.systemName") }}</p>
@@ -164,13 +201,8 @@ onMounted(async () => {
           {{ t("auth.internalArea") }}
         </h2>
 
-        <p>
-          {{ t("auth.loggedInAs", { name: usuario.full_name }) }}
-        </p>
-
-        <p>
-          {{ t("auth.notImplemented") }}
-        </p>
+        <p>{{ t("auth.loggedInAs", { name: usuario.full_name }) }}</p>
+        <p>{{ t("auth.notImplemented") }}</p>
 
         <button
           type="button"

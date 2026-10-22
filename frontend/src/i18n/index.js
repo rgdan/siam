@@ -34,6 +34,34 @@ const mensajes = {
       logoutError: "No se pudo confirmar el cierre de sesión. Revise la conexión e inténtelo de nuevo.",
       sessionError: "No se pudo comprobar la sesión. Revise la conexión y recargue la página.",
     },
+
+    museum: {
+      welcome: "Conozca la historia y el patrimonio cultural de nuestro museo.",
+      history: "Historia del museo",
+      location: "Ubicación",
+      hours: "Horario de atención",
+      hoursDescription: "Consulte nuestros días y horarios de atención al público.",
+      viewSchedule: "Ver horarios",
+      schedule: "Horarios",
+      scheduleDescription: "Horario de apertura y cierre para cada día de la semana.",
+      day: "Día",
+      opening: "Apertura",
+      closing: "Cierre",
+      status: "Estado",
+      open: "Abierto",
+      closed: "Cerrado",
+      backHome: "Volver al inicio",
+
+      days: {
+        sunday: "Domingo",
+        monday: "Lunes",
+        tuesday: "Martes",
+        wednesday: "Miércoles",
+        thursday: "Jueves",
+        friday: "Viernes",
+        saturday: "Sábado",
+      },
+    },
   },
 
   en: {
@@ -67,6 +95,34 @@ const mensajes = {
       logoutError: "Could not confirm sign out. Check the connection and try again.",
       sessionError: "Could not check the session. Check the connection and reload the page.",
     },
+
+    museum: {
+      welcome: "Discover the history and cultural heritage of our museum.",
+      history: "Museum history",
+      location: "Location",
+      hours: "Opening hours",
+      hoursDescription: "Check our opening days and visiting hours.",
+      viewSchedule: "View opening hours",
+      schedule: "Opening hours",
+      scheduleDescription: "Opening and closing times for each day of the week.",
+      day: "Day",
+      opening: "Opens",
+      closing: "Closes",
+      status: "Status",
+      open: "Open",
+      closed: "Closed",
+      backHome: "Back to home",
+
+      days: {
+        sunday: "Sunday",
+        monday: "Monday",
+        tuesday: "Tuesday",
+        wednesday: "Wednesday",
+        thursday: "Thursday",
+        friday: "Friday",
+        saturday: "Saturday",
+      },
+    },
   },
 }
 
@@ -74,6 +130,7 @@ const mensajes = {
 function obtenerIdiomaInicial() {
   try {
     const guardado = localStorage.getItem("siam-idioma")
+
     if (guardado === "es" || guardado === "en") {
       return guardado
     }
@@ -107,7 +164,7 @@ export function cambiarIdioma(idioma) {
   }
 }
 
-
+// Obtiene el formato regional del idioma seleccionado.
 function obtenerConfiguracionRegional() {
   return i18n.global.locale.value === "en" ? "en-US" : "es-CR"
 }
@@ -134,4 +191,3 @@ export function formatearNumero(numero) {
     obtenerConfiguracionRegional()
   ).format(numero)
 }
-

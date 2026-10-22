@@ -5,29 +5,30 @@ import { useI18n } from "vue-i18n"
 import { cambiarIdioma } from "../i18n/index.js"
 import { tema, cambiarTema } from "../theme/index.js"
 
-// Controla si el menú móvil está abierto o cerrado.
+// Control del menú móvil.
 const menuAbierto = ref(false)
 
-// Permite acceder al idioma y a las traducciones.
+// Idioma y traducciones.
 const { t, locale } = useI18n({ useScope: "global" })
 
-// Enlaces de navegación del sistema.
+
+// Navegación principal de SIAM.
 const enlaces = [
   { nombre: "common.home", ruta: "/" },
   { nombre: "common.museumInfo", ruta: "/informacion" },
+  { nombre: "museum.schedule", ruta: "/horarios" },
   { nombre: "common.events", ruta: "/eventos" },
 ]
+
 
 function cerrarMenu() {
   menuAbierto.value = false
 }
 
-// Actualiza el idioma de toda la aplicación.
 function seleccionarIdioma(evento) {
   cambiarIdioma(evento.target.value)
 }
 
-// Cambia entre modo claro y oscuro.
 function alternarTema() {
   cambiarTema(tema.value === "claro" ? "oscuro" : "claro")
 }
