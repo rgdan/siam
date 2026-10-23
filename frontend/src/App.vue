@@ -1,15 +1,43 @@
-<script setup>
-import { onMounted, ref } from "vue"
 
-// Vue actualiza la pantalla cuando cambia alguno de estos valores.
+<script setup>
+import { onMounted, onUnmounted, ref } from "vue"
+import { useI18n } from "vue-i18n"
+import AppLayout from "./components/AppLayout.vue"
+import MuseoPublico from "./components/MuseoPublico.vue"
+
+// Traducciones de SIAM.
+const { t } = useI18n({ useScope: "global" })
+
+// Navegación entre la información pública y la autenticación.
+const rutaActual = ref(window.location.pathname)
+
+function actualizarRuta() {
+  rutaActual.value = window.location.pathname
+}
+
+function navegar(ruta) {
+  if (window.location.pathname !== ruta) {
+    window.history.pushState(null, "", ruta)
+  }
+
+  actualizarRuta()
+}
+
+const rutasPublicas = ["/", "/informacion", "/horarios"]
+
+function esRutaPublica() {
+  return rutasPublicas.includes(rutaActual.value)
+}
+
+// Estado de autenticación.
 const usuario = ref(null)
 const correo = ref("")
 const contrasena = ref("")
-const comprobando = ref(true)
+const comprobando = ref(false)
 const enviando = ref(false)
 const error = ref("")
 
-// Todas las solicitudes usan la URL configurada, incluyen cookies y esperan hasta 5 segundos.
+// Todas las solicitudes incluyen cookies y esperan hasta 5 segundos.
 function solicitar(ruta, opciones = {}) {
   return fetch(`${import.meta.env.VITE_API_BASE_URL}${ruta}`, {
     ...opciones,
@@ -18,184 +46,290 @@ function solicitar(ruta, opciones = {}) {
   })
 }
 
-// Obtiene un token CSRF vigente antes de cada POST, incluso después de recargar.
+// Obtiene un token CSRF antes de cada solicitud POST.
 async function enviar(ruta, datos = {}) {
   const respuesta = await solicitar("auth/csrf/")
+
   if (!respuesta.ok) throw new Error()
+
   const { csrfToken } = await respuesta.json()
+
   if (typeof csrfToken !== "string") throw new Error()
 
   return solicitar(ruta, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": csrfToken,
+    },
     body: JSON.stringify(datos),
   })
 }
 
-// Django confirma la identidad; la URL por sí sola no demuestra que exista una sesión.
+// Django confirma la identidad del usuario.
 async function cargarSesion() {
   const respuesta = await solicitar("auth/me/")
+
   if (respuesta.status === 401) {
     usuario.value = null
   } else {
     if (!respuesta.ok) throw new Error()
+
     const datos = await respuesta.json()
-    if (!datos.id || typeof datos.full_name !== "string") throw new Error()
+
+    if (!datos.id || typeof datos.full_name !== "string") {
+      throw new Error()
+    }
+
     usuario.value = datos
   }
-  window.history.replaceState(null, "", usuario.value ? "/interno" : "/login")
+
+  if (!esRutaPublica()) {
+    navegar(usuario.value ? "/interno" : "/login")
+  }
 }
 
-// Envía las credenciales y consulta la cuenta; la contraseña se borra al terminar.
+// Inicia sesión utilizando Django.
 async function ingresar() {
   if (enviando.value) return
+
   enviando.value = true
   error.value = ""
+
   try {
     const respuesta = await enviar("auth/login/", {
       email: correo.value,
       password: contrasena.value,
     })
+
     if (respuesta.status === 401) {
-      error.value = "Correo o contraseña incorrectos"
+      error.value = "auth.invalidCredentials"
       return
     }
+
     if (!respuesta.ok) throw new Error()
+
     await cargarSesion()
-    if (!usuario.value) error.value = "La sesión no está disponible. Intente ingresar de nuevo."
+
+    if (!usuario.value) {
+      error.value = "auth.sessionUnavailable"
+    }
   } catch {
-    error.value = "No se pudo iniciar sesión. Revise la conexión y vuelva a intentarlo."
+    error.value = "auth.loginError"
   } finally {
     contrasena.value = ""
     enviando.value = false
   }
 }
 
-// Conserva la sesión en pantalla hasta que Django confirme que terminó o ya no existe.
+// Cierra la sesión del usuario.
 async function cerrarSesion() {
   if (enviando.value) return
+
   enviando.value = true
   error.value = ""
+
   try {
     const respuesta = await enviar("auth/logout/")
-    if (!respuesta.ok && respuesta.status !== 401) throw new Error()
+
+    if (!respuesta.ok && respuesta.status !== 401) {
+      throw new Error()
+    }
+
     usuario.value = null
     correo.value = ""
-    window.history.replaceState(null, "", "/login")
+    navegar("/login")
   } catch {
-    error.value = "No se pudo confirmar el cierre de sesión. Revise la conexión e inténtelo de nuevo."
+    error.value = "auth.logoutError"
   } finally {
     enviando.value = false
   }
 }
 
-// Comprueba la sesión al abrir o recargar, sin mostrar antes el contenido interno.
-onMounted(async () => {
+// Comprueba la sesión únicamente en las rutas de autenticación.
+async function comprobarSesion() {
+  if (esRutaPublica()) return
+
+  comprobando.value = true
+
   try {
     await cargarSesion()
   } catch {
-    window.history.replaceState(null, "", "/login")
-    error.value = "No se pudo comprobar la sesión. Revise la conexión y recargue la página."
+    navegar("/login")
+    error.value = "auth.sessionError"
   } finally {
     comprobando.value = false
   }
+}
+
+onMounted(() => {
+  window.addEventListener("popstate", actualizarRuta)
+  comprobarSesion()
+})
+
+onUnmounted(() => {
+  window.removeEventListener("popstate", actualizarRuta)
 })
 </script>
 
 <template>
-  <main>
-    <h1>SIAM</h1>
-    <p>Borrador técnico sin diseño visual.</p>
-    <!-- Muestra la espera, el área interna o el formulario según el estado de la sesión. -->
-    <p v-if="comprobando" role="status">Comprobando sesión…</p>
-    <section v-else-if="usuario" aria-labelledby="titulo-interno">
-      <h2 id="titulo-interno">Área interna</h2>
-      <p>Sesión iniciada como {{ usuario.full_name }}.</p>
-      <p>Las funciones internas todavía no están implementadas.</p>
-      <button type="button" :disabled="enviando" @click="cerrarSesion">
-        {{ enviando ? "Cerrando sesión…" : "Cerrar sesión" }}
-      </button>
-    </section>
-    <form v-else :aria-busy="enviando" @submit.prevent="ingresar">
-      <h2>Inicio de sesión</h2>
-      <label for="correo">Correo electrónico</label>
-      <input id="correo" v-model.trim="correo" name="email" type="email"
-        autocomplete="username" maxlength="254" required :disabled="enviando" />
-      <label for="contrasena">Contraseña</label>
-      <input id="contrasena" v-model="contrasena" name="password" type="password"
-        autocomplete="current-password" required :disabled="enviando" />
-      <button type="submit" :disabled="enviando">
-        {{ enviando ? "Ingresando…" : "Ingresar" }}
-      </button>
-    </form>
-    <!-- Anuncia el progreso y los errores también a los lectores de pantalla. -->
-    <p role="status">{{ enviando ? "Procesando solicitud…" : "" }}</p>
-    <p role="alert" class="error">{{ error }}</p>
-  </main>
+  <AppLayout>
+    <!-- Información pública: no requiere iniciar sesión -->
+    <MuseoPublico
+      v-if="esRutaPublica()"
+      :key="rutaActual"
+      :vista-inicial="rutaActual === '/horarios' ? 'horarios' : 'inicio'"
+    />
+
+    <!-- Autenticación y área interna -->
+    <div v-else class="pagina-autenticacion">
+      <h1>SIAM</h1>
+
+      <p>{{ t("common.systemName") }}</p>
+
+      <!-- Comprobación de sesión -->
+      <p v-if="comprobando" role="status">
+        {{ t("auth.checking") }}
+      </p>
+
+      <!-- Área interna -->
+      <section
+        v-else-if="usuario"
+        aria-labelledby="titulo-interno"
+      >
+        <h2 id="titulo-interno">
+          {{ t("auth.internalArea") }}
+        </h2>
+
+        <p>{{ t("auth.loggedInAs", { name: usuario.full_name }) }}</p>
+        <p>{{ t("auth.notImplemented") }}</p>
+
+        <button
+          type="button"
+          :disabled="enviando"
+          @click="cerrarSesion"
+        >
+          {{ enviando ? t("auth.loggingOut") : t("auth.logout") }}
+        </button>
+      </section>
+
+      <!-- Formulario de inicio de sesión -->
+      <form
+        v-else
+        :aria-busy="enviando"
+        @submit.prevent="ingresar"
+      >
+        <h2>{{ t("auth.loginTitle") }}</h2>
+
+        <label for="correo">
+          {{ t("auth.email") }}
+        </label>
+
+        <input
+          id="correo"
+          v-model.trim="correo"
+          name="email"
+          type="email"
+          autocomplete="username"
+          maxlength="254"
+          required
+          :disabled="enviando"
+        />
+
+        <label for="contrasena">
+          {{ t("auth.password") }}
+        </label>
+
+        <input
+          id="contrasena"
+          v-model="contrasena"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          required
+          :disabled="enviando"
+        />
+
+        <button
+          type="submit"
+          :disabled="enviando"
+        >
+          {{ enviando ? t("auth.loggingIn") : t("auth.login") }}
+        </button>
+      </form>
+
+      <!-- Mensajes del sistema -->
+      <p role="status">
+        {{ enviando ? t("common.processing") : "" }}
+      </p>
+
+      <p role="alert" class="error">
+        {{ error ? t(error) : "" }}
+      </p>
+    </div>
+  </AppLayout>
 </template>
 
-<style>
-/* Estilos compartidos por el formulario y el área interna provisional. */
-body {
-  margin: 0;
-  background: #fff;
-  color: #111;
-  font-family: system-ui, sans-serif;
-  line-height: 1.5;
-}
-
-/* Limita el ancho de lectura y permite ajustar el contenido a pantallas pequeñas. */
-main {
-  max-width: 28rem;
-  margin: clamp(1rem, 5vw, 3rem) auto;
-  padding: 0 1rem;
+<style scoped>
+/* Contenedor del inicio de sesión */
+.pagina-autenticacion {
+  width: 100%;
+  max-width: 448px;
+  min-width: 0;
+  margin: 24px auto;
   overflow-wrap: anywhere;
+  color: var(--color-texto);
 }
 
 h1 {
-  color: #1f4a5b;
+  color: var(--color-enlace);
 }
 
+/* Formulario */
 form {
   display: grid;
-  gap: 0.75rem;
+  gap: 12px;
+  width: 100%;
 }
 
-/* Mantiene los controles dentro del formulario y con altura suficiente para pulsarlos. */
+/* Campos y botones */
 input,
 button {
   box-sizing: border-box;
-  min-width: 0;
   width: 100%;
-  min-height: 2.75rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #666;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-borde);
+  border-radius: 6px;
   font: inherit;
 }
 
 input {
-  color: #111;
-  background: #fff;
+  background: var(--color-control);
+  color: var(--color-texto);
 }
 
 button {
-  color: #fff;
-  background: #1f4a5b;
+  background: var(--color-header);
+  color: #ffffff;
   cursor: pointer;
 }
 
 button:disabled {
-  background: #555;
+  opacity: 0.65;
   cursor: wait;
 }
 
-/* Indica qué control tiene el foco al navegar con el teclado. */
-:focus-visible {
-  outline: 3px solid #1f4a5b;
-  outline-offset: 3px;
+/* Mensajes de error */
+.error {
+  color: var(--color-error);
 }
 
-.error {
-  color: #8b1d1d;
+/* Adaptación para celulares */
+@media (max-width: 767px) {
+  .pagina-autenticacion {
+    margin: 8px auto;
+  }
 }
 </style>
