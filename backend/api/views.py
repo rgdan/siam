@@ -1,3 +1,5 @@
+from audit.models import AuditEntry
+from audit.services import audited_create, record, snapshot
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
@@ -21,14 +23,12 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(trim_whitespace=False, write_only=True)
 
 
-# Comprueba que la API responde, sin exigir una sesión ni consultar la base de datos.
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def health(request):
     return Response({"estado": "ok"})
 
 
-# Entrega un token CSRF y permite que Django envíe su cookie al navegador.
 @never_cache
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -36,27 +36,31 @@ def csrf(request):
     return Response({"csrfToken": get_token(request)})
 
 
-# Valida las credenciales, abre la sesión y devuelve un token CSRF actualizado.
 @never_cache
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def sign_in(request):
-    # SessionAuthentication solo exige CSRF con sesión; el login también lo necesita.
+
     SessionAuthentication().enforce_csrf(request)
     credentials = LoginSerializer(data=request.data)
     if not credentials.is_valid():
+        record(user=None, action_type=AuditEntry.Action.FAILED_LOGIN, entity="user")
         raise AuthenticationFailed("Correo o contraseña incorrectos")
 
     email = get_user_model().objects.normalize_email(credentials.validated_data["email"])
     user = authenticate(request=request, email=email, password=credentials.validated_data["password"])
     if user is None:
+        attempted = get_user_model().objects.filter(email__iexact=email).first()
+        record(user=attempted, action_type=AuditEntry.Action.FAILED_LOGIN, entity="user",
+               entity_id=attempted.pk if attempted else "")
         raise AuthenticationFailed("Correo o contraseña incorrectos")
 
-    login(request, user)
+    with transaction.atomic():
+        login(request, user)
+        record(user=user, action_type=AuditEntry.Action.LOGIN, entity="user", entity_id=user.pk)
     return Response({"detail": "Sesión iniciada.", "csrfToken": get_token(request)})
 
 
-# Devuelve los datos de la cuenta identificada por la sesión, nunca la contraseña.
 @never_cache
 @api_view(["GET"])
 def me(request):
@@ -70,7 +74,6 @@ def me(request):
     })
 
 
-# Invalida la sesión en Django para que su cookie deje de permitir el acceso.
 @never_cache
 @api_view(["POST"])
 def sign_out(request):
@@ -78,7 +81,6 @@ def sign_out(request):
     return Response({"detail": "Sesión cerrada."})
 
 
-# Lista cuentas o crea una nueva; cada método exige su propio permiso de administración.
 @never_cache
 @api_view(["GET", "POST"])
 @requiere_permiso({"GET": "usuarios.consultar", "POST": "usuarios.crear"})
@@ -90,7 +92,7 @@ def users(request):
     account = UserSerializer(data=request.data)
     account.is_valid(raise_exception=True)
     try:
-        account.save()
+        audited_create(user=request.user, entity="user", create=account.save)
     except DjangoValidationError as error:
         raise serializers.ValidationError(error.message_dict) from None
     except IntegrityError:
@@ -98,14 +100,13 @@ def users(request):
     return Response(account.data, status=201)
 
 
-# Edita o elimina cuentas, preservando sus registros relacionados y los administradores activos.
 @never_cache
 @api_view(["PATCH", "DELETE"])
 @requiere_permiso({"PATCH": "usuarios.actualizar", "DELETE": "usuarios.eliminar"})
 def user_detail(request, user_id):
     try:
         with transaction.atomic():
-            # Vuelve a comprobar al actor por si perdió acceso mientras esperaba la transacción.
+
             actor = get_user_model().objects.filter(pk=request.user.pk).first()
             allowed = permisos_para(actor)
             required = "usuarios.eliminar" if request.method == "DELETE" else "usuarios.actualizar"
@@ -121,7 +122,7 @@ def user_detail(request, user_id):
                 if account.pk == request.user.pk:
                     raise serializers.ValidationError("No puede eliminar su propia cuenta.")
 
-                # Reutiliza la protección del último administrador antes de borrar o desactivar.
+
                 deactivation = UserUpdateSerializer(
                     account, data={"is_active": False}, partial=True, context={"request": request},
                 )
@@ -132,11 +133,14 @@ def user_detail(request, user_id):
                 account.delete()
                 return Response({"detail": "Cuenta eliminada.", "action": "deleted"})
 
+            old = snapshot(account)
             changes = UserUpdateSerializer(
                 account, data=request.data, partial=True, context={"request": request},
             )
             changes.is_valid(raise_exception=True)
             changes.save()
+            record(user=request.user, action_type=AuditEntry.Action.MODIFY, entity="user",
+                   entity_id=account.pk, old=old, new=snapshot(account))
             return Response(changes.data)
     except IntegrityError:
         if request.method == "DELETE":
@@ -144,26 +148,21 @@ def user_detail(request, user_id):
         raise serializers.ValidationError({"email": ["Ya existe una cuenta con este correo."]}) from None
 
 
-# Sustituye la página HTML de rechazo CSRF por una respuesta JSON sin detalles internos.
 def csrf_failure(request, reason=""):
     return JsonResponse({"detail": "Verificación CSRF fallida."}, status=403)
 
 
-# Responde en JSON cuando Django rechaza una solicitud incorrecta.
 def bad_request(request, exception):
     return JsonResponse({"detail": "Solicitud incorrecta."}, status=400)
 
 
-# Responde en JSON cuando Django deniega el acceso, sin devolver datos del recurso.
 def permission_denied(request, exception):
     return JsonResponse({"detail": "Acceso denegado."}, status=403)
 
 
-# Mantiene el formato JSON cuando la URL solicitada no existe.
 def not_found(request, exception):
     return JsonResponse({"detail": "Recurso no encontrado."}, status=404)
 
 
-# Devuelve un error JSON genérico sin exponer la excepción ni su traza.
 def server_error(request):
     return JsonResponse({"detail": "Error interno del servidor."}, status=500)

@@ -1,9 +1,13 @@
-from django.urls import path
-
 from api import views
-
+from audit.views import AuditList
+from django.urls import path
+from system_configuration import views as configuration_views
 
 urlpatterns = [
+    path("api/audit/", AuditList.as_view(), name="audit-list"),
+    path("api/configuration/", configuration_views.configuration, name="configuration"),
+    path("api/configuration/<str:key>/reset/", configuration_views.reset_parameter, name="reset-parameter"),
+    path("api/public/configuration/", configuration_views.public_configuration, name="public-configuration"),
     path("api/health/", views.health, name="health"),
     path("api/auth/csrf/", views.csrf, name="csrf"),
     path("api/auth/login/", views.sign_in, name="login"),
