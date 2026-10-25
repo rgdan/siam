@@ -69,6 +69,12 @@ function seleccionarTema(evento) {
             :aria-current="props.rutaActual === '/interno/usuarios' ? 'page' : undefined"
             @click="cerrarMenu"
           >{{ t("users.title") }}</a>
+          <a
+            v-if="usuario?.permissions?.includes('bitacora.consultar')"
+            href="/interno/bitacora"
+            :aria-current="props.rutaActual === '/interno/bitacora' ? 'page' : undefined"
+            @click="cerrarMenu"
+          >{{ t("audit.title") }}</a>
         </nav>
 
         <div class="preferencias">

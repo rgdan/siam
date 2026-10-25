@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n"
 import AppLayout from "./components/AppLayout.vue"
 import MuseoPublico from "./components/MuseoPublico.vue"
 import Usuarios from "./components/Usuarios.vue"
+import Bitacora from "./components/Bitacora.vue"
 import { solicitar, enviar } from "./api.js"
 
 // Traducciones de SIAM.
@@ -26,6 +27,10 @@ function navegar(ruta) {
 }
 
 const rutasPublicas = ["/", "/informacion", "/horarios"]
+const permisosPorRuta = {
+  "/interno/usuarios": "usuarios.consultar",
+  "/interno/bitacora": "bitacora.consultar",
+}
 
 function esRutaPublica() {
   return rutasPublicas.includes(rutaActual.value)
@@ -72,8 +77,9 @@ async function cargarSesion() {
 }
 
 // El menú ayuda a navegar; la API vuelve a comprobar los permisos en cada solicitud.
-function puede(permiso) {
-  return usuario.value?.permissions?.includes(permiso) === true
+function puedeVerRuta() {
+  return rutaActual.value === "/interno"
+    || usuario.value?.permissions?.includes(permisosPorRuta[rutaActual.value]) === true
 }
 
 // Retira la sección si Django rechaza un permiso que cambió durante la sesión.
@@ -185,7 +191,7 @@ onUnmounted(() => {
     />
 
     <!-- Autenticación y área interna -->
-    <div v-else class="pagina-autenticacion" :class="{ 'pagina-usuarios': rutaActual === '/interno/usuarios' && usuario }">
+    <div v-else class="pagina-autenticacion" :class="{ 'pagina-administracion': permisosPorRuta[rutaActual] && usuario }">
       <h1>SIAM</h1>
 
       <p>{{ t("common.systemName") }}</p>
@@ -206,7 +212,7 @@ onUnmounted(() => {
 
         <p>{{ t("auth.loggedInAs", { name: usuario.full_name }) }}</p>
 
-        <section v-if="accesoDenegado || (rutaActual !== '/interno' && (rutaActual !== '/interno/usuarios' || !puede('usuarios.consultar')))" role="alert">
+        <section v-if="accesoDenegado || !puedeVerRuta()" role="alert">
           <h2>{{ t("users.noAccess") }}</h2>
           <p>{{ t("users.noAccessDescription") }}</p>
           <a href="/interno">{{ t("auth.internalArea") }}</a>
@@ -217,6 +223,11 @@ onUnmounted(() => {
           @sesion-expirada="sesionExpirada"
           @sin-acceso="denegarAcceso"
           @cuenta-actualizada="cargarSesion().catch(sesionExpirada)"
+        />
+        <Bitacora
+          v-else-if="rutaActual === '/interno/bitacora'"
+          @sesion-expirada="sesionExpirada"
+          @sin-acceso="denegarAcceso"
         />
         <p v-else>{{ t("users.chooseSection") }}</p>
 
@@ -288,7 +299,7 @@ onUnmounted(() => {
   color: var(--color-texto);
 }
 
-.pagina-usuarios {
+.pagina-administracion {
   max-width: 900px;
 }
 

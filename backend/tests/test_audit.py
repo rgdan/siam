@@ -136,7 +136,7 @@ class AuditTests(TestCase):
             record(user=self.admin, action_type="create", entity="piece", entity_id=i)
         record(user=None, action_type="failed_login", entity="user")
         today = timezone.localdate().isoformat()
-        query = f"/api/audit/?user={self.admin.pk}&action_type=create&entity=piece&date_from={today}&date_to={today}"
+        query = f"/api/audit/?user={self.admin.email.upper()}&action_type=create&entity=piece&date_from={today}&date_to={today}"
         response = self.client.get(query)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 55)
@@ -144,12 +144,16 @@ class AuditTests(TestCase):
         self.assertEqual(response.data["results"][0]["entity_id"], "54")
         second = self.client.get(query + "&page=2")
         self.assertEqual(len(second.data["results"]), 5)
+        self.assertEqual(
+            self.client.get("/api/audit/?user=other@test.cr").data["count"], 0
+        )
         tomorrow = (timezone.localdate() + timedelta(days=1)).isoformat()
         self.assertEqual(
             self.client.get("/api/audit/?date_from=" + tomorrow).data["count"], 0
         )
         for query in (
             "user=no",
+            f"user={self.admin.pk}",
             "action_type=no",
             "date_from=no",
             f"date_from={tomorrow}&date_to={today}",

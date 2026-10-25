@@ -28,7 +28,7 @@ class AuditSerializer(serializers.ModelSerializer):
 
 
 class AuditFilters(serializers.Serializer):
-    user = serializers.IntegerField(min_value=1, required=False)
+    user = serializers.EmailField(required=False)
     action_type = serializers.ChoiceField(
         choices=AuditEntry.Action.choices, required=False
     )
@@ -61,7 +61,7 @@ class AuditList(ListAPIView):
         filters = AuditFilters(data=self.request.query_params)
         filters.is_valid(raise_exception=True)
         lookup = {
-            "user": "user_id",
+            "user": "user__email__iexact",
             "action_type": "action_type",
             "entity": "entity",
             "date_from": "timestamp__date__gte",
