@@ -8,6 +8,7 @@
 
 export const museoProvisional = {
   nombre: "Museo Histórico Cultural Juan Santamaría",
+  localidad: "Alajuela, Costa Rica",
 
   historia: {
     es: "El Museo Histórico Cultural Juan Santamaría abrió sus puertas el 9 de abril de 1980. Está dedicado a preservar y divulgar la historia de la Campaña Nacional de 1856-1857 y el patrimonio cultural de Alajuela.",

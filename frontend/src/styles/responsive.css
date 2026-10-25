@@ -3,17 +3,20 @@
 :root {
   color-scheme: light;
 
-  --color-fondo: #ffffff;
-  --color-texto: #172b36;
+  --color-fondo: #f4f4f4;
+  --color-texto: #343434;
   --color-superficie: #ffffff;
   --color-control: #ffffff;
   --color-borde: #637782;
-  --color-header: #1f4a5b;
-  --color-header-hover: #356579;
+  --color-header: #00243e;
+  --color-header-hover: #1c3b52;
+  --color-acento: #b10c00;
+  --color-divisor: #e4e7eb;
   --color-footer: #f1f4f5;
   --color-error: #a32020;
-  --color-enlace: #145579;
-  --color-foco: #1f4a5b;
+  --color-enlace: #00243e;
+  --color-secundario: #586579;
+  --color-foco: #00243e;
 }
 
 /* Colores del modo oscuro */
@@ -25,11 +28,14 @@
   --color-superficie: #1e2b34;
   --color-control: #253641;
   --color-borde: #9aadb8;
-  --color-header: #162e3a;
-  --color-header-hover: #315365;
+  --color-header: #00243e;
+  --color-header-hover: #1c3b52;
+  --color-acento: #b10c00;
+  --color-divisor: #435361;
   --color-footer: #1a2932;
   --color-error: #ffb3b3;
   --color-enlace: #9bd5fa;
+  --color-secundario: #b8c9d6;
   --color-foco: #9bd5fa;
 }
 
@@ -42,6 +48,10 @@
 
 html {
   font-family: system-ui, sans-serif;
+}
+
+h1, h2, h3 {
+  font-family: Georgia, "Times New Roman", serif;
 }
 
 body {

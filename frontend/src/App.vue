@@ -170,12 +170,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <AppLayout :usuario="usuario">
+  <AppLayout :usuario="usuario" :ruta-actual="rutaActual">
     <!-- Información pública: no requiere iniciar sesión -->
     <MuseoPublico
       v-if="esRutaPublica()"
       :key="rutaActual"
-      :vista-inicial="rutaActual === '/horarios' ? 'horarios' : 'inicio'"
     />
 
     <!-- Autenticación y área interna -->
