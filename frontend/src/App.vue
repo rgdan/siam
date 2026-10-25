@@ -139,9 +139,16 @@ async function cerrarSesion() {
   }
 }
 
-// Comprueba la sesión únicamente en las rutas de autenticación.
+// Reconoce la sesión pública sin exigirla ni ocultar la información del museo.
 async function comprobarSesion() {
-  if (esRutaPublica()) return
+  if (esRutaPublica()) {
+    try {
+      await cargarSesion()
+    } catch {
+      usuario.value = null
+    }
+    return
+  }
 
   accesoDenegado.value = false
   comprobando.value = true
@@ -170,7 +177,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <AppLayout :usuario="usuario" :ruta-actual="rutaActual">
+  <AppLayout :usuario="usuario" :ruta-actual="rutaActual" :enviando="enviando" @cerrar-sesion="cerrarSesion">
     <!-- Información pública: no requiere iniciar sesión -->
     <MuseoPublico
       v-if="esRutaPublica()"
@@ -213,13 +220,6 @@ onUnmounted(() => {
         />
         <p v-else>{{ t("users.chooseSection") }}</p>
 
-        <button
-          type="button"
-          :disabled="enviando"
-          @click="cerrarSesion"
-        >
-          {{ enviando ? t("auth.loggingOut") : t("auth.logout") }}
-        </button>
       </section>
 
       <!-- Formulario de inicio de sesión -->
@@ -272,10 +272,8 @@ onUnmounted(() => {
         {{ enviando ? t("common.processing") : "" }}
       </p>
 
-      <p role="alert" class="error">
-        {{ error ? t(error) : "" }}
-      </p>
     </div>
+    <p v-if="error" role="alert" class="error">{{ t(error) }}</p>
   </AppLayout>
 </template>
 

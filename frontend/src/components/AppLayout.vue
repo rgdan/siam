@@ -7,7 +7,9 @@ import { tema, cambiarTema } from "../theme/index.js"
 const props = defineProps({
   usuario: { type: Object, default: null },
   rutaActual: { type: String, default: "/" },
+  enviando: { type: Boolean, default: false },
 })
+defineEmits(["cerrar-sesion"])
 const { t, locale } = useI18n({ useScope: "global" })
 const menuAbierto = ref(false)
 const botonMenu = ref(null)
@@ -84,8 +86,18 @@ function seleccionarTema(evento) {
               <option value="oscuro">{{ t("common.darkMode") }}</option>
             </select>
           </div>
-          <a class="acceso-interno" href="/interno" @click="cerrarMenu">
-            {{ usuario ? t("auth.internalArea") : t("auth.login") }}
+          <button
+            v-if="usuario"
+            class="acceso-interno"
+            type="button"
+            :disabled="enviando"
+            :aria-busy="enviando"
+            @click="$emit('cerrar-sesion'); cerrarMenu()"
+          >
+            {{ enviando ? t("auth.loggingOut") : t("auth.logout") }}
+          </button>
+          <a v-else class="acceso-interno" href="/login" @click="cerrarMenu">
+            {{ t("auth.login") }}
           </a>
         </div>
       </div>
@@ -125,6 +137,7 @@ select, button, .acceso-interno { min-height: 44px; padding: 10px 12px; border: 
 select { width: 100%; color: #ffffff; background: var(--color-header); }
 button { cursor: pointer; }
 .acceso-interno { display: grid; place-items: center; border-color: var(--color-acento); background: var(--color-acento); color: #ffffff; font-size: 13px; font-weight: 600; text-decoration: none; }
+.acceso-interno:disabled { cursor: wait; }
 .menu-boton { display: none; background: transparent; color: #ffffff; }
 .app-contenido { min-width: 0; margin-left: 260px; padding: 26px 32px 48px; }
 @media (max-width: 800px) {
