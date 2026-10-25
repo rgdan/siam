@@ -14,7 +14,11 @@ onMounted(async () => {
     if (!response.ok) throw new Error("configuration")
     const config = await response.json()
     museo.nombre = config.museum_name
-    museo.ubicacion = { es: `${config.address} ${config.location}`, en: `${config.address} ${config.location}` }
+    // La dirección de referencia ya tiene sus textos en español e inglés.
+    if (config.address !== museoProvisional.ubicacion.es) {
+      const ubicacion = `${config.address} ${config.location}`
+      museo.ubicacion = { es: ubicacion, en: ubicacion }
+    }
     museo.horarios = Object.entries(config.opening_hours)
       .map(([dia, hours]) => ({ dia: Number(dia), apertura: hours.opens, cierre: hours.closes }))
       .sort((a, b) => ((a.dia + 6) % 7) - ((b.dia + 6) % 7))
