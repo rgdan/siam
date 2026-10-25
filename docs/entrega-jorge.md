@@ -1,38 +1,5 @@
-# Entrega de Jorge: SIAM-33, SIAM-36 y SIAM-32
 
-Base: `rgdan/siam`, commit `6b3dd65`. Orden de implementación: bitácora, integridad, configuración.
-Los módulos están conectados a la autenticación y a los cinco roles existentes. La API solo devuelve JSON.
 
-## Arranque en PowerShell
-
-Desde la raíz del repositorio (Python 3.10 o posterior):
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
-$env:DJANGO_SECRET_KEY = "definir-una-clave-local-estable"
-.\.venv\Scripts\python.exe backend/manage.py migrate
-.\.venv\Scripts\python.exe backend/manage.py test tests --verbosity 2
-.\.venv\Scripts\python.exe backend/tests/crash_probe.py
-.\.venv\Scripts\python.exe backend/manage.py runserver 127.0.0.1:8000
-```
-
-La base de datos local no se incluye en Git. Se añadieron migraciones iniciales porque el esqueleto no las traía.
-En una base existente creada con `migrate --run-syncdb`, respaldar la base y usar `migrate --fake-initial` para reconocer la tabla `api.User` existente. No marcar como aplicadas migraciones de tablas que todavía no existen.
-Para crear el primer administrador sin añadir endpoints de registro público:
-
-```powershell
-.\.venv\Scripts\python.exe backend/manage.py shell
-```
-
-```python
-from getpass import getpass
-from api.models import User
-User.objects.create_user(email="admin@example.com", password=getpass(),
-                         full_name="Administrador", role="administrador_sistema")
-```
-
-Se conserva la autenticación de sesión de Daniel: obtener `GET /api/auth/csrf/`, conservar cookies y enviar el valor `csrfToken` en `X-CSRFToken` en login y escrituras. Ingresar por `POST /api/auth/login/` con `email` y `password`.
 
 ## SIAM-33 · RF-ADS-04
 
