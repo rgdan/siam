@@ -21,6 +21,27 @@ Use una clave estable para conservar las sesiones entre reinicios; no la suba al
 
 Para salir del entorno virtual, detenga el servidor con `Ctrl+C` y ejecute `deactivate`.
 
+## Cuentas de prueba
+
+Después de aplicar las migraciones, desde `backend/`, con `.venv` activo y `DJANGO_SECRET_KEY` definido:
+
+```bash
+python crear_usuarios_demo.py
+```
+
+Todas usan la contraseña `Demo12345`. Ingrese por `/login` en el frontend.
+
+| Rol | Correo |
+|---|---|
+| Guarda | `guarda@demo.siam.test` |
+| Coordinador | `coordinador@demo.siam.test` |
+| Museólogo | `museologo@demo.siam.test` |
+| Administrador general | `administrador_general@demo.siam.test` |
+| Administrador de sistema | `administrador_sistema@demo.siam.test` |
+
+Puede repetir el script: conserva las cuentas existentes sin cambiar sus datos ni contraseñas.
+Utilícelas solo en desarrollo local, nunca en producción.
+
 ## Endpoint
 
 En Postman: `GET http://127.0.0.1:8000/api/health/`.

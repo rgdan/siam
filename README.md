@@ -25,3 +25,5 @@ Consulte las instrucciones de cada componente y ejecútelos en terminales separa
 | Interfaz web | Vue.js + Vite | [Frontend](frontend/README.md) |
 | API | Python + Django REST Framework | [Backend](backend/README.md) |
 
+Para generar una cuenta de prueba por rol, ejecute `python crear_usuarios_demo.py` desde `backend/`.
+Consulte los [correos, contraseña e instrucciones](backend/README.md#cuentas-de-prueba). Solo para desarrollo local.

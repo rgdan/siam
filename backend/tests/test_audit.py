@@ -1,10 +1,13 @@
+from contextlib import redirect_stdout
 from datetime import timedelta
+from io import StringIO
 from unittest.mock import patch
 
 from api.models import User
 from audit.models import AuditEntry
 from audit.services import audited_create, record
 from collection_integrity.models import Piece
+from crear_usuarios_demo import crear_usuarios_demo
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils import timezone
@@ -280,3 +283,34 @@ class AuditTests(TestCase):
             new={"contraseña": "Private123", "contraseña_nueva": "Secret456"},
         )
         self.assertEqual(entry.changes, {})
+
+    def test_demo_accounts_are_hashed_audited_and_safe_to_rerun(self):
+        output = StringIO()
+        with redirect_stdout(output):
+            crear_usuarios_demo()
+        accounts = User.objects.filter(email__iendswith="@demo.siam.test")
+        self.assertEqual(set(accounts.values_list("role", flat=True)), set(User.Role.values))
+        self.assertEqual(accounts.count(), 5)
+        for account in accounts:
+            self.assertTrue(account.is_active)
+            self.assertTrue(account.password.startswith("pbkdf2_sha256$"))
+            self.assertTrue(account.check_password("Demo12345"))
+        self.assertEqual(AuditEntry.objects.filter(action_type="create", entity="user").count(), 5)
+        self.assertNotIn("password", str(list(AuditEntry.objects.values_list("changes", flat=True))))
+        self.assertNotIn("Demo12345", output.getvalue())
+
+        guard = accounts.get(role="guarda")
+        guard.email = guard.email.upper()
+        guard.full_name = "Nombre editado"
+        guard.is_active = False
+        guard.role = "coordinador"
+        guard.set_password("Changed123")
+        guard.save()
+        previous_hash = guard.password
+        with redirect_stdout(output):
+            crear_usuarios_demo()
+        guard.refresh_from_db()
+        self.assertEqual(accounts.count(), 5)
+        self.assertEqual(AuditEntry.objects.count(), 5)
+        self.assertEqual((guard.full_name, guard.role, guard.is_active, guard.password),
+                         ("Nombre editado", "coordinador", False, previous_hash))
