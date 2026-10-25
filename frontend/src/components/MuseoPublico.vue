@@ -1,12 +1,36 @@
 
 <script setup>
-import { computed } from "vue"
+import { computed, onMounted, reactive, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { museoProvisional } from "../data/museo.js"
 
+const museo = reactive(structuredClone(museoProvisional))
+const errorConfiguracion = ref(false)
+
+onMounted(async () => {
+  try {
+    const base = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/"
+    const response = await fetch(`${base}public/configuration/`, { cache: "no-store", signal: AbortSignal.timeout(5000) })
+    if (!response.ok) throw new Error("configuration")
+    const config = await response.json()
+    museo.nombre = config.museum_name
+    museo.ubicacion = { es: `${config.address} ${config.location}`, en: `${config.address} ${config.location}` }
+    museo.horarios = Object.entries(config.opening_hours)
+      .map(([dia, hours]) => ({ dia: Number(dia), apertura: hours.opens, cierre: hours.closes }))
+      .sort((a, b) => ((a.dia + 6) % 7) - ((b.dia + 6) % 7))
+    let preferred = null
+    try { preferred = localStorage.getItem("siam-idioma") } catch {  }
+    if (preferred !== "es" && preferred !== "en") {
+      locale.value = config.default_language
+      document.documentElement.lang = config.default_language
+    }
+  } catch {
+    errorConfiguracion.value = true
+  }
+})
+
 const { t, locale } = useI18n({ useScope: "global" })
 
-// Vista que se muestra según la dirección del navegador.
 const props = defineProps({
   vistaInicial: {
     type: String,
@@ -24,18 +48,16 @@ const dias = [
   "saturday",
 ]
 
-// Información general según el idioma.
 const historia = computed(() =>
-  museoProvisional.historia[locale.value] ??
-  museoProvisional.historia.es
+  museo.historia[locale.value] ??
+  museo.historia.es
 )
 
 const ubicacion = computed(() =>
-  museoProvisional.ubicacion[locale.value] ??
-  museoProvisional.ubicacion.es
+  museo.ubicacion[locale.value] ??
+  museo.ubicacion.es
 )
 
-// Formato regional de las horas.
 function formatearHorario(hora) {
   if (!hora) return "—"
 
@@ -52,9 +74,8 @@ function formatearHorario(hora) {
   ).format(fecha)
 }
 
-// Horarios traducidos y preparados para la tabla.
 const horarios = computed(() =>
-  museoProvisional.horarios.map((horario) => ({
+  museo.horarios.map((horario) => ({
     ...horario,
     nombre: t(`museum.days.${dias[horario.dia]}`),
     cerrado: !horario.apertura || !horario.cierre,
@@ -66,10 +87,11 @@ const horarios = computed(() =>
 
 <template>
   <div class="museo-publico">
-    <!-- Página de información general -->
+    <p v-if="errorConfiguracion" role="alert">{{ locale === "en" ? "Current information could not be loaded. Showing reference information." : "No se pudo cargar la información actual. Se muestran datos de referencia." }}</p>
+
     <template v-if="props.vistaInicial === 'inicio'">
       <section class="seccion-museo">
-        <h1>{{ museoProvisional.nombre }}</h1>
+        <h1>{{ museo.nombre }}</h1>
         <p>{{ t("museum.welcome") }}</p>
       </section>
 
@@ -93,7 +115,7 @@ const horarios = computed(() =>
       </section>
     </template>
 
-    <!-- Página de horarios -->
+
     <section v-else class="seccion-museo">
       <h1>{{ t("museum.schedule") }}</h1>
       <p>{{ t("museum.scheduleDescription") }}</p>

@@ -14,6 +14,9 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "api",
+    "audit",
+    "collection_integrity",
+    "system_configuration",
 ]
 AUTH_USER_MODEL = "api.User"
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.PBKDF2PasswordHasher"]
@@ -38,7 +41,7 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
-        # Reserva la escritura antes de comprobar cuántos administradores activos quedan.
+
         "OPTIONS": {"transaction_mode": "IMMEDIATE"},
     }
 }
