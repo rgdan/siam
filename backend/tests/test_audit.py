@@ -171,7 +171,7 @@ class AuditTests(TestCase):
             with self.assertRaises(ValidationError):
                 operation()
 
-    def test_all_other_roles_and_public_get_403(self):
+    def test_other_roles_get_403_and_public_gets_401(self):
         for role in User.Role.values:
             if role == "administrador_sistema":
                 continue
@@ -179,7 +179,67 @@ class AuditTests(TestCase):
             self.client.force_authenticate(self.admin)
             self.assertEqual(self.client.get("/api/audit/").status_code, 403)
         self.client.force_authenticate(user=None)
-        self.assertEqual(self.client.get("/api/audit/").status_code, 403)
+        self.assertEqual(self.client.get("/api/audit/").status_code, 401)
+
+    def test_denied_access_records_function_actor_and_time(self):
+        self.admin.role = "guarda"
+        response = self.client.get("/api/users/")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(set(response.data), {"detail"})
+        entry = AuditEntry.objects.get()
+        self.assertEqual((entry.user_id, entry.role), (self.admin.pk, "guarda"))
+        self.assertEqual(entry.changes["function"]["new"], "usuarios.consultar")
+        self.assertEqual(entry.changes["outcome"]["new"], "denied")
+        self.assertIsNotNone(entry.timestamp)
+
+    def test_delete_audits_and_preserves_piece_and_audit_history(self):
+        from collection_integrity.services import register_piece
+
+        unused = User.objects.create_user(email="unused@test.cr", full_name="Unused", role="guarda")
+        target = User.objects.create_user(email="museum@test.cr", full_name="Museum", role="museologo")
+        piece = register_piece(user=target, title="Conservar")
+        for account, action in ((unused, "deleted"), (target, "deactivated")):
+            account_id = account.pk
+            response = self.client.delete(f"/api/users/{account_id}/", {"confirm": True}, format="json")
+            self.assertEqual(response.status_code, 200, response.data)
+            self.assertEqual(response.data["action"], action)
+            entry = AuditEntry.objects.first()
+            self.assertEqual((entry.action_type, entry.entity_id, entry.user_id), ("decommission", str(account_id), self.admin.pk))
+        target.refresh_from_db()
+        self.assertFalse(target.is_active)
+        self.assertEqual(piece.history.get().user_id, target.pk)
+        self.assertTrue(AuditEntry.objects.filter(user=target).exists())
+
+    def test_delete_rolls_back_if_audit_fails(self):
+        target = User.objects.create_user(email="keep@test.cr", full_name="Keep", role="guarda")
+        with patch("api.views.record", side_effect=RuntimeError("audit failed")):
+            with self.assertRaises(RuntimeError):
+                self.client.delete(f"/api/users/{target.pk}/", {"confirm": True}, format="json")
+        self.assertTrue(User.objects.filter(pk=target.pk, is_active=True).exists())
+
+    def test_denial_after_transaction_recheck_keeps_audit(self):
+        with patch("api.views.permisos_para", return_value=frozenset()):
+            response = self.client.patch(f"/api/users/{self.admin.pk}/", {"full_name": "Not saved"}, format="json")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(AuditEntry.objects.get().changes["function"]["new"], "usuarios.actualizar")
+        self.admin.refresh_from_db()
+        self.assertEqual(self.admin.full_name, "Admin")
+
+    def test_role_change_and_reset_have_safe_audit_details(self):
+        target = User.objects.create_user(email="role@test.cr", full_name="Role", role="guarda")
+        session = APIClient()
+        session.force_login(target)
+        role_change = self.client.patch(f"/api/users/{target.pk}/", {"role": "coordinador"}, format="json")
+        self.assertEqual(role_change.status_code, 200, role_change.data)
+        self.assertEqual(session.get("/api/auth/me/").data["role"], "coordinador")
+        self.assertEqual(AuditEntry.objects.first().changes["role"], {"old": "guarda", "new": "coordinador"})
+        response = self.client.patch(f"/api/users/{target.pk}/", {"role": "coordinador", "password": "Private456"}, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        entry = AuditEntry.objects.first()
+        self.assertEqual(session.get("/api/auth/me/").status_code, 401)
+        self.assertEqual(entry.changes["credential_reset"]["new"], True)
+        self.assertNotIn("Private456", str(entry.changes))
+        self.assertNotIn("password", str(entry.changes))
 
     def test_password_update_and_known_failed_actor(self):
         account = User.objects.create_user(

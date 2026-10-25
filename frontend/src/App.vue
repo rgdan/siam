@@ -1,9 +1,11 @@
 
 <script setup>
-import { onMounted, onUnmounted, ref } from "vue"
+import { onMounted, onUnmounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import AppLayout from "./components/AppLayout.vue"
 import MuseoPublico from "./components/MuseoPublico.vue"
+import Usuarios from "./components/Usuarios.vue"
+import { solicitar, enviar } from "./api.js"
 
 // Traducciones de SIAM.
 const { t } = useI18n({ useScope: "global" })
@@ -37,33 +39,12 @@ const comprobando = ref(false)
 const enviando = ref(false)
 const error = ref("")
 
-// Todas las solicitudes incluyen cookies y esperan hasta 5 segundos.
-function solicitar(ruta, opciones = {}) {
-  return fetch(`${import.meta.env.VITE_API_BASE_URL}${ruta}`, {
-    ...opciones,
-    credentials: "include",
-    signal: AbortSignal.timeout(5000),
-  })
-}
+const accesoDenegado = ref(false)
 
-// Obtiene un token CSRF antes de cada solicitud POST.
-async function enviar(ruta, datos = {}) {
-  const respuesta = await solicitar("auth/csrf/")
-
-  if (!respuesta.ok) throw new Error()
-
-  const { csrfToken } = await respuesta.json()
-
-  if (typeof csrfToken !== "string") throw new Error()
-
-  return solicitar(ruta, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRFToken": csrfToken,
-    },
-    body: JSON.stringify(datos),
-  })
+// Una sesión expirada deja de mostrar inmediatamente los datos internos.
+function sesionExpirada() {
+  usuario.value = null
+  navegar("/login")
 }
 
 // Django confirma la identidad del usuario.
@@ -85,8 +66,20 @@ async function cargarSesion() {
   }
 
   if (!esRutaPublica()) {
-    navegar(usuario.value ? "/interno" : "/login")
+    if (!usuario.value) navegar("/login")
+    else if (rutaActual.value === "/login") navegar("/interno")
   }
+}
+
+// El menú ayuda a navegar; la API vuelve a comprobar los permisos en cada solicitud.
+function puede(permiso) {
+  return usuario.value?.permissions?.includes(permiso) === true
+}
+
+// Retira la sección si Django rechaza un permiso que cambió durante la sesión.
+function denegarAcceso() {
+  accesoDenegado.value = true
+  cargarSesion().catch(sesionExpirada)
 }
 
 // Inicia sesión utilizando Django.
@@ -150,6 +143,7 @@ async function cerrarSesion() {
 async function comprobarSesion() {
   if (esRutaPublica()) return
 
+  accesoDenegado.value = false
   comprobando.value = true
 
   try {
@@ -162,6 +156,9 @@ async function comprobarSesion() {
   }
 }
 
+// También protege la navegación mediante los botones Atrás y Adelante del navegador.
+watch(rutaActual, comprobarSesion)
+
 onMounted(() => {
   window.addEventListener("popstate", actualizarRuta)
   comprobarSesion()
@@ -173,7 +170,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <AppLayout>
+  <AppLayout :usuario="usuario">
     <!-- Información pública: no requiere iniciar sesión -->
     <MuseoPublico
       v-if="esRutaPublica()"
@@ -182,7 +179,7 @@ onUnmounted(() => {
     />
 
     <!-- Autenticación y área interna -->
-    <div v-else class="pagina-autenticacion">
+    <div v-else class="pagina-autenticacion" :class="{ 'pagina-usuarios': rutaActual === '/interno/usuarios' && usuario }">
       <h1>SIAM</h1>
 
       <p>{{ t("common.systemName") }}</p>
@@ -202,7 +199,20 @@ onUnmounted(() => {
         </h2>
 
         <p>{{ t("auth.loggedInAs", { name: usuario.full_name }) }}</p>
-        <p>{{ t("auth.notImplemented") }}</p>
+
+        <section v-if="accesoDenegado || (rutaActual !== '/interno' && (rutaActual !== '/interno/usuarios' || !puede('usuarios.consultar')))" role="alert">
+          <h2>{{ t("users.noAccess") }}</h2>
+          <p>{{ t("users.noAccessDescription") }}</p>
+          <a href="/interno">{{ t("auth.internalArea") }}</a>
+        </section>
+        <Usuarios
+          v-else-if="rutaActual === '/interno/usuarios'"
+          :usuario-actual="usuario"
+          @sesion-expirada="sesionExpirada"
+          @sin-acceso="denegarAcceso"
+          @cuenta-actualizada="cargarSesion().catch(sesionExpirada)"
+        />
+        <p v-else>{{ t("users.chooseSection") }}</p>
 
         <button
           type="button"
@@ -281,8 +291,18 @@ onUnmounted(() => {
   color: var(--color-texto);
 }
 
+.pagina-usuarios {
+  max-width: 900px;
+}
+
 h1 {
   color: var(--color-enlace);
+}
+
+a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 
 /* Formulario */

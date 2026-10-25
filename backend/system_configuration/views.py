@@ -1,4 +1,4 @@
-from audit.views import SystemAdminOnly
+from api.permissions import requiere_permiso
 from django.views.decorators.cache import never_cache
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import NotFound
@@ -19,7 +19,7 @@ def public_configuration(request):
 
 @never_cache
 @api_view(["GET", "PATCH"])
-@permission_classes([SystemAdminOnly])
+@requiere_permiso("sistema.configurar")
 def configuration(request):
     if request.method == "PATCH":
         serializer = ConfigurationSerializer(data=request.data, partial=True)
@@ -36,7 +36,7 @@ def configuration(request):
 
 @never_cache
 @api_view(["POST"])
-@permission_classes([SystemAdminOnly])
+@requiere_permiso("sistema.configurar")
 def reset_parameter(request, key):
     if key not in DEFAULTS:
         raise NotFound("Parámetro desconocido.")

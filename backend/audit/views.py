@@ -1,24 +1,14 @@
+from api.permissions import permiso_requerido
 from rest_framework import serializers
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import BasePermission
 
 from .models import AuditEntry
 
 
-class SystemAdminOnly(BasePermission):
-    message = "Acceso exclusivo del administrador de sistema."
-
-    def has_permission(self, request, view):
-        user = request.user
-        if not (
-            user.is_authenticated
-            and user.is_active
-            and user.role == "administrador_sistema"
-        ):
-            raise PermissionDenied(self.message)
-        return True
+# Conserva el permiso de la bitácora dentro de la matriz compartida.
+class SystemAdminOnly(permiso_requerido("bitacora.consultar")):
+    pass
 
 
 class AuditSerializer(serializers.ModelSerializer):

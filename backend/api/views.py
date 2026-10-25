@@ -14,7 +14,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .authentication import SessionAuthentication
-from .permissions import permisos_para, requiere_permiso
+from .permissions import permisos_para, registrar_denegacion, requiere_permiso
 from .serializers import UserSerializer, UserUpdateSerializer
 
 
@@ -112,10 +112,12 @@ def user_detail(request, user_id):
             required = "usuarios.eliminar" if request.method == "DELETE" else "usuarios.actualizar"
             if required not in allowed:
                 raise PermissionDenied("Acceso denegado.")
-            if request.method == "PATCH" and "role" in request.data and "usuarios.asignar_rol" not in allowed:
+            if request.method == "PATCH" and isinstance(request.data, dict) and "role" in request.data and "usuarios.asignar_rol" not in allowed:
+                required = "usuarios.asignar_rol"
                 raise PermissionDenied("Acceso denegado.")
 
             account = get_object_or_404(get_user_model(), pk=user_id)
+            old = snapshot(account)
             if request.method == "DELETE":
                 if not isinstance(request.data, dict) or request.data.get("confirm") is not True:
                     raise serializers.ValidationError({"confirm": "Confirme la eliminación con true."})
@@ -129,19 +131,31 @@ def user_detail(request, user_id):
                 deactivation.is_valid(raise_exception=True)
                 if account.has_related_records():
                     deactivation.save()
+                    record(user=actor, action_type=AuditEntry.Action.DECOMMISSION,
+                           entity="user", entity_id=account.pk, old=old, new=snapshot(account))
                     return Response({"detail": "La cuenta tiene registros relacionados y fue desactivada.", "action": "deactivated"})
+                account_id = account.pk
                 account.delete()
+                record(user=actor, action_type=AuditEntry.Action.DECOMMISSION,
+                       entity="user", entity_id=account_id, old=old)
                 return Response({"detail": "Cuenta eliminada.", "action": "deleted"})
 
-            old = snapshot(account)
             changes = UserUpdateSerializer(
                 account, data=request.data, partial=True, context={"request": request},
             )
             changes.is_valid(raise_exception=True)
+            credential_reset = "password" in changes.validated_data
             changes.save()
-            record(user=request.user, action_type=AuditEntry.Action.MODIFY, entity="user",
-                   entity_id=account.pk, old=old, new=snapshot(account))
+            new = snapshot(account)
+            if credential_reset:
+                new["credential_reset"] = True
+            record(user=actor, action_type=AuditEntry.Action.MODIFY, entity="user",
+                   entity_id=account.pk, old=old, new=new)
             return Response(changes.data)
+    except PermissionDenied:
+        # Fuera de la transacción fallida para que el rechazo no borre su propia auditoría.
+        registrar_denegacion(request, required)
+        raise
     except IntegrityError:
         if request.method == "DELETE":
             raise serializers.ValidationError("No se pudo eliminar la cuenta por sus registros relacionados.") from None

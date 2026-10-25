@@ -35,6 +35,30 @@ const mensajes = {
       sessionError: "No se pudo comprobar la sesión. Revise la conexión y recargue la página.",
     },
 
+    users: {
+      title: "Usuarios", create: "Crear cuenta", refresh: "Actualizar lista",
+      loading: "Cargando cuentas…", empty: "No hay cuentas. Cree una para comenzar.",
+      edit: "Editar cuenta", editAccount: "Editar la cuenta de {name}",
+      fullName: "Nombre completo", role: "Rol", status: "Estado",
+      active: "Activa", inactive: "Inactiva", save: "Guardar cuenta", cancel: "Cancelar",
+      delete: "Eliminar cuenta", resetPassword: "Nueva contraseña (opcional)",
+      passwordRule: "Al menos 8 caracteres, con letras y números.",
+      passwordOptional: "Déjela vacía para conservar la actual. Una nueva contraseña requiere al menos 8 caracteres, letras y números; cerrará las sesiones de esta persona.",
+      saved: "Cuenta guardada.", deleted: "Cuenta eliminada.",
+      deactivated: "La cuenta tiene registros relacionados y fue desactivada.",
+      confirmDelete: "¿Confirma la eliminación de esta cuenta?",
+      deleteWarning: "Si tiene registros relacionados, se desactivará para conservarlos. Esta operación no elimina su historial.",
+      loadError: "No se pudo cargar la lista. Pulse Actualizar lista para volver a intentarlo.",
+      saveError: "No se pudo confirmar la operación. Actualice la lista antes de volver a intentarlo.",
+      noAccess: "Sin acceso", noAccessDescription: "Su cuenta no tiene permiso para abrir esta sección.",
+      chooseSection: "Seleccione una sección del menú.",
+      draft: "Borrador funcional sin diseño visual definitivo.",
+    },
+    roles: {
+      guarda: "Guarda", coordinador: "Coordinador", museologo: "Museólogo",
+      administrador_general: "Administrador general", administrador_sistema: "Administrador de sistema",
+    },
+
     museum: {
       welcome: "Conozca la historia y el patrimonio cultural de nuestro museo.",
       history: "Historia del museo",
@@ -94,6 +118,30 @@ const mensajes = {
       loginError: "Could not sign in. Check the connection and try again.",
       logoutError: "Could not confirm sign out. Check the connection and try again.",
       sessionError: "Could not check the session. Check the connection and reload the page.",
+    },
+
+    users: {
+      title: "Users", create: "Create account", refresh: "Refresh list",
+      loading: "Loading accounts…", empty: "No accounts yet. Create one to begin.",
+      edit: "Edit account", editAccount: "Edit {name}'s account",
+      fullName: "Full name", role: "Role", status: "Status",
+      active: "Active", inactive: "Inactive", save: "Save account", cancel: "Cancel",
+      delete: "Delete account", resetPassword: "New password (optional)",
+      passwordRule: "At least 8 characters, with letters and numbers.",
+      passwordOptional: "Leave blank to keep the current password. A new password needs at least 8 characters, letters and numbers; it will end this person's sessions.",
+      saved: "Account saved.", deleted: "Account deleted.",
+      deactivated: "The account has related records and was deactivated.",
+      confirmDelete: "Confirm deletion of this account?",
+      deleteWarning: "Accounts with related records will be deactivated to preserve them. This operation does not delete their history.",
+      loadError: "Could not load accounts. Select Refresh list to try again.",
+      saveError: "Could not confirm the operation. Refresh the list before trying again.",
+      noAccess: "Access denied", noAccessDescription: "Your account does not have permission to open this section.",
+      chooseSection: "Select a section from the menu.",
+      draft: "Functional draft without final visual design.",
+    },
+    roles: {
+      guarda: "Guard", coordinador: "Coordinator", museologo: "Museologist",
+      administrador_general: "General administrator", administrador_sistema: "System administrator",
     },
 
     museum: {

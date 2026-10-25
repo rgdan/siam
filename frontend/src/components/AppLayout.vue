@@ -11,13 +11,13 @@ const menuAbierto = ref(false)
 // Idioma y traducciones.
 const { t, locale } = useI18n({ useScope: "global" })
 
+defineProps({ usuario: { type: Object, default: null } })
 
 // Navegación principal de SIAM.
 const enlaces = [
   { nombre: "common.home", ruta: "/" },
   { nombre: "common.museumInfo", ruta: "/informacion" },
   { nombre: "museum.schedule", ruta: "/horarios" },
-  { nombre: "common.events", ruta: "/eventos" },
 ]
 
 
@@ -98,6 +98,10 @@ function alternarTema() {
           >
             {{ t(enlace.nombre) }}
           </a>
+          <a href="/interno" @click="cerrarMenu">{{ usuario ? t("auth.internalArea") : t("auth.login") }}</a>
+          <a v-if="usuario?.permissions?.includes('usuarios.consultar')" href="/interno/usuarios" @click="cerrarMenu">
+            {{ t("users.title") }}
+          </a>
         </nav>
       </div>
     </header>
@@ -121,6 +125,7 @@ function alternarTema() {
 }
 
 .app-header {
+  --color-foco: #ffffff;
   background: var(--color-header, #1f4a5b);
   color: #fff;
 }

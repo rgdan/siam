@@ -11,9 +11,9 @@ cp .env.example .env
 npm run dev
 ```
 
-Abra http://127.0.0.1:5173/. La página comprueba la sesión al cargar.
-Sin sesión, muestra `/login`; al ingresar, abre `/interno` con su nombre y la opción
-de cerrar sesión. Necesita el backend activo y una cuenta creada.
+Abra http://127.0.0.1:5173/ para consultar la información pública.
+Ingrese por `/login` para abrir `/interno`. Necesita el backend activo y una cuenta creada.
+Como administrador de sistema, abra **Usuarios** para crear, editar, restablecer contraseñas o eliminar cuentas.
 
 La dirección de la API está en `.env`, en `VITE_API_BASE_URL`, y debe terminar
 en `/`. Reinicie Vite si la cambia.

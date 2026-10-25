@@ -118,16 +118,17 @@ class ConfigurationTests(TestCase):
                 continue
             self.admin.role = role or "guarda"
             self.client.force_authenticate(self.admin if role else None)
-            self.assertEqual(self.client.get("/api/configuration/").status_code, 403)
+            expected = 403 if role else 401
+            self.assertEqual(self.client.get("/api/configuration/").status_code, expected)
             self.assertEqual(
                 self.client.patch(
                     "/api/configuration/", {"museum_name": "Forbidden"}, format="json"
                 ).status_code,
-                403,
+                expected,
             )
             self.assertEqual(
                 self.client.post("/api/configuration/museum_name/reset/").status_code,
-                403,
+                expected,
             )
 
     def test_patch_rejects_incomplete_or_unknown_day_fields(self):

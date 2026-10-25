@@ -1,3 +1,5 @@
+from audit.models import AuditEntry
+from audit.services import record
 from rest_framework.decorators import permission_classes
 from rest_framework.permissions import BasePermission, IsAuthenticated
 
@@ -61,8 +63,17 @@ def permisos_para(user):
     return PERMISOS_POR_ROL.get(user.role, frozenset())
 
 
-# Acepta un permiso común o uno por método HTTP; DRF comprueba la sesión primero.
-def requiere_permiso(permiso):
+# Registra la función denegada sin incluir el cuerpo ni datos sensibles de la solicitud.
+def registrar_denegacion(request, permiso):
+    record(
+        user=request.user, action_type=AuditEntry.Action.SENSITIVE_READ,
+        entity="access", entity_id=permiso or "",
+        new={"function": permiso, "method": request.method, "outcome": "denied"},
+    )
+
+
+# Comparte la misma comprobación entre vistas de función y vistas de clase.
+def permiso_requerido(permiso):
     # El permiso queda asociado a esta vista, no al cuerpo de la solicitud del navegador.
     class PermisoRequerido(BasePermission):
         message = "Acceso denegado."
@@ -70,6 +81,15 @@ def requiere_permiso(permiso):
         # Un permiso desconocido tampoco pertenece al conjunto y queda denegado.
         def has_permission(self, request, view):
             requerido = permiso.get(request.method) if isinstance(permiso, dict) else permiso
-            return requerido in permisos_para(request.user)
+            if requerido in permisos_para(request.user):
+                return True
+            if request.user.is_authenticated:
+                registrar_denegacion(request, requerido)
+            return False
 
-    return permission_classes([IsAuthenticated, PermisoRequerido])
+    return PermisoRequerido
+
+
+# Acepta un permiso común o uno por método HTTP; DRF comprueba la sesión primero.
+def requiere_permiso(permiso):
+    return permission_classes([IsAuthenticated, permiso_requerido(permiso)])
