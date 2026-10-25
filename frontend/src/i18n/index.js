@@ -58,7 +58,6 @@ const mensajes = {
       saveError: "No se pudo confirmar la operación. Actualice la lista antes de volver a intentarlo.",
       noAccess: "Sin acceso", noAccessDescription: "Su cuenta no tiene permiso para abrir esta sección.",
       chooseSection: "Seleccione una sección del menú.",
-      draft: "Borrador funcional sin diseño visual definitivo.",
     },
     roles: {
       guarda: "Guarda", coordinador: "Coordinador", museologo: "Museólogo",
@@ -154,7 +153,6 @@ const mensajes = {
       saveError: "Could not confirm the operation. Refresh the list before trying again.",
       noAccess: "Access denied", noAccessDescription: "Your account does not have permission to open this section.",
       chooseSection: "Select a section from the menu.",
-      draft: "Functional draft without final visual design.",
     },
     roles: {
       guarda: "Guard", coordinador: "Coordinator", museologo: "Museologist",

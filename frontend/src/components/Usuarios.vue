@@ -107,7 +107,6 @@ onMounted(cargar)
 <template>
   <section aria-labelledby="titulo-usuarios" class="usuarios">
     <h2 id="titulo-usuarios">{{ t("users.title") }}</h2>
-    <p class="borrador">{{ t("users.draft") }}</p>
     <div class="acciones">
       <button type="button" :disabled="guardando || cargando" @click="seleccionar()">{{ t("users.create") }}</button>
       <button type="button" :disabled="guardando || cargando" @click="cargar">{{ t("users.refresh") }}</button>
