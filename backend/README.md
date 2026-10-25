@@ -49,6 +49,3 @@ En Postman: `GET http://127.0.0.1:8000/api/health/`.
 Respuesta: `200 OK` con `{"estado":"ok"}`. Solo comprueba que el servidor responde.
 
 
-## Auditoría, integridad y configuración
-
-Ver [entrega de Jorge](../docs/entrega-jorge.md) para instalación en PowerShell, contratos JSON, integración con Sprint 2 y pruebas de aceptación.
