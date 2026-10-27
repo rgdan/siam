@@ -80,7 +80,6 @@ async function cargarSesion() {
 
 // El menú ayuda a navegar; la API vuelve a comprobar los permisos en cada solicitud.
 function puedeVerRuta() {
-  if (rutaActual.value === "/interno/ingresos" && usuario.value?.role !== "guarda") return false
   return rutaActual.value === "/interno"
     || usuario.value?.permissions?.includes(permisosPorRuta[rutaActual.value]) === true
 }

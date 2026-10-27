@@ -121,10 +121,24 @@ class VisitorEntryAPITests(TestCase):
         self.assertFalse(VisitorEntry.objects.exists())
         self.assertFalse(AuditEntry.objects.exists())
 
-    def test_other_roles_are_denied_even_administrators(self):
-        for role in User.Role.values:
-            if role == User.Role.GUARDA:
-                continue
+    def test_administrators_can_register_with_their_own_audit_identity(self):
+        for role in (User.Role.ADMINISTRADOR_GENERAL, User.Role.ADMINISTRADOR_SISTEMA):
+            with self.subTest(role=role):
+                account = User.objects.create_user(
+                    email=f"{role}@test.cr", full_name=role, role=role,
+                )
+                self.client.force_authenticate(account)
+                response = self.client.post(self.url, self.payload, format="json")
+                self.assertEqual(response.status_code, 201, response.data)
+                entry = VisitorEntry.objects.get(pk=response.data["id"])
+                audit = AuditEntry.objects.get(entity="visitor_entry", entity_id=str(entry.pk))
+                self.assertEqual(entry.user_id, account.pk)
+                self.assertEqual((audit.user_id, audit.role), (account.pk, role))
+        self.assertEqual(VisitorEntry.objects.count(), 2)
+        self.assertEqual(AuditEntry.objects.count(), 2)
+
+    def test_roles_without_visitor_permission_are_denied(self):
+        for role in (User.Role.COORDINADOR, User.Role.MUSEOLOGO):
             with self.subTest(role=role):
                 account = User.objects.create_user(
                     email=f"{role}@test.cr", full_name=role, role=role,
@@ -133,7 +147,7 @@ class VisitorEntryAPITests(TestCase):
                 response = self.client.post(self.url, self.payload, format="json")
                 self.assertEqual(response.status_code, 403, response.data)
         self.assertFalse(VisitorEntry.objects.exists())
-        self.assertEqual(AuditEntry.objects.filter(entity="access").count(), 4)
+        self.assertEqual(AuditEntry.objects.filter(entity="access").count(), 2)
         self.assertFalse(AuditEntry.objects.filter(entity="visitor_entry").exists())
 
     def test_missing_session_and_inactive_guard_are_denied(self):
