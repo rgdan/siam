@@ -2,8 +2,10 @@ from api import views
 from audit.views import AuditList
 from django.urls import path
 from system_configuration import views as configuration_views
+from visitors.views import register_entry
 
 urlpatterns = [
+    path("api/visitor-entries/", register_entry, name="visitor-entry-register"),
     path("api/audit/", AuditList.as_view(), name="audit-list"),
     path("api/configuration/", configuration_views.configuration, name="configuration"),
     path("api/configuration/<str:key>/reset/", configuration_views.reset_parameter, name="reset-parameter"),
