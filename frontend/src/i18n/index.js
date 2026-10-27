@@ -89,6 +89,21 @@ const mensajes = {
         extranjero: "Extranjero", masculino: "Masculino", femenino: "Femenino",
       },
     },
+    incidents: {
+      title: "Registrar incidencia", description: "Descripción", category: "Categoría",
+      select: "Seleccione una categoría", minimum: "La descripción debe tener al menos 10 caracteres.",
+      categoryRequired: "Seleccione una categoría para registrar la incidencia.",
+      finalNotice: "Una vez registrada, la incidencia no se puede editar ni eliminar.",
+      confirmTitle: "¿Confirma esta incidencia?", confirm: "Confirmar incidencia", cancel: "Cancelar",
+      retry: "Reintentar registro", saving: "Guardando incidencia…", saved: "Incidencia registrada correctamente.",
+      invalid: "Revise la descripción y la categoría y vuelva a intentarlo.",
+      saveError: "No se pudo guardar la incidencia. Pulse Reintentar registro para volver a intentarlo.",
+      connectionError: "No se pudo confirmar la incidencia. Podría haberse guardado; compruébelo antes de reintentar.",
+      categories: {
+        objeto_extraviado: "Objeto extraviado", dano_infraestructura: "Daño a infraestructura",
+        comportamiento_indebido: "Comportamiento indebido", emergencia_medica: "Emergencia médica", otro: "Otro",
+      },
+    },
     roles: {
       guarda: "Guarda", coordinador: "Coordinador", museologo: "Museólogo",
       administrador_general: "Administrador general", administrador_sistema: "Administrador de sistema",
@@ -212,6 +227,21 @@ const mensajes = {
       options: {
         mayor: "Adult", menor: "Minor", nacional: "National", extranjero: "Foreign",
         masculino: "Male", femenino: "Female",
+      },
+    },
+    incidents: {
+      title: "Register incident", description: "Description", category: "Category",
+      select: "Select a category", minimum: "The description must contain at least 10 characters.",
+      categoryRequired: "Select a category to register the incident.",
+      finalNotice: "Once registered, the incident cannot be edited or deleted.",
+      confirmTitle: "Confirm this incident?", confirm: "Confirm incident", cancel: "Cancel",
+      retry: "Retry registration", saving: "Saving incident…", saved: "Incident registered successfully.",
+      invalid: "Check the description and category and try again.",
+      saveError: "Could not save the incident. Select Retry registration to try again.",
+      connectionError: "Could not confirm the incident. It may have been saved; check before retrying.",
+      categories: {
+        objeto_extraviado: "Lost object", dano_infraestructura: "Infrastructure damage",
+        comportamiento_indebido: "Misconduct", emergencia_medica: "Medical emergency", otro: "Other",
       },
     },
     roles: {

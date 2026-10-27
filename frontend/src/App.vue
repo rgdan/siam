@@ -7,6 +7,7 @@ import MuseoPublico from "./components/MuseoPublico.vue"
 import Usuarios from "./components/Usuarios.vue"
 import Bitacora from "./components/Bitacora.vue"
 import RegistrarIngreso from "./components/RegistrarIngreso.vue"
+import RegistrarIncidencia from "./components/RegistrarIncidencia.vue"
 import { solicitar, enviar } from "./api.js"
 
 // Traducciones de SIAM.
@@ -28,10 +29,12 @@ function navegar(ruta) {
 }
 
 const rutasPublicas = ["/", "/informacion", "/horarios"]
+const rutasDeRegistro = ["/interno/ingresos", "/interno/incidencias"]
 const permisosPorRuta = {
   "/interno/usuarios": "usuarios.consultar",
   "/interno/bitacora": "bitacora.consultar",
   "/interno/ingresos": "visitantes.registrar",
+  "/interno/incidencias": "incidencias.registrar",
 }
 
 function esRutaPublica() {
@@ -194,7 +197,7 @@ onUnmounted(() => {
 
     <!-- Autenticación y área interna -->
     <div v-else class="pagina-autenticacion" :class="{ 'pagina-administracion': permisosPorRuta[rutaActual] && usuario }">
-      <template v-if="rutaActual !== '/interno/ingresos'">
+      <template v-if="!rutasDeRegistro.includes(rutaActual)">
         <h1>SIAM</h1>
         <p>{{ t("common.systemName") }}</p>
       </template>
@@ -207,9 +210,9 @@ onUnmounted(() => {
       <!-- Área interna -->
       <section
         v-else-if="usuario"
-        :aria-labelledby="rutaActual === '/interno/ingresos' ? undefined : 'titulo-interno'"
+        :aria-labelledby="rutasDeRegistro.includes(rutaActual) ? undefined : 'titulo-interno'"
       >
-        <template v-if="rutaActual !== '/interno/ingresos'">
+        <template v-if="!rutasDeRegistro.includes(rutaActual)">
           <h2 id="titulo-interno">{{ t("auth.internalArea") }}</h2>
           <p>{{ t("auth.loggedInAs", { name: usuario.full_name }) }}</p>
         </template>
@@ -233,6 +236,11 @@ onUnmounted(() => {
         />
         <RegistrarIngreso
           v-else-if="rutaActual === '/interno/ingresos'"
+          @sesion-expirada="sesionExpirada"
+          @sin-acceso="denegarAcceso"
+        />
+        <RegistrarIncidencia
+          v-else-if="rutaActual === '/interno/incidencias'"
           @sesion-expirada="sesionExpirada"
           @sin-acceso="denegarAcceso"
         />

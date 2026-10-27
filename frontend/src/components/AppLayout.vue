@@ -70,6 +70,12 @@ function seleccionarTema(evento) {
             @click="cerrarMenu"
           >{{ t("visitors.title") }}</a>
           <a
+            v-if="usuario?.permissions?.includes('incidencias.registrar')"
+            href="/interno/incidencias"
+            :aria-current="props.rutaActual === '/interno/incidencias' ? 'page' : undefined"
+            @click="cerrarMenu"
+          >{{ t("incidents.title") }}</a>
+          <a
             v-if="usuario?.permissions?.includes('usuarios.consultar')"
             href="/interno/usuarios"
             :aria-current="props.rutaActual === '/interno/usuarios' ? 'page' : undefined"
