@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     "collection_integrity",
     "system_configuration",
     "visitors",
+    "incidents",
 ]
 AUTH_USER_MODEL = "api.User"
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.PBKDF2PasswordHasher"]
