@@ -64,6 +64,12 @@ function seleccionarTema(evento) {
             @click="cerrarMenu"
           >{{ t("auth.internalArea") }}</a>
           <a
+            v-if="usuario?.role === 'guarda' && usuario.permissions?.includes('visitantes.registrar')"
+            href="/interno/ingresos"
+            :aria-current="props.rutaActual === '/interno/ingresos' ? 'page' : undefined"
+            @click="cerrarMenu"
+          >{{ t("visitors.title") }}</a>
+          <a
             v-if="usuario?.permissions?.includes('usuarios.consultar')"
             href="/interno/usuarios"
             :aria-current="props.rutaActual === '/interno/usuarios' ? 'page' : undefined"

@@ -75,6 +75,20 @@ const mensajes = {
         sensitive_read: "Acceso sensible", login: "Inicio de sesión", failed_login: "Inicio de sesión fallido",
       },
     },
+    visitors: {
+      title: "Registrar ingreso", age: "Edad", nationality: "Nacionalidad", sex: "Sexo",
+      select: "Seleccione una opción", confirmTitle: "¿Confirma este ingreso?",
+      confirmDescription: "Revise los datos antes de registrar el ingreso.",
+      confirm: "Confirmar ingreso", cancel: "Cancelar", retry: "Reintentar registro",
+      saving: "Guardando ingreso…", saved: "Ingreso registrado correctamente.",
+      invalid: "Revise las tres selecciones y vuelva a intentarlo.",
+      saveError: "No se pudo guardar el ingreso. Pulse Reintentar registro para volver a intentarlo.",
+      connectionError: "No se pudo confirmar el ingreso. Podría haberse guardado; compruébelo antes de reintentar.",
+      options: {
+        mayor: "Mayor de edad", menor: "Menor de edad", nacional: "Nacional",
+        extranjero: "Extranjero", masculino: "Masculino", femenino: "Femenino",
+      },
+    },
     roles: {
       guarda: "Guarda", coordinador: "Coordinador", museologo: "Museólogo",
       administrador_general: "Administrador general", administrador_sistema: "Administrador de sistema",
@@ -184,6 +198,20 @@ const mensajes = {
       actions: {
         create: "Creation", modify: "Modification", decommission: "Decommission",
         sensitive_read: "Sensitive access", login: "Sign in", failed_login: "Failed sign in",
+      },
+    },
+    visitors: {
+      title: "Register entry", age: "Age", nationality: "Nationality", sex: "Sex",
+      select: "Select an option", confirmTitle: "Confirm this entry?",
+      confirmDescription: "Review the details before registering the entry.",
+      confirm: "Confirm entry", cancel: "Cancel", retry: "Retry registration",
+      saving: "Saving entry…", saved: "Entry registered successfully.",
+      invalid: "Check all three selections and try again.",
+      saveError: "Could not save the entry. Select Retry registration to try again.",
+      connectionError: "Could not confirm the entry. It may have been saved; check before retrying.",
+      options: {
+        mayor: "Adult", menor: "Minor", nacional: "National", extranjero: "Foreign",
+        masculino: "Male", femenino: "Female",
       },
     },
     roles: {

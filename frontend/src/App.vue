@@ -6,6 +6,7 @@ import AppLayout from "./components/AppLayout.vue"
 import MuseoPublico from "./components/MuseoPublico.vue"
 import Usuarios from "./components/Usuarios.vue"
 import Bitacora from "./components/Bitacora.vue"
+import RegistrarIngreso from "./components/RegistrarIngreso.vue"
 import { solicitar, enviar } from "./api.js"
 
 // Traducciones de SIAM.
@@ -30,6 +31,7 @@ const rutasPublicas = ["/", "/informacion", "/horarios"]
 const permisosPorRuta = {
   "/interno/usuarios": "usuarios.consultar",
   "/interno/bitacora": "bitacora.consultar",
+  "/interno/ingresos": "visitantes.registrar",
 }
 
 function esRutaPublica() {
@@ -78,6 +80,7 @@ async function cargarSesion() {
 
 // El menú ayuda a navegar; la API vuelve a comprobar los permisos en cada solicitud.
 function puedeVerRuta() {
+  if (rutaActual.value === "/interno/ingresos" && usuario.value?.role !== "guarda") return false
   return rutaActual.value === "/interno"
     || usuario.value?.permissions?.includes(permisosPorRuta[rutaActual.value]) === true
 }
@@ -192,9 +195,10 @@ onUnmounted(() => {
 
     <!-- Autenticación y área interna -->
     <div v-else class="pagina-autenticacion" :class="{ 'pagina-administracion': permisosPorRuta[rutaActual] && usuario }">
-      <h1>SIAM</h1>
-
-      <p>{{ t("common.systemName") }}</p>
+      <template v-if="rutaActual !== '/interno/ingresos'">
+        <h1>SIAM</h1>
+        <p>{{ t("common.systemName") }}</p>
+      </template>
 
       <!-- Comprobación de sesión -->
       <p v-if="comprobando" role="status">
@@ -204,13 +208,12 @@ onUnmounted(() => {
       <!-- Área interna -->
       <section
         v-else-if="usuario"
-        aria-labelledby="titulo-interno"
+        :aria-labelledby="rutaActual === '/interno/ingresos' ? undefined : 'titulo-interno'"
       >
-        <h2 id="titulo-interno">
-          {{ t("auth.internalArea") }}
-        </h2>
-
-        <p>{{ t("auth.loggedInAs", { name: usuario.full_name }) }}</p>
+        <template v-if="rutaActual !== '/interno/ingresos'">
+          <h2 id="titulo-interno">{{ t("auth.internalArea") }}</h2>
+          <p>{{ t("auth.loggedInAs", { name: usuario.full_name }) }}</p>
+        </template>
 
         <section v-if="accesoDenegado || !puedeVerRuta()" role="alert">
           <h2>{{ t("users.noAccess") }}</h2>
@@ -226,6 +229,11 @@ onUnmounted(() => {
         />
         <Bitacora
           v-else-if="rutaActual === '/interno/bitacora'"
+          @sesion-expirada="sesionExpirada"
+          @sin-acceso="denegarAcceso"
+        />
+        <RegistrarIngreso
+          v-else-if="rutaActual === '/interno/ingresos'"
           @sesion-expirada="sesionExpirada"
           @sin-acceso="denegarAcceso"
         />
