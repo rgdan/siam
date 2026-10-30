@@ -10,11 +10,12 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.cache import never_cache
 from rest_framework import serializers
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
+from rest_framework.exceptions import AuthenticationFailed, PermissionDenied, NotAuthenticated
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .authentication import SessionAuthentication
+from .models import Evento
 from .permissions import permisos_para, registrar_denegacion, requiere_permiso
 from .serializers import UserSerializer, UserUpdateSerializer, EventoSerializer
 
@@ -233,22 +234,44 @@ def user_detail(request, user_id):
         }) from None
 
 
-# SIAM-12: Registro de nuevos eventos del museo.
+# SIAM-12 y SIAM-13: registro de eventos y consulta pública.
 @never_cache
-@api_view(["POST"])
-@requiere_permiso("eventos.crear")
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
 def events(request):
-    # Solo el coordinador puede registrar eventos.
-    if request.user.role != "coordinador":
-        raise PermissionDenied(
-            "Solo el coordinador puede registrar eventos."
-        )
+    # SIAM-13: cualquier visitante puede consultar eventos públicos programados.
+    if request.method == "GET":
+        eventos = Evento.objects.filter(
+            tipo=Evento.Tipo.PUBLICO,
+            estado=Evento.Estado.PROGRAMADO,
+        ).order_by("fecha", "id")
 
-    # Validar los datos antes de guardar.
+        return Response([
+            {
+                "id": evento.pk,
+                "fecha": evento.fecha,
+                "descripcion": evento.descripcion,
+                "ubicacion": evento.ubicacion,
+                "tipo": evento.tipo,
+            }
+            for evento in eventos
+        ])
+
+    # SIAM-12: registrar eventos requiere una cuenta activa de coordinador.
+    if not request.user.is_authenticated:
+        raise NotAuthenticated("Debe iniciar sesión para registrar eventos.")
+
+    if (
+        not request.user.is_active
+        or request.user.role != "coordinador"
+        or "eventos.crear" not in permisos_para(request.user)
+    ):
+        registrar_denegacion(request, "eventos.crear")
+        raise PermissionDenied("Solo el coordinador puede registrar eventos.")
+
     serializer = EventoSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    # Guardar el evento y su auditoría en una misma transacción.
     audited_create(
         user=request.user,
         entity="evento",

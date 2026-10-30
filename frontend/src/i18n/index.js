@@ -4,6 +4,15 @@ import { createI18n } from "vue-i18n"
 // Traducciones de la interfaz de SIAM.
 const mensajes = {
   es: {
+    publicEvents: {
+      title: "Eventos públicos",
+      description: "Consulte los próximos eventos públicos del museo.",
+      refresh: "Actualizar eventos",
+      loading: "Cargando eventos…",
+      loadError: "No se pudieron cargar los eventos. Intente nuevamente.",
+      empty: "No hay eventos públicos próximos.",
+      location: "Ubicación",
+    },
     common: {
       systemName: "Sistema de Información y Analítica Museal",
       museumSystem: "Sistema museal",
@@ -171,6 +180,15 @@ const mensajes = {
   },
 
   en: {
+    publicEvents: {
+      title: "Public events",
+      description: "Explore the museum's upcoming public events.",
+      refresh: "Refresh events",
+      loading: "Loading events…",
+      loadError: "Could not load events. Please try again.",
+      empty: "There are no upcoming public events.",
+      location: "Location",
+    },
     common: {
       systemName: "Museum Information and Analytics System",
       museumSystem: "Museum system",

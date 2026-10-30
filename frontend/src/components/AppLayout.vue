@@ -10,7 +10,9 @@ const props = defineProps({
   rutaActual: { type: String, default: "/" },
   enviando: { type: Boolean, default: false },
 })
+
 defineEmits(["cerrar-sesion"])
+
 const { t, locale } = useI18n({ useScope: "global" })
 const menuAbierto = ref(false)
 const botonMenu = ref(null)
@@ -21,12 +23,10 @@ function cerrarMenu() {
   botonMenu.value?.focus()
 }
 
-// Conserva la preferencia de idioma mediante el módulo existente.
 function seleccionarIdioma(evento) {
   cambiarIdioma(evento.target.value)
 }
 
-// Guarda el tema elegido igual que la preferencia de idioma.
 function seleccionarTema(evento) {
   cambiarTema(evento.target.value)
 }
@@ -40,7 +40,9 @@ function seleccionarTema(evento) {
           <span class="marca-inicial" aria-hidden="true">S</span>
           <span>SIAM<small>{{ t("common.museumSystem") }}</small></span>
         </a>
+
         <p>{{ usuario ? t(`roles.${usuario.role}`) : t("common.public") }}</p>
+
         <button
           ref="botonMenu"
           class="menu-boton"
@@ -48,52 +50,87 @@ function seleccionarTema(evento) {
           aria-controls="navegacion-lateral"
           :aria-expanded="menuAbierto"
           @click="menuAbierto = !menuAbierto"
-        >{{ menuAbierto ? t("common.closeMenu") : t("common.menu") }}</button>
+        >
+          {{ menuAbierto ? t("common.closeMenu") : t("common.menu") }}
+        </button>
       </header>
 
-      <div id="navegacion-lateral" class="contenido-lateral" :class="{ abierto: menuAbierto }">
+      <div
+        id="navegacion-lateral"
+        class="contenido-lateral"
+        :class="{ abierto: menuAbierto }"
+      >
         <nav :aria-label="t('common.navigation')">
           <a
             href="/"
             :aria-current="['/', '/informacion', '/horarios'].includes(props.rutaActual) ? 'page' : undefined"
             @click="cerrarMenu"
-          >{{ t("common.information") }}</a>
+          >
+            {{ t("common.information") }}
+          </a>
+
+          <!-- SIAM-13: consulta pública de eventos -->
+          <a
+            href="/eventos"
+            :aria-current="props.rutaActual === '/eventos' ? 'page' : undefined"
+            @click="cerrarMenu"
+          >
+            {{ t("common.events") }}
+          </a>
+
           <a
             v-if="usuario"
             href="/interno"
             :aria-current="props.rutaActual === '/interno' ? 'page' : undefined"
             @click="cerrarMenu"
-          >{{ t("auth.internalArea") }}</a>
+          >
+            {{ t("auth.internalArea") }}
+          </a>
+
           <a
             v-if="usuario?.role === 'coordinador' && usuario?.permissions?.includes('eventos.crear')"
             href="/interno/eventos/registrar"
             :aria-current="props.rutaActual === '/interno/eventos/registrar' ? 'page' : undefined"
             @click="cerrarMenu"
-          >{{ t("events.registerTitle") }}</a>
+          >
+            {{ t("events.registerTitle") }}
+          </a>
+
           <a
             v-if="usuario?.permissions?.includes('visitantes.registrar')"
             href="/interno/ingresos"
             :aria-current="props.rutaActual === '/interno/ingresos' ? 'page' : undefined"
             @click="cerrarMenu"
-          >{{ t("visitors.title") }}</a>
+          >
+            {{ t("visitors.title") }}
+          </a>
+
           <a
             v-if="usuario?.permissions?.includes('incidencias.registrar')"
             href="/interno/incidencias"
             :aria-current="props.rutaActual === '/interno/incidencias' ? 'page' : undefined"
             @click="cerrarMenu"
-          >{{ t("incidents.title") }}</a>
+          >
+            {{ t("incidents.title") }}
+          </a>
+
           <a
             v-if="usuario?.permissions?.includes('usuarios.consultar')"
             href="/interno/usuarios"
             :aria-current="props.rutaActual === '/interno/usuarios' ? 'page' : undefined"
             @click="cerrarMenu"
-          >{{ t("users.title") }}</a>
+          >
+            {{ t("users.title") }}
+          </a>
+
           <a
             v-if="usuario?.permissions?.includes('bitacora.consultar')"
             href="/interno/bitacora"
             :aria-current="props.rutaActual === '/interno/bitacora' ? 'page' : undefined"
             @click="cerrarMenu"
-          >{{ t("audit.title") }}</a>
+          >
+            {{ t("audit.title") }}
+          </a>
         </nav>
 
         <div class="preferencias">
@@ -104,6 +141,7 @@ function seleccionarTema(evento) {
               <option value="en">English</option>
             </select>
           </div>
+
           <div class="campo-preferencia">
             <label for="tema">{{ t("common.theme") }}</label>
             <select id="tema" :value="tema" @change="seleccionarTema">
@@ -111,6 +149,7 @@ function seleccionarTema(evento) {
               <option value="oscuro">{{ t("common.darkMode") }}</option>
             </select>
           </div>
+
           <button
             v-if="usuario"
             class="acceso-interno"
@@ -121,7 +160,13 @@ function seleccionarTema(evento) {
           >
             {{ enviando ? t("auth.loggingOut") : t("auth.logout") }}
           </button>
-          <a v-else class="acceso-interno" href="/login" @click="cerrarMenu">
+
+          <a
+            v-else
+            class="acceso-interno"
+            href="/login"
+            @click="cerrarMenu"
+          >
             {{ t("auth.login") }}
           </a>
         </div>
@@ -136,6 +181,7 @@ function seleccionarTema(evento) {
 
 <style scoped>
 .app-layout { min-height: 100dvh; }
+
 .barra-lateral {
   --color-foco: #ffffff;
   position: fixed;
@@ -146,36 +192,162 @@ function seleccionarTema(evento) {
   background: var(--color-header);
   color: #ffffff;
 }
-.marca { padding: 20px 24px 28px; border-bottom: 1px solid #315168; }
-.app-logo { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; color: #ffffff; text-decoration: none; font: bold 20px Georgia, serif; }
-.marca-inicial { display: grid; place-items: center; width: 32px; height: 32px; background: var(--color-acento); border-radius: 7px; font-size: 16px; }
-.app-logo small { display: block; margin-top: 3px; color: #b8c9d6; font: 11px system-ui, sans-serif; }
-.marca p { margin: 8px 0 0; color: #b8c9d6; font-size: 12px; }
-.contenido-lateral { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow-y: auto; }
+
+.marca {
+  padding: 20px 24px 28px;
+  border-bottom: 1px solid #315168;
+}
+
+.app-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  color: #ffffff;
+  text-decoration: none;
+  font: bold 20px Georgia, serif;
+}
+
+.marca-inicial {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  background: var(--color-acento);
+  border-radius: 7px;
+  font-size: 16px;
+}
+
+.app-logo small {
+  display: block;
+  margin-top: 3px;
+  color: #b8c9d6;
+  font: 11px system-ui, sans-serif;
+}
+
+.marca p {
+  margin: 8px 0 0;
+  color: #b8c9d6;
+  font-size: 12px;
+}
+
+.contenido-lateral {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 nav { padding-top: 12px; }
-nav a { display: flex; align-items: center; min-height: 44px; padding: 12px 24px; border-left: 3px solid transparent; color: #b8c9d6; font-size: 14px; text-decoration: none; }
-nav a:hover { background: var(--color-header-hover); color: #ffffff; }
-nav a[aria-current="page"] { border-left-color: #ed4b3b; background: var(--color-header-hover); color: #ffffff; }
-.preferencias { display: grid; gap: 12px; margin-top: auto; padding: 20px 24px; border-top: 1px solid #315168; }
-.campo-preferencia { display: grid; gap: 8px; font-size: 13px; }
-select, button, .acceso-interno { min-height: 44px; padding: 10px 12px; border: 1px solid #8aa4b7; border-radius: 7px; font: inherit; }
-select { width: 100%; color: #ffffff; background: var(--color-header); }
+
+nav a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 12px 24px;
+  border-left: 3px solid transparent;
+  color: #b8c9d6;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+nav a:hover {
+  background: var(--color-header-hover);
+  color: #ffffff;
+}
+
+nav a[aria-current="page"] {
+  border-left-color: #ed4b3b;
+  background: var(--color-header-hover);
+  color: #ffffff;
+}
+
+.preferencias {
+  display: grid;
+  gap: 12px;
+  margin-top: auto;
+  padding: 20px 24px;
+  border-top: 1px solid #315168;
+}
+
+.campo-preferencia {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+
+select, button, .acceso-interno {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #8aa4b7;
+  border-radius: 7px;
+  font: inherit;
+}
+
+select {
+  width: 100%;
+  color: #ffffff;
+  background: var(--color-header);
+}
+
 button { cursor: pointer; }
-.acceso-interno { display: grid; place-items: center; border-color: var(--color-acento); background: var(--color-acento); color: #ffffff; font-size: 13px; font-weight: 600; text-decoration: none; }
+
+.acceso-interno {
+  display: grid;
+  place-items: center;
+  border-color: var(--color-acento);
+  background: var(--color-acento);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .acceso-interno:disabled { cursor: wait; }
-.menu-boton { display: none; background: transparent; color: #ffffff; }
-.app-contenido { min-width: 0; margin-left: 260px; padding: 26px 32px 48px; }
+
+.menu-boton {
+  display: none;
+  background: transparent;
+  color: #ffffff;
+}
+
+.app-contenido {
+  min-width: 0;
+  margin-left: 260px;
+  padding: 26px 32px 48px;
+}
+
 @media (max-width: 800px) {
-  .barra-lateral { position: static; width: 100%; }
-  .marca { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; }
+  .barra-lateral {
+    position: static;
+    width: 100%;
+  }
+
+  .marca {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 20px;
+  }
+
   .marca p { display: none; }
   .menu-boton { display: block; }
   .contenido-lateral { display: none; }
   .contenido-lateral.abierto { display: flex; }
   .preferencias { margin-top: 20px; }
-  .app-contenido { margin-left: 0; padding: 24px 20px; }
+
+  .app-contenido {
+    margin-left: 0;
+    padding: 24px 20px;
+  }
 }
+
 @media (max-width: 400px) {
-  .marca, .app-contenido { padding-inline: 16px; }
+  .marca, .app-contenido {
+    padding-inline: 16px;
+  }
 }
 </style>

@@ -4,6 +4,7 @@ import { onMounted, onUnmounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import AppLayout from "./components/AppLayout.vue"
 import MuseoPublico from "./components/MuseoPublico.vue"
+import EventosPublicos from "./components/EventosPublicos.vue"
 import Usuarios from "./components/Usuarios.vue"
 import Bitacora from "./components/Bitacora.vue"
 import RegistrarIngreso from "./components/RegistrarIngreso.vue"
@@ -29,7 +30,9 @@ function navegar(ruta) {
   actualizarRuta()
 }
 
-const rutasPublicas = ["/", "/informacion", "/horarios"]
+// SIAM-13: la consulta de eventos públicos no requiere iniciar sesión.
+const rutasPublicas = ["/", "/informacion", "/horarios", "/eventos"]
+
 const rutasDeRegistro = [
   "/interno/ingresos",
   "/interno/incidencias",
@@ -164,7 +167,7 @@ async function cerrarSesion() {
   }
 }
 
-// Reconoce la sesión pública sin exigirla ni ocultar la información del museo.
+// Reconoce las rutas públicas sin exigir sesión.
 async function comprobarSesion() {
   if (esRutaPublica()) {
     try {
@@ -188,7 +191,7 @@ async function comprobarSesion() {
   }
 }
 
-// También protege la navegación mediante los botones Atrás y Adelante del navegador.
+// También protege la navegación con Atrás y Adelante del navegador.
 watch(rutaActual, comprobarSesion)
 
 onMounted(() => {
@@ -208,9 +211,14 @@ onUnmounted(() => {
     :enviando="enviando"
     @cerrar-sesion="cerrarSesion"
   >
-    <!-- Información pública: no requiere iniciar sesión -->
+    <!-- SIAM-13: eventos visibles sin iniciar sesión -->
+    <EventosPublicos
+      v-if="rutaActual === '/eventos'"
+    />
+
+    <!-- Información pública del museo -->
     <MuseoPublico
-      v-if="esRutaPublica()"
+      v-else-if="esRutaPublica()"
       :key="rutaActual"
     />
 
@@ -368,7 +376,6 @@ form {
   width: 100%;
 }
 
-/* Campos y botones */
 input,
 button {
   box-sizing: border-box;
@@ -397,12 +404,10 @@ button:disabled {
   cursor: wait;
 }
 
-/* Mensajes de error */
 .error {
   color: var(--color-error);
 }
 
-/* Adaptación para celulares */
 @media (max-width: 767px) {
   .pagina-autenticacion {
     margin: 8px auto;
