@@ -8,6 +8,7 @@ import Usuarios from "./components/Usuarios.vue"
 import Bitacora from "./components/Bitacora.vue"
 import RegistrarIngreso from "./components/RegistrarIngreso.vue"
 import RegistrarIncidencia from "./components/RegistrarIncidencia.vue"
+import RegistrarEvento from "./components/RegistrarEvento.vue"
 import { solicitar, enviar } from "./api.js"
 
 // Traducciones de SIAM.
@@ -29,12 +30,18 @@ function navegar(ruta) {
 }
 
 const rutasPublicas = ["/", "/informacion", "/horarios"]
-const rutasDeRegistro = ["/interno/ingresos", "/interno/incidencias"]
+const rutasDeRegistro = [
+  "/interno/ingresos",
+  "/interno/incidencias",
+  "/interno/eventos/registrar",
+]
+
 const permisosPorRuta = {
   "/interno/usuarios": "usuarios.consultar",
   "/interno/bitacora": "bitacora.consultar",
   "/interno/ingresos": "visitantes.registrar",
   "/interno/incidencias": "incidencias.registrar",
+  "/interno/eventos/registrar": "eventos.crear",
 }
 
 function esRutaPublica() {
@@ -48,7 +55,6 @@ const contrasena = ref("")
 const comprobando = ref(false)
 const enviando = ref(false)
 const error = ref("")
-
 const accesoDenegado = ref(false)
 
 // Una sesión expirada deja de mostrar inmediatamente los datos internos.
@@ -83,8 +89,16 @@ async function cargarSesion() {
 
 // El menú ayuda a navegar; la API vuelve a comprobar los permisos en cada solicitud.
 function puedeVerRuta() {
-  return rutaActual.value === "/interno"
-    || usuario.value?.permissions?.includes(permisosPorRuta[rutaActual.value]) === true
+  if (rutaActual.value === "/interno") return true
+
+  if (rutaActual.value === "/interno/eventos/registrar") {
+    return (
+      usuario.value?.role === "coordinador"
+      && usuario.value?.permissions?.includes("eventos.crear") === true
+    )
+  }
+
+  return usuario.value?.permissions?.includes(permisosPorRuta[rutaActual.value]) === true
 }
 
 // Retira la sección si Django rechaza un permiso que cambió durante la sesión.
@@ -188,7 +202,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <AppLayout :usuario="usuario" :ruta-actual="rutaActual" :enviando="enviando" @cerrar-sesion="cerrarSesion">
+  <AppLayout
+    :usuario="usuario"
+    :ruta-actual="rutaActual"
+    :enviando="enviando"
+    @cerrar-sesion="cerrarSesion"
+  >
     <!-- Información pública: no requiere iniciar sesión -->
     <MuseoPublico
       v-if="esRutaPublica()"
@@ -196,7 +215,11 @@ onUnmounted(() => {
     />
 
     <!-- Autenticación y área interna -->
-    <div v-else class="pagina-autenticacion" :class="{ 'pagina-administracion': permisosPorRuta[rutaActual] && usuario }">
+    <div
+      v-else
+      class="pagina-autenticacion"
+      :class="{ 'pagina-administracion': permisosPorRuta[rutaActual] && usuario }"
+    >
       <template v-if="!rutasDeRegistro.includes(rutaActual)">
         <h1>SIAM</h1>
         <p>{{ t("common.systemName") }}</p>
@@ -222,6 +245,7 @@ onUnmounted(() => {
           <p>{{ t("users.noAccessDescription") }}</p>
           <a href="/interno">{{ t("auth.internalArea") }}</a>
         </section>
+
         <Usuarios
           v-else-if="rutaActual === '/interno/usuarios'"
           :usuario-actual="usuario"
@@ -229,23 +253,32 @@ onUnmounted(() => {
           @sin-acceso="denegarAcceso"
           @cuenta-actualizada="cargarSesion().catch(sesionExpirada)"
         />
+
         <Bitacora
           v-else-if="rutaActual === '/interno/bitacora'"
           @sesion-expirada="sesionExpirada"
           @sin-acceso="denegarAcceso"
         />
+
         <RegistrarIngreso
           v-else-if="rutaActual === '/interno/ingresos'"
           @sesion-expirada="sesionExpirada"
           @sin-acceso="denegarAcceso"
         />
+
         <RegistrarIncidencia
           v-else-if="rutaActual === '/interno/incidencias'"
           @sesion-expirada="sesionExpirada"
           @sin-acceso="denegarAcceso"
         />
-        <p v-else>{{ t("users.chooseSection") }}</p>
 
+        <RegistrarEvento
+          v-else-if="rutaActual === '/interno/eventos/registrar'"
+          @sesion-expirada="sesionExpirada"
+          @sin-acceso="denegarAcceso"
+        />
+
+        <p v-else>{{ t("users.chooseSection") }}</p>
       </section>
 
       <!-- Formulario de inicio de sesión -->
@@ -297,8 +330,8 @@ onUnmounted(() => {
       <p role="status">
         {{ enviando ? t("common.processing") : "" }}
       </p>
-
     </div>
+
     <p v-if="error" role="alert" class="error">{{ t(error) }}</p>
   </AppLayout>
 </template>

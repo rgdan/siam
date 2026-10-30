@@ -1,3 +1,4 @@
+
 from audit.models import AuditEntry
 from audit.services import audited_create, record, snapshot
 from django.contrib.auth import authenticate, get_user_model, login, logout
@@ -15,7 +16,7 @@ from rest_framework.response import Response
 
 from .authentication import SessionAuthentication
 from .permissions import permisos_para, registrar_denegacion, requiere_permiso
-from .serializers import UserSerializer, UserUpdateSerializer
+from .serializers import UserSerializer, UserUpdateSerializer, EventoSerializer
 
 
 class LoginSerializer(serializers.Serializer):
@@ -51,8 +52,12 @@ def sign_in(request):
     user = authenticate(request=request, email=email, password=credentials.validated_data["password"])
     if user is None:
         attempted = get_user_model().objects.filter(email__iexact=email).first()
-        record(user=attempted, action_type=AuditEntry.Action.FAILED_LOGIN, entity="user",
-               entity_id=attempted.pk if attempted else "")
+        record(
+            user=attempted,
+            action_type=AuditEntry.Action.FAILED_LOGIN,
+            entity="user",
+            entity_id=attempted.pk if attempted else "",
+        )
         raise AuthenticationFailed("Correo o contraseña incorrectos")
 
     with transaction.atomic():
@@ -96,70 +101,161 @@ def users(request):
     except DjangoValidationError as error:
         raise serializers.ValidationError(error.message_dict) from None
     except IntegrityError:
-        raise serializers.ValidationError({"email": ["Ya existe una cuenta con este correo."]}) from None
+        raise serializers.ValidationError({
+            "email": ["Ya existe una cuenta con este correo."]
+        }) from None
+
     return Response(account.data, status=201)
 
 
 @never_cache
 @api_view(["PATCH", "DELETE"])
-@requiere_permiso({"PATCH": "usuarios.actualizar", "DELETE": "usuarios.eliminar"})
+@requiere_permiso({
+    "PATCH": "usuarios.actualizar",
+    "DELETE": "usuarios.eliminar",
+})
 def user_detail(request, user_id):
     try:
         with transaction.atomic():
 
             actor = get_user_model().objects.filter(pk=request.user.pk).first()
             allowed = permisos_para(actor)
-            required = "usuarios.eliminar" if request.method == "DELETE" else "usuarios.actualizar"
+            required = (
+                "usuarios.eliminar"
+                if request.method == "DELETE"
+                else "usuarios.actualizar"
+            )
+
             if required not in allowed:
                 raise PermissionDenied("Acceso denegado.")
-            if request.method == "PATCH" and isinstance(request.data, dict) and "role" in request.data and "usuarios.asignar_rol" not in allowed:
+
+            if (
+                request.method == "PATCH"
+                and isinstance(request.data, dict)
+                and "role" in request.data
+                and "usuarios.asignar_rol" not in allowed
+            ):
                 required = "usuarios.asignar_rol"
                 raise PermissionDenied("Acceso denegado.")
 
             account = get_object_or_404(get_user_model(), pk=user_id)
             old = snapshot(account)
-            if request.method == "DELETE":
-                if not isinstance(request.data, dict) or request.data.get("confirm") is not True:
-                    raise serializers.ValidationError({"confirm": "Confirme la eliminación con true."})
-                if account.pk == request.user.pk:
-                    raise serializers.ValidationError("No puede eliminar su propia cuenta.")
 
+            if request.method == "DELETE":
+                if (
+                    not isinstance(request.data, dict)
+                    or request.data.get("confirm") is not True
+                ):
+                    raise serializers.ValidationError({
+                        "confirm": "Confirme la eliminación con true."
+                    })
+
+                if account.pk == request.user.pk:
+                    raise serializers.ValidationError(
+                        "No puede eliminar su propia cuenta."
+                    )
 
                 deactivation = UserUpdateSerializer(
-                    account, data={"is_active": False}, partial=True, context={"request": request},
+                    account,
+                    data={"is_active": False},
+                    partial=True,
+                    context={"request": request},
                 )
                 deactivation.is_valid(raise_exception=True)
+
                 if account.has_related_records():
                     deactivation.save()
-                    record(user=actor, action_type=AuditEntry.Action.DECOMMISSION,
-                           entity="user", entity_id=account.pk, old=old, new=snapshot(account))
-                    return Response({"detail": "La cuenta tiene registros relacionados y fue desactivada.", "action": "deactivated"})
+                    record(
+                        user=actor,
+                        action_type=AuditEntry.Action.DECOMMISSION,
+                        entity="user",
+                        entity_id=account.pk,
+                        old=old,
+                        new=snapshot(account),
+                    )
+                    return Response({
+                        "detail": "La cuenta tiene registros relacionados y fue desactivada.",
+                        "action": "deactivated",
+                    })
+
                 account_id = account.pk
                 account.delete()
-                record(user=actor, action_type=AuditEntry.Action.DECOMMISSION,
-                       entity="user", entity_id=account_id, old=old)
-                return Response({"detail": "Cuenta eliminada.", "action": "deleted"})
+                record(
+                    user=actor,
+                    action_type=AuditEntry.Action.DECOMMISSION,
+                    entity="user",
+                    entity_id=account_id,
+                    old=old,
+                )
+                return Response({
+                    "detail": "Cuenta eliminada.",
+                    "action": "deleted",
+                })
 
             changes = UserUpdateSerializer(
-                account, data=request.data, partial=True, context={"request": request},
+                account,
+                data=request.data,
+                partial=True,
+                context={"request": request},
             )
             changes.is_valid(raise_exception=True)
+
             credential_reset = "password" in changes.validated_data
             changes.save()
+
             new = snapshot(account)
             if credential_reset:
                 new["credential_reset"] = True
-            record(user=actor, action_type=AuditEntry.Action.MODIFY, entity="user",
-                   entity_id=account.pk, old=old, new=new)
+
+            record(
+                user=actor,
+                action_type=AuditEntry.Action.MODIFY,
+                entity="user",
+                entity_id=account.pk,
+                old=old,
+                new=new,
+            )
             return Response(changes.data)
+
     except PermissionDenied:
         # Fuera de la transacción fallida para que el rechazo no borre su propia auditoría.
         registrar_denegacion(request, required)
         raise
+
     except IntegrityError:
         if request.method == "DELETE":
-            raise serializers.ValidationError("No se pudo eliminar la cuenta por sus registros relacionados.") from None
-        raise serializers.ValidationError({"email": ["Ya existe una cuenta con este correo."]}) from None
+            raise serializers.ValidationError(
+                "No se pudo eliminar la cuenta por sus registros relacionados."
+            ) from None
+
+        raise serializers.ValidationError({
+            "email": ["Ya existe una cuenta con este correo."]
+        }) from None
+
+
+# SIAM-12: Registro de nuevos eventos del museo.
+@never_cache
+@api_view(["POST"])
+@requiere_permiso("eventos.crear")
+def events(request):
+    # Solo el coordinador puede registrar eventos.
+    if request.user.role != "coordinador":
+        raise PermissionDenied(
+            "Solo el coordinador puede registrar eventos."
+        )
+
+    # Validar los datos antes de guardar.
+    serializer = EventoSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    # Guardar el evento y su auditoría en una misma transacción.
+    audited_create(
+        user=request.user,
+        entity="evento",
+        create=lambda: serializer.save(creado_por=request.user),
+    )
+
+    return Response(serializer.data, status=201)
 
 
 def csrf_failure(request, reason=""):

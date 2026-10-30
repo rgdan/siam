@@ -1,3 +1,4 @@
+
 from api import views
 from audit.views import AuditList
 from django.urls import path
@@ -19,6 +20,7 @@ urlpatterns = [
     path("api/auth/logout/", views.sign_out, name="logout"),
     path("api/users/", views.users, name="users"),
     path("api/users/<int:user_id>/", views.user_detail, name="user-detail"),
+    path("api/events/", views.events, name="events"),
 ]
 
 handler400 = views.bad_request

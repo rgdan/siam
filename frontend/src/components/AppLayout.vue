@@ -1,3 +1,4 @@
+
 <script setup>
 import { ref } from "vue"
 import { useI18n } from "vue-i18n"
@@ -63,6 +64,12 @@ function seleccionarTema(evento) {
             :aria-current="props.rutaActual === '/interno' ? 'page' : undefined"
             @click="cerrarMenu"
           >{{ t("auth.internalArea") }}</a>
+          <a
+            v-if="usuario?.role === 'coordinador' && usuario?.permissions?.includes('eventos.crear')"
+            href="/interno/eventos/registrar"
+            :aria-current="props.rutaActual === '/interno/eventos/registrar' ? 'page' : undefined"
+            @click="cerrarMenu"
+          >{{ t("events.registerTitle") }}</a>
           <a
             v-if="usuario?.permissions?.includes('visitantes.registrar')"
             href="/interno/ingresos"
