@@ -21,6 +21,7 @@ urlpatterns = [
     path("api/users/", views.users, name="users"),
     path("api/users/<int:user_id>/", views.user_detail, name="user-detail"),
     path("api/events/", views.events, name="events"),
+    path("api/events/internal/", views.internal_events, name="internal-events"),
 ]
 
 handler400 = views.bad_request

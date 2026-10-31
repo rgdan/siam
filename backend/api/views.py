@@ -281,6 +281,28 @@ def events(request):
     return Response(serializer.data, status=201)
 
 
+# SIAM-14: consulta de eventos para el personal interno autorizado.
+@never_cache
+@api_view(["GET"])
+@requiere_permiso("eventos.ver_privados")
+def internal_events(request):
+    eventos = Evento.objects.filter(
+        estado=Evento.Estado.PROGRAMADO,
+        tipo__in=[Evento.Tipo.PUBLICO, Evento.Tipo.PRIVADO],
+    ).order_by("fecha", "id")
+
+    return Response([
+        {
+            "id": evento.pk,
+            "fecha": evento.fecha,
+            "descripcion": evento.descripcion,
+            "ubicacion": evento.ubicacion,
+            "tipo": evento.tipo,
+        }
+        for evento in eventos
+    ])
+
+
 def csrf_failure(request, reason=""):
     return JsonResponse({"detail": "Verificación CSRF fallida."}, status=403)
 
