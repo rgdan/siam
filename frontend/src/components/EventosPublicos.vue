@@ -20,12 +20,14 @@ const idiomaRegional = computed(() =>
   locale.value === "en" ? "en-US" : "es-CR"
 )
 
-const tituloMes = computed(() =>
-  new Intl.DateTimeFormat(idiomaRegional.value, {
+const tituloMes = computed(() => {
+  const titulo = new Intl.DateTimeFormat(idiomaRegional.value, {
     month: "long",
     year: "numeric",
   }).format(mesActual.value)
-)
+
+  return titulo.charAt(0).toUpperCase() + titulo.slice(1)
+})
 
 const encabezadosSemana = computed(() => {
   const lunes = new Date(2024, 0, 1)
@@ -383,7 +385,6 @@ button:disabled {
 
 .titulo-mes {
   margin: 0;
-  text-transform: capitalize;
 }
 
 .controles-calendario {
