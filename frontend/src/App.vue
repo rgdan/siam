@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n"
 import AppLayout from "./components/AppLayout.vue"
 import MuseoPublico from "./components/MuseoPublico.vue"
 import EventosPublicos from "./components/EventosPublicos.vue"
+import EventosInternos from "./components/EventosInternos.vue"
 import Usuarios from "./components/Usuarios.vue"
 import Bitacora from "./components/Bitacora.vue"
 import RegistrarIngreso from "./components/RegistrarIngreso.vue"
@@ -45,6 +46,7 @@ const permisosPorRuta = {
   "/interno/ingresos": "visitantes.registrar",
   "/interno/incidencias": "incidencias.registrar",
   "/interno/eventos/registrar": "eventos.crear",
+  "/interno/eventos": "eventos.ver_privados",
 }
 
 function esRutaPublica() {
@@ -282,6 +284,13 @@ onUnmounted(() => {
 
         <RegistrarEvento
           v-else-if="rutaActual === '/interno/eventos/registrar'"
+          @sesion-expirada="sesionExpirada"
+          @sin-acceso="denegarAcceso"
+        />
+
+        <!-- SIAM-14: calendario interno de eventos públicos y privados -->
+        <EventosInternos
+          v-else-if="rutaActual === '/interno/eventos'"
           @sesion-expirada="sesionExpirada"
           @sin-acceso="denegarAcceso"
         />

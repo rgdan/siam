@@ -87,6 +87,16 @@ function seleccionarTema(evento) {
             {{ t("auth.internalArea") }}
           </a>
 
+          <!-- SIAM-14: calendario de eventos públicos y privados -->
+          <a
+            v-if="usuario?.permissions?.includes('eventos.ver_privados')"
+            href="/interno/eventos"
+            :aria-current="props.rutaActual === '/interno/eventos' ? 'page' : undefined"
+            @click="cerrarMenu"
+          >
+            {{ locale === "en" ? "Internal calendar" : "Calendario interno" }}
+          </a>
+
           <a
             v-if="usuario?.role === 'coordinador' && usuario?.permissions?.includes('eventos.crear')"
             href="/interno/eventos/registrar"
