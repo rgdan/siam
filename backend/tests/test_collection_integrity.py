@@ -97,7 +97,7 @@ class CollectionIntegrityTests(TestCase):
                 piece.refresh_from_db()
                 self.assertEqual(
                     (piece.title, piece.state, piece.loan_to, piece.decommissioned),
-                    ("Original", "registered", "", False),
+                    ("Original", "stored", "", False),
                 )
                 self.assertEqual(Photo.objects.count(), 1)
                 self.assertEqual(AuditEntry.objects.count(), 1)
