@@ -11,6 +11,7 @@ urlpatterns = [
     path("api/pieces/", collection_views.pieces, name="pieces"),
     path("api/pieces/<int:piece_id>/", collection_views.piece_detail, name="piece-detail"),
     path("api/pieces/<int:piece_id>/photos/", collection_views.upload_photos, name="piece-photos"),
+    path("api/pieces/<int:piece_id>/photos/<int:photo_id>/", collection_views.delete_photo, name="piece-photo-delete"),
     path("api/incidents/", register_incident, name="incident-register"),
     path("api/visitor-entries/", register_entry, name="visitor-entry-register"),
     path("api/audit/", AuditList.as_view(), name="audit-list"),

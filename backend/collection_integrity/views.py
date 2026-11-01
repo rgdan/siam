@@ -1,14 +1,15 @@
 import logging
 
 from api.permissions import requiere_permiso
-from audit.services import snapshot
+from audit.models import AuditEntry
+from audit.services import record, snapshot
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import Piece
+from .models import Photo, Piece
 from .serializers import (
     PhotoSerializer,
     PieceSerializer,
@@ -83,3 +84,27 @@ def upload_photos(request, piece_id):
                 {"index": index, "errors": {"non_field_errors": ["upload_failed"]}}
             )
     return Response({"results": results})
+
+
+@api_view(["DELETE"])
+@requiere_permiso("piezas.actualizar")
+def delete_photo(request, piece_id, photo_id):
+    with transaction.atomic():
+        piece = get_object_or_404(Piece.objects.select_for_update(), pk=piece_id)
+        if piece.decommissioned:
+            raise serializers.ValidationError({"detail": "inactive_piece"})
+        photo = get_object_or_404(Photo, pk=photo_id, piece=piece)
+        old = {
+            "photos": list(piece.photos.values_list("pk", flat=True)),
+            "photo": snapshot(photo),
+        }
+        photo.delete()
+        record(
+            user=request.user,
+            action_type=AuditEntry.Action.MODIFY,
+            entity="piece",
+            entity_id=piece.pk,
+            old=old,
+            new={"photos": list(piece.photos.values_list("pk", flat=True))},
+        )
+    return Response({"deleted": photo_id})

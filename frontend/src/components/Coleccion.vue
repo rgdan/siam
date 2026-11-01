@@ -29,6 +29,9 @@ const form = ref({}),
 const photoResults = ref([]),
   enlarged = ref(null),
   dialog = ref(null)
+const photoToDelete = ref(null),
+  deleteDialog = ref(null),
+  deleteFailure = ref(false)
 async function json(response) {
   if (response.status === 401) emit("sesion-expirada")
   if (response.status === 403) emit("sin-acceso")
@@ -184,6 +187,30 @@ async function upload(event) {
 function showPhoto(photo) {
   enlarged.value = photo
   dialog.value.showModal()
+}
+function confirmPhotoDelete(photo) {
+  if (busy.value) return
+  photoToDelete.value = photo
+  deleteFailure.value = false
+  deleteDialog.value.showModal()
+}
+async function deletePhoto() {
+  if (busy.value || !photoToDelete.value) return
+  busy.value = true
+  deleteFailure.value = false
+  notice.value = ""
+  try {
+    const id = photoToDelete.value.id
+    await json(await enviar(`pieces/${selected.value.id}/photos/${id}/`, {}, "DELETE"))
+    selected.value.photos = selected.value.photos.filter(photo => photo.id !== id)
+    deleteDialog.value.close()
+    photoToDelete.value = null
+    notice.value = "photoDeleted"
+  } catch {
+    deleteFailure.value = true
+  } finally {
+    busy.value = false
+  }
 }
 onMounted(load)
 </script>
@@ -343,14 +370,17 @@ onMounted(load)
       <h3>{{ t("photos") }}</h3>
       <p v-if="!selected.photos.length">{{ t("noPhotos") }}</p>
       <div class="photos">
+        <figure v-for="photo in selected.photos" :key="photo.id" class="editable-photo">
         <button
           type="button"
-          v-for="photo in selected.photos"
-          :key="photo.id"
+          :disabled="busy"
           @click="showPhoto(photo)"
         >
           <img :src="photo.data" :alt="photo.name" />
         </button>
+        <figcaption>{{ photo.name }}</figcaption>
+        <button class="delete-photo" type="button" :disabled="busy" :aria-label="t('deletePhotoNamed', { name: photo.name })" @click="confirmPhotoDelete(photo)">{{ t('deletePhoto') }}</button>
+        </figure>
       </div>
       <label for="photos">{{ t("addPhotos") }}</label>
       <p id="photo-help">{{ t("photoHelp") }}</p>
@@ -431,6 +461,16 @@ onMounted(load)
         </section>
       </article>
     </template>
+    <dialog ref="deleteDialog" class="delete-photo-dialog" aria-labelledby="delete-photo-heading" :aria-busy="busy" @cancel="busy && $event.preventDefault()">
+      <h3 id="delete-photo-heading">{{ t('deletePhoto') }}</h3>
+      <p>{{ t('deletePhotoConfirm', { name: photoToDelete?.name }) }}</p>
+      <p class="photo-note">{{ t('deletePhotoWarning') }}</p>
+      <p v-if="deleteFailure" role="alert" class="error">{{ t('deletePhotoError') }}</p>
+      <div class="actions">
+        <button type="button" :disabled="busy" autofocus @click="deleteDialog.close()">{{ t('cancel') }}</button>
+        <button class="primary-action" type="button" :disabled="busy" @click="deletePhoto">{{ t('deletePhoto') }}</button>
+      </div>
+    </dialog>
     <dialog
       ref="dialog"
       @click="
@@ -610,6 +650,14 @@ dd {
 .photo-editor .photos { gap: 8px; margin-bottom: 20px; }
 .photo-editor .photos button { padding: 4px; }
 .photo-editor .photos img { display: block; width: 64px; height: 64px; }
+.editable-photo { display: grid; align-content: start; gap: 8px; width: 112px; margin: 0; }
+.editable-photo > button:first-child img { width: 100%; height: 88px; object-fit: cover; }
+.editable-photo figcaption { color: var(--color-secundario); font-size: 12px; overflow-wrap: anywhere; }
+.photo-editor .delete-photo { min-height: 44px; padding: 8px; border-color: var(--color-divisor); color: var(--color-error); font-size: 12px; }
+.delete-photo-dialog { width: min(440px, calc(100% - 32px)); padding: 24px; border-radius: 12px; }
+.delete-photo-dialog h3 { margin-top: 0; font-size: 24px; }
+.delete-photo-dialog p { line-height: 1.6; }
+.delete-photo-dialog .photo-note { color: var(--color-secundario); font-size: 13px; }
 .photo-editor input[type="file"] { padding: 12px; border-style: dashed; font-size: 12px; }
 .photo-editor input::file-selector-button { min-height: 36px; border: 0; border-radius: 4px; margin-right: 8px; padding: 8px; background: var(--color-footer); color: var(--color-texto); font: inherit; cursor: pointer; }
 .photo-editor .photo-note { font-size: 12px; }

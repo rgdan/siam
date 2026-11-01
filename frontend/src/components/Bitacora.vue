@@ -59,6 +59,9 @@ function tituloRegistro(registro) {
 function resumen(registro) {
   const campos = Object.keys(registro.changes).map(campo => nombreCampo(campo, registro.entity))
   if (!campos.length) return ""
+  const fotoEliminada = registro.changes.photo
+  if (fotoEliminada?.old && fotoEliminada.new === null)
+    return t("audit.photoDeleted", { name: fotoEliminada.old.name })
   const fotos = registro.changes.photos
   if (campos.length === 1 && fotos && Array.isArray(fotos.old) && Array.isArray(fotos.new)) {
     const added = fotos.new.filter(id => !fotos.old.includes(id)).length
