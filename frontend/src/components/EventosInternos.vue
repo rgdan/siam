@@ -44,6 +44,14 @@ const textos = {
     errorOperacion: "No se pudo completar la operación.",
     sinPermiso: "No tiene permiso para realizar esta operación.",
     fechaInvalida: "Seleccione una fecha y hora futuras.",
+    registrarAsistencia: "Registrar asistencia",
+    corregirAsistencia: "Corregir asistencia",
+    asistenciaTitulo: "Asistencia real del evento",
+    asistentesReales: "Asistentes reales",
+    noRegistrada: "No registrada",
+    asistenciaGuardada: "Asistencia real guardada correctamente.",
+    asistenciaInvalida: "Indique un número entero mayor o igual a 0.",
+    eventoPasado: "La asistencia solo puede registrarse en eventos pasados.",
   },
   en: {
     titulo: "Internal event calendar",
@@ -80,6 +88,14 @@ const textos = {
     errorOperacion: "The operation could not be completed.",
     sinPermiso: "You do not have permission to perform this operation.",
     fechaInvalida: "Select a future date and time.",
+    registrarAsistencia: "Record attendance",
+    corregirAsistencia: "Correct attendance",
+    asistenciaTitulo: "Actual event attendance",
+    asistentesReales: "Actual attendees",
+    noRegistrada: "Not recorded",
+    asistenciaGuardada: "Actual attendance saved successfully.",
+    asistenciaInvalida: "Enter a whole number greater than or equal to 0.",
+    eventoPasado: "Attendance can only be recorded for past events.",
   },
 }
 
@@ -102,6 +118,10 @@ const mensaje = ref("")
 const errorOperacion = ref("")
 const eventoEditando = ref(null)
 const eventoCancelando = ref(null)
+
+// SIAM-16: registro y corrección de asistencia de eventos pasados.
+const eventoAsistencia = ref(null)
+const cantidadAsistencia = ref("")
 const panelGestion = ref(null)
 
 const formulario = ref({
@@ -121,6 +141,20 @@ const puedeCancelar = computed(() =>
   usuario.value?.role === "coordinador" &&
   usuario.value?.permissions?.includes("eventos.cancelar") === true
 )
+
+const puedeRegistrarAsistencia = computed(() =>
+  usuario.value?.role === "coordinador" &&
+  usuario.value?.permissions?.includes("eventos.registrar_asistencia") === true
+)
+
+function esEventoPasado(evento) {
+  return new Date(evento.fecha).getTime() <= Date.now()
+}
+
+function tieneAsistencia(evento) {
+  return evento.asistentes_reales !== null &&
+    evento.asistentes_reales !== undefined
+}
 
 function esEventoFuturo(evento) {
   return new Date(evento.fecha).getTime() > Date.now()
@@ -361,7 +395,7 @@ async function obtenerCsrf() {
   return datos.csrfToken
 }
 
-// Peticiones protegidas para modificar y cancelar eventos.
+// Peticiones protegidas para gestionar eventos y asistencia.
 async function solicitarGestion(ruta, metodo, datos) {
   const csrfToken = await obtenerCsrf()
 
@@ -394,12 +428,98 @@ function cerrarCancelacion() {
   eventoCancelando.value = null
 }
 
+function cerrarAsistencia() {
+  eventoAsistencia.value = null
+  cantidadAsistencia.value = ""
+}
+
+// SIAM-16: abre el formulario de asistencia para eventos pasados.
+async function iniciarAsistencia(evento) {
+  if (
+    !puedeRegistrarAsistencia.value ||
+    !esEventoPasado(evento) ||
+    procesando.value
+  ) {
+    return
+  }
+
+  limpiarOperacion()
+  cerrarEdicion()
+  cerrarCancelacion()
+
+  eventoAsistencia.value = evento
+  cantidadAsistencia.value = tieneAsistencia(evento)
+    ? String(evento.asistentes_reales)
+    : ""
+
+  await mostrarPanelGestion()
+}
+
+// SIAM-16: registra o corrige los asistentes reales.
+async function guardarAsistencia() {
+  if (!eventoAsistencia.value || procesando.value) return
+
+  limpiarOperacion()
+
+  const entrada = String(cantidadAsistencia.value).trim()
+  const cantidad = Number(entrada)
+
+  if (
+    !/^\d+$/.test(entrada) ||
+    !Number.isSafeInteger(cantidad) ||
+    cantidad > 2147483647
+  ) {
+    errorOperacion.value = texto.value.asistenciaInvalida
+    return
+  }
+
+  if (!esEventoPasado(eventoAsistencia.value)) {
+    errorOperacion.value = texto.value.eventoPasado
+    return
+  }
+
+  procesando.value = true
+
+  try {
+    const respuesta = await solicitarGestion(
+      `events/${eventoAsistencia.value.id}/attendance/`,
+      "PATCH",
+      { asistentes_reales: cantidad }
+    )
+
+    if (respuesta.status === 401) {
+      emit("sesion-expirada")
+      return
+    }
+
+    if (respuesta.status === 403) {
+      errorOperacion.value = texto.value.sinPermiso
+      await cargarUsuario()
+      return
+    }
+
+    if (!respuesta.ok) {
+      errorOperacion.value = await obtenerMensajeError(respuesta)
+      return
+    }
+
+    cerrarAsistencia()
+    await cargarEventos()
+    mensaje.value = texto.value.asistenciaGuardada
+  } catch {
+    errorOperacion.value = texto.value.errorOperacion
+  } finally {
+    procesando.value = false
+  }
+}
+
 // SIAM-15: abre la edición cargando los datos reales.
 async function iniciarEdicion(evento) {
   if (!puedeEditar.value || !esEventoFuturo(evento)) return
 
   limpiarOperacion()
   eventoCancelando.value = null
+  cerrarAsistencia()
   procesando.value = true
 
   try {
@@ -435,7 +555,6 @@ async function iniciarEdicion(evento) {
 
     eventoEditando.value = datos
 
-    // Desplazamiento automático al formulario de edición.
     await mostrarPanelGestion()
   } catch (error) {
     errorOperacion.value = error.message || texto.value.errorOperacion
@@ -532,9 +651,9 @@ async function iniciarCancelacion(evento) {
 
   limpiarOperacion()
   cerrarEdicion()
+  cerrarAsistencia()
   eventoCancelando.value = evento
 
-  // Desplazamiento automático al panel de confirmación.
   await mostrarPanelGestion()
 }
 
@@ -609,7 +728,7 @@ onMounted(async () => {
       {{ errorOperacion }}
     </p>
 
-    <!-- Formulario para modificar eventos -->
+    <!-- SIAM-15: formulario para modificar eventos -->
     <section
       v-if="eventoEditando"
       ref="panelGestion"
@@ -698,7 +817,7 @@ onMounted(async () => {
       </form>
     </section>
 
-    <!-- Confirmación para cancelar eventos -->
+    <!-- SIAM-15: confirmación para cancelar eventos -->
     <section
       v-if="eventoCancelando"
       ref="panelGestion"
@@ -731,6 +850,61 @@ onMounted(async () => {
           {{ texto.volver }}
         </button>
       </div>
+    </section>
+
+    <!-- SIAM-16: formulario de asistencia real -->
+    <section
+      v-if="eventoAsistencia"
+      ref="panelGestion"
+      class="panel-gestion"
+      :aria-label="texto.asistenciaTitulo"
+    >
+      <h3>{{ texto.asistenciaTitulo }}</h3>
+
+      <p>
+        <strong>{{ eventoAsistencia.descripcion }}</strong>
+      </p>
+
+      <p>
+        {{ formatearFecha(eventoAsistencia.fecha) }}
+        ·
+        {{ formatearHora(eventoAsistencia.fecha) }}
+      </p>
+
+      <form class="formulario-evento" @submit.prevent="guardarAsistencia">
+        <div class="campo">
+          <label for="asistencia-real">
+            {{ texto.asistentesReales }}
+          </label>
+
+          <input
+            id="asistencia-real"
+            v-model="cantidadAsistencia"
+            type="number"
+            inputmode="numeric"
+            min="0"
+            max="2147483647"
+            step="1"
+            required
+            :disabled="procesando"
+          />
+        </div>
+
+        <div class="acciones-evento">
+          <button type="submit" :disabled="procesando">
+            {{ procesando ? texto.guardando : texto.guardar }}
+          </button>
+
+          <button
+            type="button"
+            class="boton-secundario"
+            :disabled="procesando"
+            @click="cerrarAsistencia"
+          >
+            {{ texto.descartar }}
+          </button>
+        </div>
+      </form>
     </section>
 
     <p v-if="cargando" role="status">
@@ -860,6 +1034,35 @@ onMounted(async () => {
               {{ evento.ubicacion }}
             </p>
 
+            <!-- SIAM-16: mostrar asistencia en eventos pasados -->
+            <p v-if="esEventoPasado(evento)">
+              <strong>{{ texto.asistentesReales }}:</strong>
+              {{
+                tieneAsistencia(evento)
+                  ? evento.asistentes_reales
+                  : texto.noRegistrada
+              }}
+            </p>
+
+            <!-- SIAM-16: registro o corrección de asistencia -->
+            <div
+              v-if="esEventoPasado(evento) && puedeRegistrarAsistencia"
+              class="acciones-evento"
+            >
+              <button
+                type="button"
+                :disabled="procesando"
+                @click="iniciarAsistencia(evento)"
+              >
+                {{
+                  tieneAsistencia(evento)
+                    ? texto.corregirAsistencia
+                    : texto.registrarAsistencia
+                }}
+              </button>
+            </div>
+
+            <!-- SIAM-15: edición y cancelación futuras -->
             <div
               v-if="esEventoFuturo(evento) && (puedeEditar || puedeCancelar)"
               class="acciones-evento"
