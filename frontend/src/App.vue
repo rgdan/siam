@@ -320,6 +320,11 @@ onUnmounted(() => {
   max-width: 900px;
 }
 
+.pagina-administracion:has(.collection) {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
 .pagina-administracion:has(.collection-list) {
   max-width: none;
   margin: 0;

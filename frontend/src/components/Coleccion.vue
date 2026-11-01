@@ -6,14 +6,14 @@ import messages from "./collectionMessages.js"
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
 const { t } = useI18n({ messages, useScope: "local" })
 const fields = [
+  "title",
   "object_type",
+  "author_maker",
+  "date_period",
+  "subject",
   "materials_techniques",
   "inscriptions_marks",
   "distinguishing_features",
-  "title",
-  "subject",
-  "date_period",
-  "author_maker",
 ]
 const label = (key) =>
   t(key === "title" ? "pieceTitle" : key === "photos" ? "photosField" : key)
@@ -26,8 +26,7 @@ const form = ref({}),
   busy = ref(false),
   notice = ref(""),
   failure = ref(false)
-const stateForm = ref({}),
-  photoResults = ref([]),
+const photoResults = ref([]),
   enlarged = ref(null),
   dialog = ref(null)
 async function json(response) {
@@ -55,20 +54,17 @@ async function load() {
 }
 async function detail(id) {
   selected.value = await json(await solicitar(`pieces/${id}/`))
-  stateForm.value = {
-    state: selected.value.state,
-    location: selected.value.location,
-  }
   mode.value = "detail"
   errors.value = {}
 }
-async function open(id) {
+async function open(id, editing = false) {
   busy.value = true
   failure.value = false
   notice.value = ""
   photoResults.value = []
   try {
     await detail(id)
+    if (editing && !selected.value.decommissioned) edit()
   } catch {
     failure.value = true
   } finally {
@@ -90,7 +86,7 @@ function edit(create = false) {
   form.value = create
     ? Object.fromEntries([...fields, "measurement_value"].map((f) => [f, ""]))
     : Object.fromEntries(
-        [...fields, "measurement_value", "measurement_unit"].map((f) => [
+        [...fields, "measurement_value", "measurement_unit", "state", "location"].map((f) => [
           f,
           selected.value[f],
         ]),
@@ -105,17 +101,19 @@ function validate() {
   const value = String(form.value.measurement_value)
   if (!/^\d+(\.\d{1,4})?$/.test(value) || Number(value) <= 0)
     errors.value.measurement_value = "positive"
+  if (form.value.state === "displayed" && !String(form.value.location || "").trim())
+    errors.value.location = "required"
   return !Object.keys(errors.value).length
 }
-async function save(stateOnly = false) {
-  if (busy.value || (!stateOnly && !validate())) return
+async function save() {
+  if (busy.value || !validate()) return
   errors.value = {}
   failure.value = false
   busy.value = true
   notice.value = ""
   try {
     const creating = mode.value === "new"
-    const data = stateOnly ? { ...stateForm.value } : { ...form.value }
+    const data = { ...form.value }
     const saved = await json(
       await enviar(
         creating ? "pieces/" : `pieces/${selected.value.id}/`,
@@ -175,7 +173,7 @@ async function upload(event) {
         code: item.id ? "attached" : code || "invalid_image",
       })
     }
-    await detail(selected.value.id)
+    selected.value = await json(await solicitar(`pieces/${selected.value.id}/`))
   } catch {
     failure.value = true
   } finally {
@@ -191,7 +189,6 @@ onMounted(load)
 </script>
 <template>
   <section class="collection" :class="{ 'collection-list': mode === 'list' }" :aria-busy="busy">
-    <h2 v-if="mode !== 'list'">{{ t("title") }}</h2>
     <p v-if="busy" role="status">{{ t("loading") }}</p>
     <p v-if="notice" role="status">{{ t(notice) }}</p>
     <p v-if="failure" role="alert" class="error">{{ t("error") }}</p>
@@ -240,7 +237,7 @@ onMounted(load)
               <td><span class="piece-state" :class="piece.state">{{ t(piece.state) }}</span></td>
               <td>{{ piece.location || t("noLocation") }}</td>
               <td class="row-actions">
-                <button v-if="!piece.decommissioned" class="edit-piece" :disabled="busy" :aria-label="t('editPiece', { title: piece.title })" :title="t('edit')" @click="open(piece.id)">
+                <button v-if="!piece.decommissioned" class="edit-piece" :disabled="busy" :aria-label="t('editPiece', { title: piece.title })" :title="t('edit')" @click="open(piece.id, true)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M13.5 5.5 18.5 10.5M4 20l4.5-1 12-12a2.1 2.1 0 0 0-3-3l-12 12L4 20Z" />
                     <path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7" />
@@ -256,15 +253,28 @@ onMounted(load)
       </div>
     </template>
     <template v-else-if="mode === 'new' || mode === 'edit'">
-      <h3>{{ t(mode === "new" ? "new" : "edit") }}</h3>
-      <p v-if="mode === 'edit'">
-        {{ t("identifier") }}: {{ selected.identifier }}
-      </p>
-      <form novalidate @submit.prevent="save()">
+      <button class="back-link" :disabled="busy" @click="backToCollection">{{ t("back") }}</button>
+      <header class="editor-heading">
+        <h2>{{ t(mode === "new" ? "new" : "editHeading") }}</h2>
+        <p>{{ mode === 'new' ? t('newDescription') : selected.title }}</p>
+      </header>
+      <form class="piece-editor" novalidate @submit.prevent="save()">
+        <div class="editor-layout">
+        <section class="record-panel">
         <fieldset :disabled="busy" class="fields">
-          <div v-for="field in fields" :key="field">
+          <legend>{{ t("catalogDetails") }}</legend>
+          <div v-for="field in fields" :key="field" :class="{ 'wide-field': !['title', 'object_type', 'author_maker', 'date_period'].includes(field) }">
             <label :for="field">{{ label(field) }} *</label
-            ><textarea
+            ><input
+              v-if="['title', 'object_type', 'author_maker', 'date_period'].includes(field)"
+              :id="field"
+              v-model="form[field]"
+              required
+              :maxlength="field === 'title' ? 200 : undefined"
+              :aria-invalid="!!errors[field]"
+              :aria-describedby="errors[field] ? `${field}-error` : undefined"
+            /><textarea
+              v-else
               :id="field"
               v-model="form[field]"
               required
@@ -276,8 +286,8 @@ onMounted(load)
               {{ fieldError(field) }}
             </p>
           </div>
-          <div>
-            <label for="measurement">{{ t("measurements") }} *</label
+          <div class="measurement-fields wide-field">
+            <div><label for="measurement">{{ t("measurements") }} *</label
             ><input
               id="measurement"
               v-model="form.measurement_value"
@@ -295,69 +305,30 @@ onMounted(load)
             >
               {{ fieldError("measurement_value") }}
             </p>
-            <label for="unit">{{ t("measurement_unit") }}</label
+            </div>
+            <div><label for="unit">{{ t("measurement_unit") }}</label
             ><select id="unit" v-model="form.measurement_unit">
               <option v-for="unit in ['mm', 'cm', 'm', 'g', 'kg']" :key="unit">
                 {{ unit }}
               </option>
             </select>
+            </div>
           </div>
         </fieldset>
-        <div class="actions">
-          <button :disabled="busy">{{ t("save") }}</button
-          ><button
-            type="button"
-            :disabled="busy"
-            @click="cancelEdit"
-          >
-            {{ t("cancel") }}
-          </button>
-        </div>
-      </form>
-    </template>
-    <template v-else-if="selected">
-      <button
-        :disabled="busy"
-        @click="backToCollection"
-      >
-        {{ t("back") }}
-      </button>
-      <h3>{{ selected.title }}</h3>
-      <p>{{ t("identifier") }}: {{ selected.identifier }}</p>
-      <dl>
-        <template v-for="field in fields" :key="field"
-          ><dt>{{ label(field) }}</dt>
-          <dd>{{ selected[field] }}</dd></template
-        >
-        <dt>{{ t("measurements") }}</dt>
-        <dd>
-          {{ selected.measurement_value }} {{ selected.measurement_unit }}
-        </dd>
-        <dt>{{ t("state") }}</dt>
-        <dd>{{ t(selected.state) }}</dd>
-        <template v-if="selected.state === 'displayed'"
-          ><dt>{{ t("location") }}</dt>
-          <dd>{{ selected.location }}</dd></template
-        >
-      </dl>
-      <button v-if="!selected.decommissioned" :disabled="busy" @click="edit()">
-        {{ t("edit") }}
-      </button>
-      <form
-        v-if="!selected.decommissioned"
-        novalidate
-        @submit.prevent="save(true)"
-      >
+        </section>
+        <aside class="editor-sidebar">
+        <section v-if="mode === 'edit'" class="record-panel">
         <fieldset :disabled="busy">
-          <label for="piece-state">{{ t("state") }}</label
-          ><select id="piece-state" v-model="stateForm.state">
+          <legend>{{ t("stateAndLocation") }}</legend>
+          <label for="piece-state">{{ t("state") }}</label>
+          <select id="piece-state" v-model="form.state">
             <option value="stored">{{ t("stored") }}</option>
             <option value="displayed">{{ t("displayed") }}</option></select
-          ><template v-if="stateForm.state === 'displayed'"
+          ><template v-if="form.state === 'displayed'"
             ><label for="location">{{ t("location") }} *</label
             ><input
               id="location"
-              v-model="stateForm.location"
+              v-model="form.location"
               maxlength="200"
               required
               :aria-invalid="!!errors.location"
@@ -365,14 +336,15 @@ onMounted(load)
             />
             <p v-if="errors.location" id="location-error" class="error">
               {{ fieldError("location") }}
-            </p></template
-          ><button>{{ t("save") }}</button>
+            </p></template>
         </fieldset>
-      </form>
+        </section>
+        <section v-if="mode === 'edit'" class="record-panel photo-editor">
       <h3>{{ t("photos") }}</h3>
       <p v-if="!selected.photos.length">{{ t("noPhotos") }}</p>
       <div class="photos">
         <button
+          type="button"
           v-for="photo in selected.photos"
           :key="photo.id"
           @click="showPhoto(photo)"
@@ -382,6 +354,7 @@ onMounted(load)
       </div>
       <label for="photos">{{ t("addPhotos") }}</label>
       <p id="photo-help">{{ t("photoHelp") }}</p>
+      <p class="photo-note">{{ t("photosImmediate") }}</p>
       <input
         id="photos"
         type="file"
@@ -396,6 +369,67 @@ onMounted(load)
           {{ result.name }}: {{ t(result.code) }}
         </li>
       </ul>
+        </section>
+        <section class="record-panel editor-note">
+          <h3>{{ t("identifier") }}</h3>
+          <p v-if="mode === 'edit'" class="record-identifier">{{ selected.identifier }}</p>
+          <p v-else>{{ t("identifierAssigned") }}</p>
+        </section>
+        </aside>
+        </div>
+        <footer class="editor-footer">
+          <p>{{ t("requiredFields") }}</p>
+          <div class="actions">
+            <button type="button" :disabled="busy" @click="cancelEdit">{{ t("cancel") }}</button>
+            <button class="primary-action" :disabled="busy">{{ t("save") }}</button>
+          </div>
+        </footer>
+      </form>
+    </template>
+    <template v-else-if="selected">
+      <button class="back-link" :disabled="busy" @click="backToCollection">{{ t("back") }}</button>
+      <article class="piece-sheet">
+        <header class="piece-heading">
+          <p class="piece-category">{{ selected.object_type || t('notRecorded') }}</p>
+          <h2>{{ selected.title }}</h2>
+          <p class="piece-attribution">{{ selected.author_maker || t('notRecorded') }}<span v-if="selected.date_period"> · {{ selected.date_period }}</span></p>
+          <span class="piece-state" :class="selected.state">{{ t(selected.state) }}</span>
+          <span v-if="selected.decommissioned" class="inactive-piece">{{ t('decommissioned') }}</span>
+        </header>
+        <div class="piece-overview">
+          <section class="piece-gallery" :aria-label="t('photos')">
+            <button v-if="selected.photos.length" class="hero-photo" @click="showPhoto(selected.photos[0])">
+              <img :src="selected.photos[0].data" :alt="selected.photos[0].name" />
+              <span>{{ t('enlargePhoto') }}</span>
+            </button>
+            <div v-else class="no-photo"><p>{{ t('noPhotos') }}</p></div>
+            <div v-if="selected.photos.length > 1" class="photos gallery-thumbnails">
+              <button v-for="photo in selected.photos" :key="photo.id" @click="showPhoto(photo)">
+                <img :src="photo.data" :alt="photo.name" />
+              </button>
+            </div>
+            <p class="gallery-caption">{{ t('photoCount', { count: selected.photos.length }) }}</p>
+          </section>
+          <section class="piece-description">
+            <h3>{{ t('subject') }}</h3>
+            <p class="piece-subject">{{ selected.subject || t('notRecorded') }}</p>
+            <dl class="piece-facts">
+              <div><dt>{{ t('materials_techniques') }}</dt><dd>{{ selected.materials_techniques || t('notRecorded') }}</dd></div>
+              <div><dt>{{ t('measurements') }}</dt><dd>{{ selected.measurement_value === null ? t('notRecorded') : `${selected.measurement_value} ${selected.measurement_unit}` }}</dd></div>
+              <div><dt>{{ t('location') }}</dt><dd>{{ selected.location || t('noLocation') }}</dd></div>
+            </dl>
+          </section>
+        </div>
+        <section class="piece-documentation">
+          <h3>{{ t('documentation') }}</h3>
+          <dl class="documentation-grid">
+            <div v-for="field in ['inscriptions_marks', 'distinguishing_features']" :key="field">
+              <dt>{{ label(field) }}</dt><dd>{{ selected[field] || t('notRecorded') }}</dd>
+            </div>
+            <div class="identifier-fact"><dt>{{ t('identifier') }}</dt><dd class="record-identifier">{{ selected.identifier }}</dd></div>
+          </dl>
+        </section>
+      </article>
     </template>
     <dialog
       ref="dialog"
@@ -531,6 +565,74 @@ dd {
   width: 100px;
   height: 100px;
   object-fit: cover;
+}
+.back-link { display: inline-flex; align-items: center; gap: 8px; padding: 8px 0; margin-bottom: 20px; border: 0; background: transparent; color: var(--color-secundario); font-size: 13px; }
+.back-link::before { content: "\2039"; font-size: 24px; line-height: 1; }
+.piece-sheet { border: 1px solid var(--color-divisor); border-radius: 16px; background: var(--color-superficie); }
+.piece-heading { padding: 32px; border-bottom: 1px solid var(--color-divisor); }
+.piece-category { margin: 0 0 10px; color: var(--color-secundario); font-size: 13px; }
+.piece-heading h2 { max-width: 24ch; margin: 0; font-size: clamp(28px, 3vw, 40px); line-height: 1.15; letter-spacing: -0.6px; }
+.piece-attribution { margin: 14px 0 18px; color: var(--color-secundario); font-size: 15px; line-height: 1.6; }
+.inactive-piece { margin-left: 12px; color: var(--color-error); font-size: 12px; }
+.piece-overview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; padding: 32px; }
+.piece-gallery, .piece-description { min-width: 0; }
+.hero-photo { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; padding: 16px; border: 0; background: var(--color-footer); }
+.hero-photo img { display: block; width: 100%; height: 330px; object-fit: contain; }
+.hero-photo span { color: var(--color-secundario); font-size: 12px; }
+.no-photo { display: grid; place-items: center; min-height: 280px; padding: 24px; border-radius: 8px; background: var(--color-footer); color: var(--color-secundario); }
+.gallery-thumbnails { gap: 10px; margin-top: 12px; }
+.gallery-thumbnails button { padding: 4px; border-color: var(--color-divisor); }
+.gallery-thumbnails img { display: block; width: 64px; height: 64px; }
+.gallery-caption { margin: 12px 0 0; color: var(--color-secundario); font-size: 12px; }
+.piece-description h3, .piece-documentation h3 { margin: 0 0 16px; font-size: 22px; font-weight: 600; }
+.piece-subject { margin: 0 0 28px; white-space: pre-wrap; font-size: 15px; line-height: 1.8; }
+.piece-facts { display: grid; gap: 20px; margin: 0; }
+.piece-facts dt, .documentation-grid dt { margin-bottom: 6px; color: var(--color-secundario); font-size: 12px; font-weight: 400; }
+.piece-facts dd, .documentation-grid dd { margin: 0; font-size: 14px; line-height: 1.7; }
+.piece-documentation { border-top: 1px solid var(--color-divisor); padding: 28px 32px; }
+.documentation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; margin: 0; }
+.identifier-fact { grid-column: 1 / -1; padding-top: 20px; border-top: 1px solid var(--color-divisor); }
+.record-identifier { font: 12px/1.7 ui-monospace, monospace; overflow-wrap: anywhere; }
+.editor-heading { margin-bottom: 28px; }
+.editor-heading h2 { margin: 0 0 8px; font-size: 32px; letter-spacing: -0.5px; }
+.editor-heading p { margin: 0; color: var(--color-secundario); line-height: 1.6; }
+.editor-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 24px; align-items: start; }
+.record-panel { min-width: 0; padding: 24px; border: 1px solid var(--color-divisor); border-radius: 12px; background: var(--color-superficie); }
+.record-panel fieldset { margin: 0; }
+.record-panel legend, .record-panel h3 { margin: 0 0 16px; padding: 0; font: 600 20px Georgia, serif; }
+.record-panel label { margin-top: 0; margin-bottom: 8px; font-size: 13px; font-weight: 500; }
+.record-panel input, .record-panel textarea, .record-panel select { padding: 12px; font-size: 16px; }
+.record-panel textarea { min-height: 100px; resize: vertical; line-height: 1.6; }
+.record-panel select + label, .record-panel #location { margin-top: 12px; }
+.measurement-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
+.editor-sidebar { display: grid; gap: 24px; min-width: 0; }
+.editor-note p, .photo-editor p { color: var(--color-secundario); font-size: 13px; line-height: 1.6; }
+.photo-editor .photos { gap: 8px; margin-bottom: 20px; }
+.photo-editor .photos button { padding: 4px; }
+.photo-editor .photos img { display: block; width: 64px; height: 64px; }
+.photo-editor input[type="file"] { padding: 12px; border-style: dashed; font-size: 12px; }
+.photo-editor input::file-selector-button { min-height: 36px; border: 0; border-radius: 4px; margin-right: 8px; padding: 8px; background: var(--color-footer); color: var(--color-texto); font: inherit; cursor: pointer; }
+.photo-editor .photo-note { font-size: 12px; }
+.editor-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-divisor); }
+.editor-footer > p { color: var(--color-secundario); font-size: 12px; }
+.editor-footer .actions { margin: 0; }
+.primary-action { padding-inline: 24px; border-color: var(--color-acento); background: var(--color-acento); color: #fff; font-weight: 600; }
+@media (min-width: 768px) {
+  .wide-field { grid-column: 1 / -1; }
+}
+@media (max-width: 1000px) {
+  .editor-layout { grid-template-columns: minmax(0, 1fr); }
+  .editor-sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}
+@media (max-width: 700px) {
+  .piece-overview, .documentation-grid, .editor-sidebar { grid-template-columns: minmax(0, 1fr); }
+  .piece-overview { gap: 28px; padding: 20px; }
+  .piece-heading, .piece-documentation, .record-panel { padding: 20px; }
+  .hero-photo img { height: 260px; }
+  .no-photo { min-height: 220px; }
+  .editor-heading h2 { font-size: 28px; }
+  .editor-footer .actions { width: 100%; }
+  .editor-footer .actions button { flex: 1; }
 }
 dialog {
   background: var(--color-control);
