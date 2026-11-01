@@ -79,9 +79,10 @@ const mensajes = {
       photoReference: "Fotografía #{id}",
       photosAdded: "Fotografías agregadas: {count}.", photosRemoved: "Fotografías eliminadas: {count}.",
       photoDeleted: "Fotografía eliminada: {name}.",
+      photosReordered: "Orden de fotografías actualizado. Portada: fotografía #{id}.",
       changedFields: "Campos modificados: {fields}.", createdFields: "Campos registrados: {count}.",
       fields: {
-        photo: "Fotografía eliminada", name: "Nombre del archivo", mime_type: "Tipo de archivo", piece: "Pieza",
+        photo: "Fotografía eliminada", name: "Nombre del archivo", mime_type: "Tipo de archivo", piece: "Pieza", position: "Posición",
         id: "ID", email: "Correo electrónico", full_name: "Nombre completo", role: "Rol",
         is_active: "Cuenta activa", last_login: "Último inicio de sesión",
         credential_reset: "Contraseña restablecida", user: "Usuario", timestamp: "Fecha y hora",
@@ -253,9 +254,10 @@ const mensajes = {
       photoReference: "Photograph #{id}",
       photosAdded: "Photographs added: {count}.", photosRemoved: "Photographs removed: {count}.",
       photoDeleted: "Photograph deleted: {name}.",
+      photosReordered: "Photograph order updated. Cover: photograph #{id}.",
       changedFields: "Changed fields: {fields}.", createdFields: "Recorded fields: {count}.",
       fields: {
-        photo: "Deleted photograph", name: "File name", mime_type: "File type", piece: "Piece",
+        photo: "Deleted photograph", name: "File name", mime_type: "File type", piece: "Piece", position: "Position",
         id: "ID", email: "Email", full_name: "Full name", role: "Role",
         is_active: "Active account", last_login: "Last sign in",
         credential_reset: "Password reset", user: "User", timestamp: "Date and time",

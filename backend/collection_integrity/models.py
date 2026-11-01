@@ -51,3 +51,7 @@ class Photo(models.Model):
     name = models.CharField(max_length=200)
     content = models.BinaryField()
     mime_type = models.CharField(max_length=30, default="image/jpeg")
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "id"]

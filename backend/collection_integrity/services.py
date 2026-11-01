@@ -35,8 +35,8 @@ def register_piece(*, user, title, photos=(), **fields):
         piece = Piece(title=title, **fields)
         piece.full_clean()
         piece.save()
-        for photo in photos:
-            Photo.objects.create(piece=piece, **photo)
+        for position, photo in enumerate(photos):
+            Photo.objects.create(piece=piece, position=position, **photo)
         _finish(piece, user, "register", {})
         return piece
 
@@ -52,8 +52,8 @@ def _change(*, user, piece_id, operation, values, photos=None):
         piece.save()
         if photos is not None:
             piece.photos.all().delete()
-            for photo in photos:
-                Photo.objects.create(piece=piece, **photo)
+            for position, photo in enumerate(photos):
+                Photo.objects.create(piece=piece, position=position, **photo)
         new = snapshot(piece)
         new["photos"] = list(piece.photos.values_list("pk", flat=True))
         action = (
@@ -116,7 +116,10 @@ def attach_photo(*, user, piece_id, values):
     piece = Piece.objects.select_for_update().get(pk=piece_id)
     old = snapshot(piece)
     old["photos"] = list(piece.photos.values_list("pk", flat=True))
-    photo = Photo.objects.create(piece=piece, **values)
+    last_position = piece.photos.order_by("-position").values_list("position", flat=True).first()
+    photo = Photo.objects.create(
+        piece=piece, position=0 if last_position is None else last_position + 1, **values
+    )
     new = snapshot(piece)
     new["photos"] = list(piece.photos.values_list("pk", flat=True))
     record(

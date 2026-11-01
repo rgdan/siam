@@ -11,6 +11,7 @@ from rest_framework.response import Response
 
 from .models import Photo, Piece
 from .serializers import (
+    PhotoOrderSerializer,
     PhotoSerializer,
     PieceSerializer,
     UploadSerializer,
@@ -108,3 +109,33 @@ def delete_photo(request, piece_id, photo_id):
             new={"photos": list(piece.photos.values_list("pk", flat=True))},
         )
     return Response({"deleted": photo_id})
+
+
+@api_view(["PATCH"])
+@requiere_permiso("piezas.actualizar")
+def reorder_photos(request, piece_id):
+    serializer = PhotoOrderSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    photo_ids = serializer.validated_data["photos"]
+    with transaction.atomic():
+        piece = get_object_or_404(Piece.objects.select_for_update(), pk=piece_id)
+        if piece.decommissioned:
+            raise serializers.ValidationError({"detail": "inactive_piece"})
+        photos = list(piece.photos.only("id", "position"))
+        old_ids = [photo.pk for photo in photos]
+        if len(photo_ids) != len(old_ids) or set(photo_ids) != set(old_ids):
+            raise serializers.ValidationError({"photos": "invalid_photo_order"})
+        if photo_ids != old_ids:
+            by_id = {photo.pk: photo for photo in photos}
+            for position, photo_id in enumerate(photo_ids):
+                by_id[photo_id].position = position
+            Photo.objects.bulk_update(photos, ["position"])
+            record(
+                user=request.user,
+                action_type=AuditEntry.Action.MODIFY,
+                entity="piece",
+                entity_id=piece.pk,
+                old={"photos": old_ids},
+                new={"photos": photo_ids},
+            )
+    return Response({"photos": photo_ids})

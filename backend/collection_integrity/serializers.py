@@ -69,6 +69,10 @@ class PieceSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class PhotoOrderSerializer(serializers.Serializer):
+    photos = serializers.ListField(child=serializers.IntegerField(min_value=1))
+
+
 class PhotoSerializer(serializers.ModelSerializer):
     data = serializers.SerializerMethodField()
 

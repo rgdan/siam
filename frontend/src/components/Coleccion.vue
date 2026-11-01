@@ -212,6 +212,25 @@ async function deletePhoto() {
     busy.value = false
   }
 }
+async function movePhoto(index, direction) {
+  const target = index + direction
+  if (busy.value || target < 0 || target >= selected.value.photos.length) return
+  const photos = [...selected.value.photos]
+  const photo = photos.splice(index, 1)[0]
+  photos.splice(target, 0, photo)
+  busy.value = true
+  failure.value = false
+  notice.value = ""
+  try {
+    await json(await enviar(`pieces/${selected.value.id}/photos/order/`, { photos: photos.map(photo => photo.id) }, "PATCH"))
+    selected.value.photos = photos
+    notice.value = "photoOrderSaved"
+  } catch {
+    failure.value = true
+  } finally {
+    busy.value = false
+  }
+}
 onMounted(load)
 </script>
 <template>
@@ -368,9 +387,11 @@ onMounted(load)
         </section>
         <section v-if="mode === 'edit'" class="record-panel photo-editor">
       <h3>{{ t("photos") }}</h3>
+      <p v-if="selected.photos.length" class="photo-note">{{ t('photoOrderHelp') }}</p>
       <p v-if="!selected.photos.length">{{ t("noPhotos") }}</p>
       <div class="photos">
-        <figure v-for="photo in selected.photos" :key="photo.id" class="editable-photo">
+        <figure v-for="(photo, index) in selected.photos" :key="photo.id" class="editable-photo">
+        <span class="photo-position">{{ index === 0 ? t('coverPhoto') : t('photoPosition', { position: index + 1 }) }}</span>
         <button
           type="button"
           :disabled="busy"
@@ -379,6 +400,10 @@ onMounted(load)
           <img :src="photo.data" :alt="photo.name" />
         </button>
         <figcaption>{{ photo.name }}</figcaption>
+        <div class="photo-order-controls">
+          <button type="button" :disabled="busy || index === 0" :aria-label="t('movePhotoEarlier', { name: photo.name })" @click="movePhoto(index, -1)"><span aria-hidden="true">‹</span></button>
+          <button type="button" :disabled="busy || index === selected.photos.length - 1" :aria-label="t('movePhotoLater', { name: photo.name })" @click="movePhoto(index, 1)"><span aria-hidden="true">›</span></button>
+        </div>
         <button class="delete-photo" type="button" :disabled="busy" :aria-label="t('deletePhotoNamed', { name: photo.name })" @click="confirmPhotoDelete(photo)">{{ t('deletePhoto') }}</button>
         </figure>
       </div>
@@ -428,9 +453,8 @@ onMounted(load)
         </header>
         <div class="piece-overview">
           <section class="piece-gallery" :aria-label="t('photos')">
-            <button v-if="selected.photos.length" class="hero-photo" @click="showPhoto(selected.photos[0])">
+            <button v-if="selected.photos.length" class="hero-photo" :aria-label="t('enlargePhoto')" @click="showPhoto(selected.photos[0])">
               <img :src="selected.photos[0].data" :alt="selected.photos[0].name" />
-              <span>{{ t('enlargePhoto') }}</span>
             </button>
             <div v-else class="no-photo"><p>{{ t('noPhotos') }}</p></div>
             <div v-if="selected.photos.length > 1" class="photos gallery-thumbnails">
@@ -438,7 +462,6 @@ onMounted(load)
                 <img :src="photo.data" :alt="photo.name" />
               </button>
             </div>
-            <p class="gallery-caption">{{ t('photoCount', { count: selected.photos.length }) }}</p>
           </section>
           <section class="piece-description">
             <h3>{{ t('subject') }}</h3>
@@ -618,12 +641,10 @@ dd {
 .piece-gallery, .piece-description { min-width: 0; }
 .hero-photo { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; padding: 16px; border: 0; background: var(--color-footer); }
 .hero-photo img { display: block; width: 100%; height: 330px; object-fit: contain; }
-.hero-photo span { color: var(--color-secundario); font-size: 12px; }
 .no-photo { display: grid; place-items: center; min-height: 280px; padding: 24px; border-radius: 8px; background: var(--color-footer); color: var(--color-secundario); }
 .gallery-thumbnails { gap: 10px; margin-top: 12px; }
 .gallery-thumbnails button { padding: 4px; border-color: var(--color-divisor); }
 .gallery-thumbnails img { display: block; width: 64px; height: 64px; }
-.gallery-caption { margin: 12px 0 0; color: var(--color-secundario); font-size: 12px; }
 .piece-description h3, .piece-documentation h3 { margin: 0 0 16px; font-size: 22px; font-weight: 600; }
 .piece-subject { margin: 0 0 28px; white-space: pre-wrap; font-size: 15px; line-height: 1.8; }
 .piece-facts { display: grid; gap: 20px; margin: 0; }
@@ -651,7 +672,10 @@ dd {
 .photo-editor .photos button { padding: 4px; }
 .photo-editor .photos img { display: block; width: 64px; height: 64px; }
 .editable-photo { display: grid; align-content: start; gap: 8px; width: 112px; margin: 0; }
-.editable-photo > button:first-child img { width: 100%; height: 88px; object-fit: cover; }
+.photo-editor .editable-photo > button img { width: 100%; height: 88px; object-fit: cover; }
+.photo-position { color: var(--color-secundario); font-size: 12px; font-weight: 600; }
+.photo-order-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.photo-order-controls button { min-height: 44px; padding: 4px; border-color: var(--color-divisor); font-size: 24px; }
 .editable-photo figcaption { color: var(--color-secundario); font-size: 12px; overflow-wrap: anywhere; }
 .photo-editor .delete-photo { min-height: 44px; padding: 8px; border-color: var(--color-divisor); color: var(--color-error); font-size: 12px; }
 .delete-photo-dialog { width: min(440px, calc(100% - 32px)); padding: 24px; border-radius: 12px; }

@@ -66,6 +66,8 @@ function resumen(registro) {
   if (campos.length === 1 && fotos && Array.isArray(fotos.old) && Array.isArray(fotos.new)) {
     const added = fotos.new.filter(id => !fotos.old.includes(id)).length
     const removed = fotos.old.filter(id => !fotos.new.includes(id)).length
+    if (!added && !removed && fotos.new.length)
+      return t("audit.photosReordered", { id: fotos.new[0] })
     return [
       added ? t("audit.photosAdded", { count: added }) : "",
       removed ? t("audit.photosRemoved", { count: removed }) : "",
