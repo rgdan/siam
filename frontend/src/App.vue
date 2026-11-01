@@ -30,7 +30,6 @@ function navegar(ruta) {
 }
 
 const rutasPublicas = ["/", "/informacion", "/horarios"]
-const rutasDeRegistro = ["/interno/ingresos", "/interno/incidencias"]
 const permisosPorRuta = {
   "/interno/coleccion": "piezas.crear",
   "/interno/usuarios": "usuarios.consultar",
@@ -200,7 +199,7 @@ onUnmounted(() => {
 
     <!-- Autenticación y área interna -->
     <div v-else class="pagina-autenticacion" :class="{ 'pagina-administracion': permisosPorRuta[rutaActual] && usuario }">
-      <template v-if="!rutasDeRegistro.includes(rutaActual)">
+      <template v-if="rutaActual === '/interno'">
         <h1>SIAM</h1>
         <p>{{ t("common.systemName") }}</p>
       </template>
@@ -213,9 +212,9 @@ onUnmounted(() => {
       <!-- Área interna -->
       <section
         v-else-if="usuario"
-        :aria-labelledby="rutasDeRegistro.includes(rutaActual) ? undefined : 'titulo-interno'"
+        :aria-labelledby="rutaActual === '/interno' ? 'titulo-interno' : undefined"
       >
-        <template v-if="!rutasDeRegistro.includes(rutaActual)">
+        <template v-if="rutaActual === '/interno'">
           <h2 id="titulo-interno">{{ t("auth.internalArea") }}</h2>
           <p>{{ t("auth.loggedInAs", { name: usuario.full_name }) }}</p>
         </template>
