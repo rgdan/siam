@@ -1,19 +1,19 @@
 <script setup>
-import { ref, onMounted, computed } from "vue"
+import { ref, onMounted } from "vue"
 import { useI18n } from "vue-i18n"
 import { solicitar, enviar } from "../api.js"
 import messages from "./collectionMessages.js"
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-const { t, locale } = useI18n({ messages, useScope: "local" })
+const { t } = useI18n({ messages, useScope: "local" })
 const fields = [
+  "title",
   "object_type",
+  "author_maker",
+  "date_period",
+  "subject",
   "materials_techniques",
   "inscriptions_marks",
   "distinguishing_features",
-  "title",
-  "subject",
-  "date_period",
-  "author_maker",
 ]
 const label = (key) =>
   t(key === "title" ? "pieceTitle" : key === "photos" ? "photosField" : key)
@@ -26,19 +26,12 @@ const form = ref({}),
   busy = ref(false),
   notice = ref(""),
   failure = ref(false)
-const stateForm = ref({}),
-  photoResults = ref([]),
+const photoResults = ref([]),
   enlarged = ref(null),
   dialog = ref(null)
-const changes = computed(() =>
-  (selected.value?.history || []).flatMap((entry) =>
-    Object.entries(entry.changes).map(([field, values]) => ({
-      ...entry,
-      field,
-      ...values,
-    })),
-  ),
-)
+const photoToDelete = ref(null),
+  deleteDialog = ref(null),
+  deleteFailure = ref(false)
 async function json(response) {
   if (response.status === 401) emit("sesion-expirada")
   if (response.status === 403) emit("sin-acceso")
@@ -64,20 +57,17 @@ async function load() {
 }
 async function detail(id) {
   selected.value = await json(await solicitar(`pieces/${id}/`))
-  stateForm.value = {
-    state: selected.value.state,
-    location: selected.value.location,
-  }
   mode.value = "detail"
   errors.value = {}
 }
-async function open(id) {
+async function open(id, editing = false) {
   busy.value = true
   failure.value = false
   notice.value = ""
   photoResults.value = []
   try {
     await detail(id)
+    if (editing && !selected.value.decommissioned) edit()
   } catch {
     failure.value = true
   } finally {
@@ -99,7 +89,7 @@ function edit(create = false) {
   form.value = create
     ? Object.fromEntries([...fields, "measurement_value"].map((f) => [f, ""]))
     : Object.fromEntries(
-        [...fields, "measurement_value", "measurement_unit"].map((f) => [
+        [...fields, "measurement_value", "measurement_unit", "state", "location"].map((f) => [
           f,
           selected.value[f],
         ]),
@@ -114,17 +104,19 @@ function validate() {
   const value = String(form.value.measurement_value)
   if (!/^\d+(\.\d{1,4})?$/.test(value) || Number(value) <= 0)
     errors.value.measurement_value = "positive"
+  if (form.value.state === "displayed" && !String(form.value.location || "").trim())
+    errors.value.location = "required"
   return !Object.keys(errors.value).length
 }
-async function save(stateOnly = false) {
-  if (busy.value || (!stateOnly && !validate())) return
+async function save() {
+  if (busy.value || !validate()) return
   errors.value = {}
   failure.value = false
   busy.value = true
   notice.value = ""
   try {
     const creating = mode.value === "new"
-    const data = stateOnly ? { ...stateForm.value } : { ...form.value }
+    const data = { ...form.value }
     const saved = await json(
       await enviar(
         creating ? "pieces/" : `pieces/${selected.value.id}/`,
@@ -184,7 +176,7 @@ async function upload(event) {
         code: item.id ? "attached" : code || "invalid_image",
       })
     }
-    await detail(selected.value.id)
+    selected.value = await json(await solicitar(`pieces/${selected.value.id}/`))
   } catch {
     failure.value = true
   } finally {
@@ -192,69 +184,143 @@ async function upload(event) {
     busy.value = false
   }
 }
-function display(value, field) {
-  if (typeof value === "boolean") return t(value ? "yes" : "no")
-  if (field === "state" && ["stored", "displayed"].includes(value))
-    return t(value)
-  return value === null || value === ""
-    ? "\u2014"
-    : typeof value === "object"
-      ? JSON.stringify(value)
-      : value
-}
 function showPhoto(photo) {
   enlarged.value = photo
   dialog.value.showModal()
 }
+function confirmPhotoDelete(photo) {
+  if (busy.value) return
+  photoToDelete.value = photo
+  deleteFailure.value = false
+  deleteDialog.value.showModal()
+}
+async function deletePhoto() {
+  if (busy.value || !photoToDelete.value) return
+  busy.value = true
+  deleteFailure.value = false
+  notice.value = ""
+  try {
+    const id = photoToDelete.value.id
+    await json(await enviar(`pieces/${selected.value.id}/photos/${id}/`, {}, "DELETE"))
+    selected.value.photos = selected.value.photos.filter(photo => photo.id !== id)
+    deleteDialog.value.close()
+    photoToDelete.value = null
+    notice.value = "photoDeleted"
+  } catch {
+    deleteFailure.value = true
+  } finally {
+    busy.value = false
+  }
+}
+async function movePhoto(index, direction) {
+  const target = index + direction
+  if (busy.value || target < 0 || target >= selected.value.photos.length) return
+  const photos = [...selected.value.photos]
+  const photo = photos.splice(index, 1)[0]
+  photos.splice(target, 0, photo)
+  busy.value = true
+  failure.value = false
+  notice.value = ""
+  try {
+    await json(await enviar(`pieces/${selected.value.id}/photos/order/`, { photos: photos.map(photo => photo.id) }, "PATCH"))
+    selected.value.photos = photos
+    notice.value = "photoOrderSaved"
+  } catch {
+    failure.value = true
+  } finally {
+    busy.value = false
+  }
+}
 onMounted(load)
 </script>
 <template>
-  <section class="collection" :aria-busy="busy">
-    <h2>{{ t("title") }}</h2>
+  <section class="collection" :class="{ 'collection-list': mode === 'list' }" :aria-busy="busy">
     <p v-if="busy" role="status">{{ t("loading") }}</p>
     <p v-if="notice" role="status">{{ t(notice) }}</p>
     <p v-if="failure" role="alert" class="error">{{ t("error") }}</p>
     <template v-if="mode === 'list'">
-      <div class="actions">
-        <button :disabled="busy" @click="edit(true)">{{ t("new") }}</button
-        ><button :disabled="busy" @click="load">{{ t("refresh") }}</button>
+      <header class="collection-heading">
+        <div>
+          <h2>{{ t("listTitle") }}</h2>
+          <p v-if="!busy && !failure" class="piece-count">{{ t(filter ? "filteredCount" : "pieceCount", { count: pieces.length }) }}</p>
+        </div>
+        <div class="list-actions">
+          <button class="refresh-list" :disabled="busy" :aria-label="t('refresh')" :title="t('refresh')" @click="load">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3a7 7 0 0 0 11.5-1" /></svg>
+          </button>
+          <button class="new-piece" :disabled="busy" @click="edit(true)">
+            <span aria-hidden="true">+</span>{{ t("new") }}
+          </button>
+        </div>
+      </header>
+      <div class="collection-table" role="region" :aria-label="t('listTitle')" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col" class="identifier-column">{{ t("id") }}</th>
+              <th scope="col" class="title-column">{{ t("pieceTitle") }}</th>
+              <th scope="col">{{ t("typeColumn") }}</th>
+              <th scope="col">{{ t("authorColumn") }}</th>
+              <th scope="col">
+                <select id="state-filter" v-model="filter" class="table-state-filter" :aria-label="t('state')" :disabled="busy" @change="load">
+                  <option value="">{{ t("state") }}</option>
+                  <option value="stored">{{ t("stored") }}</option>
+                  <option value="displayed">{{ t("displayed") }}</option>
+                </select>
+              </th>
+              <th scope="col">{{ t("location") }}</th>
+              <th scope="col" class="actions-column"><span class="sr-only">{{ t("edit") }}</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="piece in pieces" :key="piece.id">
+              <td><span class="piece-identifier" :title="piece.identifier">{{ piece.identifier }}</span></td>
+              <th scope="row">
+                <button class="piece-title" :disabled="busy" @click="open(piece.id)">{{ piece.title }}</button>
+              </th>
+              <td>{{ piece.object_type }}</td>
+              <td>{{ piece.author_maker }}</td>
+              <td><span class="piece-state" :class="piece.state">{{ t(piece.state) }}</span></td>
+              <td>{{ piece.location || t("noLocation") }}</td>
+              <td class="row-actions">
+                <button v-if="!piece.decommissioned" class="edit-piece" :disabled="busy" :aria-label="t('editPiece', { title: piece.title })" :title="t('edit')" @click="open(piece.id, true)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M13.5 5.5 18.5 10.5M4 20l4.5-1 12-12a2.1 2.1 0 0 0-3-3l-12 12L4 20Z" />
+                    <path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7" />
+                  </svg>
+                </button>
+              </td>
+            </tr>
+            <tr v-if="!pieces.length">
+              <td colspan="7" class="empty-collection">{{ t(busy ? "loading" : failure ? "error" : "empty") }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <label for="state-filter">{{ t("state") }}</label
-      ><select
-        id="state-filter"
-        v-model="filter"
-        :disabled="busy"
-        @change="load"
-      >
-        <option value="">{{ t("all") }}</option>
-        <option value="stored">{{ t("stored") }}</option>
-        <option value="displayed">{{ t("displayed") }}</option>
-      </select>
-      <p v-if="!busy && !pieces.length">{{ t("empty") }}</p>
-      <ul class="pieces">
-        <li v-for="piece in pieces" :key="piece.id">
-          <button :disabled="busy" @click="open(piece.id)">
-            {{ piece.title }}</button
-          ><small>{{ piece.identifier }}</small>
-          <p>
-            {{ t(piece.state)
-            }}<span v-if="piece.state === 'displayed'">
-              / {{ piece.location }}</span
-            >
-          </p>
-        </li>
-      </ul>
     </template>
     <template v-else-if="mode === 'new' || mode === 'edit'">
-      <h3>{{ t(mode === "new" ? "new" : "edit") }}</h3>
-      <p v-if="mode === 'edit'">
-        {{ t("identifier") }}: {{ selected.identifier }}
-      </p>
-      <form novalidate @submit.prevent="save()">
+      <button class="back-link" :disabled="busy" @click="backToCollection">{{ t("back") }}</button>
+      <header class="editor-heading">
+        <h2>{{ t(mode === "new" ? "new" : "editHeading") }}</h2>
+        <p>{{ mode === 'new' ? t('newDescription') : selected.title }}</p>
+      </header>
+      <form class="piece-editor" novalidate @submit.prevent="save()">
+        <div class="editor-layout">
+        <section class="record-panel">
         <fieldset :disabled="busy" class="fields">
-          <div v-for="field in fields" :key="field">
+          <legend>{{ t("catalogDetails") }}</legend>
+          <div v-for="field in fields" :key="field" :class="{ 'wide-field': !['title', 'object_type', 'author_maker', 'date_period'].includes(field) }">
             <label :for="field">{{ label(field) }} *</label
-            ><textarea
+            ><input
+              v-if="['title', 'object_type', 'author_maker', 'date_period'].includes(field)"
+              :id="field"
+              v-model="form[field]"
+              required
+              :maxlength="field === 'title' ? 200 : undefined"
+              :aria-invalid="!!errors[field]"
+              :aria-describedby="errors[field] ? `${field}-error` : undefined"
+            /><textarea
+              v-else
               :id="field"
               v-model="form[field]"
               required
@@ -266,8 +332,8 @@ onMounted(load)
               {{ fieldError(field) }}
             </p>
           </div>
-          <div>
-            <label for="measurement">{{ t("measurements") }} *</label
+          <div class="measurement-fields wide-field">
+            <div><label for="measurement">{{ t("measurements") }} *</label
             ><input
               id="measurement"
               v-model="form.measurement_value"
@@ -285,69 +351,30 @@ onMounted(load)
             >
               {{ fieldError("measurement_value") }}
             </p>
-            <label for="unit">{{ t("measurement_unit") }}</label
+            </div>
+            <div><label for="unit">{{ t("measurement_unit") }}</label
             ><select id="unit" v-model="form.measurement_unit">
               <option v-for="unit in ['mm', 'cm', 'm', 'g', 'kg']" :key="unit">
                 {{ unit }}
               </option>
             </select>
+            </div>
           </div>
         </fieldset>
-        <div class="actions">
-          <button :disabled="busy">{{ t("save") }}</button
-          ><button
-            type="button"
-            :disabled="busy"
-            @click="cancelEdit"
-          >
-            {{ t("cancel") }}
-          </button>
-        </div>
-      </form>
-    </template>
-    <template v-else-if="selected">
-      <button
-        :disabled="busy"
-        @click="backToCollection"
-      >
-        {{ t("back") }}
-      </button>
-      <h3>{{ selected.title }}</h3>
-      <p>{{ t("identifier") }}: {{ selected.identifier }}</p>
-      <dl>
-        <template v-for="field in fields" :key="field"
-          ><dt>{{ label(field) }}</dt>
-          <dd>{{ selected[field] }}</dd></template
-        >
-        <dt>{{ t("measurements") }}</dt>
-        <dd>
-          {{ selected.measurement_value }} {{ selected.measurement_unit }}
-        </dd>
-        <dt>{{ t("state") }}</dt>
-        <dd>{{ t(selected.state) }}</dd>
-        <template v-if="selected.state === 'displayed'"
-          ><dt>{{ t("location") }}</dt>
-          <dd>{{ selected.location }}</dd></template
-        >
-      </dl>
-      <button v-if="!selected.decommissioned" :disabled="busy" @click="edit()">
-        {{ t("edit") }}
-      </button>
-      <form
-        v-if="!selected.decommissioned"
-        novalidate
-        @submit.prevent="save(true)"
-      >
+        </section>
+        <aside class="editor-sidebar">
+        <section v-if="mode === 'edit'" class="record-panel">
         <fieldset :disabled="busy">
-          <label for="piece-state">{{ t("state") }}</label
-          ><select id="piece-state" v-model="stateForm.state">
+          <legend>{{ t("stateAndLocation") }}</legend>
+          <label for="piece-state">{{ t("state") }}</label>
+          <select id="piece-state" v-model="form.state">
             <option value="stored">{{ t("stored") }}</option>
             <option value="displayed">{{ t("displayed") }}</option></select
-          ><template v-if="stateForm.state === 'displayed'"
+          ><template v-if="form.state === 'displayed'"
             ><label for="location">{{ t("location") }} *</label
             ><input
               id="location"
-              v-model="stateForm.location"
+              v-model="form.location"
               maxlength="200"
               required
               :aria-invalid="!!errors.location"
@@ -355,23 +382,34 @@ onMounted(load)
             />
             <p v-if="errors.location" id="location-error" class="error">
               {{ fieldError("location") }}
-            </p></template
-          ><button>{{ t("save") }}</button>
+            </p></template>
         </fieldset>
-      </form>
+        </section>
+        <section v-if="mode === 'edit'" class="record-panel photo-editor">
       <h3>{{ t("photos") }}</h3>
+      <p v-if="selected.photos.length" class="photo-note">{{ t('photoOrderHelp') }}</p>
       <p v-if="!selected.photos.length">{{ t("noPhotos") }}</p>
       <div class="photos">
+        <figure v-for="(photo, index) in selected.photos" :key="photo.id" class="editable-photo">
+        <span class="photo-position">{{ index === 0 ? t('coverPhoto') : t('photoPosition', { position: index + 1 }) }}</span>
         <button
-          v-for="photo in selected.photos"
-          :key="photo.id"
+          type="button"
+          :disabled="busy"
           @click="showPhoto(photo)"
         >
           <img :src="photo.data" :alt="photo.name" />
         </button>
+        <figcaption>{{ photo.name }}</figcaption>
+        <div class="photo-order-controls">
+          <button type="button" :disabled="busy || index === 0" :aria-label="t('movePhotoEarlier', { name: photo.name })" @click="movePhoto(index, -1)"><span aria-hidden="true">‹</span></button>
+          <button type="button" :disabled="busy || index === selected.photos.length - 1" :aria-label="t('movePhotoLater', { name: photo.name })" @click="movePhoto(index, 1)"><span aria-hidden="true">›</span></button>
+        </div>
+        <button class="delete-photo" type="button" :disabled="busy" :aria-label="t('deletePhotoNamed', { name: photo.name })" @click="confirmPhotoDelete(photo)">{{ t('deletePhoto') }}</button>
+        </figure>
       </div>
       <label for="photos">{{ t("addPhotos") }}</label>
       <p id="photo-help">{{ t("photoHelp") }}</p>
+      <p class="photo-note">{{ t("photosImmediate") }}</p>
       <input
         id="photos"
         type="file"
@@ -386,31 +424,76 @@ onMounted(load)
           {{ result.name }}: {{ t(result.code) }}
         </li>
       </ul>
-      <h3>{{ t("history") }}</h3>
-      <div class="table-scroll" tabindex="0">
-        <table>
-          <thead>
-            <tr>
-              <th
-                v-for="key in ['user', 'date', 'field', 'old', 'next']"
-                :key="key"
-              >
-                {{ t(key) }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(change, index) in changes" :key="index">
-              <td>{{ change.user }}</td>
-              <td>{{ new Date(change.timestamp).toLocaleString(locale) }}</td>
-              <td>{{ label(change.field) }}</td>
-              <td>{{ display(change.old, change.field) }}</td>
-              <td>{{ display(change.new, change.field) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        </section>
+        <section class="record-panel editor-note">
+          <h3>{{ t("identifier") }}</h3>
+          <p v-if="mode === 'edit'" class="record-identifier">{{ selected.identifier }}</p>
+          <p v-else>{{ t("identifierAssigned") }}</p>
+        </section>
+        </aside>
+        </div>
+        <footer class="editor-footer">
+          <p>{{ t("requiredFields") }}</p>
+          <div class="actions">
+            <button type="button" :disabled="busy" @click="cancelEdit">{{ t("cancel") }}</button>
+            <button class="primary-action" :disabled="busy">{{ t("save") }}</button>
+          </div>
+        </footer>
+      </form>
     </template>
+    <template v-else-if="selected">
+      <button class="back-link" :disabled="busy" @click="backToCollection">{{ t("back") }}</button>
+      <article class="piece-sheet">
+        <header class="piece-heading">
+          <p class="piece-category">{{ selected.object_type || t('notRecorded') }}</p>
+          <h2>{{ selected.title }}</h2>
+          <p class="piece-attribution">{{ selected.author_maker || t('notRecorded') }}<span v-if="selected.date_period"> · {{ selected.date_period }}</span></p>
+          <span class="piece-state" :class="selected.state">{{ t(selected.state) }}</span>
+          <span v-if="selected.decommissioned" class="inactive-piece">{{ t('decommissioned') }}</span>
+        </header>
+        <div class="piece-overview">
+          <section class="piece-gallery" :aria-label="t('photos')">
+            <button v-if="selected.photos.length" class="hero-photo" :aria-label="t('enlargePhoto')" @click="showPhoto(selected.photos[0])">
+              <img :src="selected.photos[0].data" :alt="selected.photos[0].name" />
+            </button>
+            <div v-else class="no-photo"><p>{{ t('noPhotos') }}</p></div>
+            <div v-if="selected.photos.length > 1" class="photos gallery-thumbnails">
+              <button v-for="photo in selected.photos" :key="photo.id" @click="showPhoto(photo)">
+                <img :src="photo.data" :alt="photo.name" />
+              </button>
+            </div>
+          </section>
+          <section class="piece-description">
+            <h3>{{ t('subject') }}</h3>
+            <p class="piece-subject">{{ selected.subject || t('notRecorded') }}</p>
+            <dl class="piece-facts">
+              <div><dt>{{ t('materials_techniques') }}</dt><dd>{{ selected.materials_techniques || t('notRecorded') }}</dd></div>
+              <div><dt>{{ t('measurements') }}</dt><dd>{{ selected.measurement_value === null ? t('notRecorded') : `${selected.measurement_value} ${selected.measurement_unit}` }}</dd></div>
+              <div><dt>{{ t('location') }}</dt><dd>{{ selected.location || t('noLocation') }}</dd></div>
+            </dl>
+          </section>
+        </div>
+        <section class="piece-documentation">
+          <h3>{{ t('documentation') }}</h3>
+          <dl class="documentation-grid">
+            <div v-for="field in ['inscriptions_marks', 'distinguishing_features']" :key="field">
+              <dt>{{ label(field) }}</dt><dd>{{ selected[field] || t('notRecorded') }}</dd>
+            </div>
+            <div class="identifier-fact"><dt>{{ t('identifier') }}</dt><dd class="record-identifier">{{ selected.identifier }}</dd></div>
+          </dl>
+        </section>
+      </article>
+    </template>
+    <dialog ref="deleteDialog" class="delete-photo-dialog" aria-labelledby="delete-photo-heading" :aria-busy="busy" @cancel="busy && $event.preventDefault()">
+      <h3 id="delete-photo-heading">{{ t('deletePhoto') }}</h3>
+      <p>{{ t('deletePhotoConfirm', { name: photoToDelete?.name }) }}</p>
+      <p class="photo-note">{{ t('deletePhotoWarning') }}</p>
+      <p v-if="deleteFailure" role="alert" class="error">{{ t('deletePhotoError') }}</p>
+      <div class="actions">
+        <button type="button" :disabled="busy" autofocus @click="deleteDialog.close()">{{ t('cancel') }}</button>
+        <button class="primary-action" type="button" :disabled="busy" @click="deletePhoto">{{ t('deletePhoto') }}</button>
+      </div>
+    </dialog>
     <dialog
       ref="dialog"
       @click="
@@ -488,20 +571,46 @@ fieldset {
 [aria-invalid="true"] {
   border: 2px solid var(--color-error);
 }
-.pieces {
-  list-style: none;
-  padding: 0;
-  display: grid;
-  gap: 16px;
+.collection-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin-bottom: 22px; }
+.collection-heading h2 { margin: 0; font-size: 32px; line-height: 1.2; letter-spacing: -0.6px; }
+.piece-count { margin: 6px 0 0; color: var(--color-secundario); font-size: 13px; }
+.new-piece { display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 20px; border-color: var(--color-acento); border-radius: 8px; background: var(--color-acento); color: #fff; font-size: 13px; font-weight: 600; }
+.new-piece span { font-size: 20px; line-height: 1; font-weight: 400; }
+.list-actions { display: flex; align-items: center; gap: 8px; }
+.refresh-list { display: inline-flex; align-items: center; justify-content: center; width: 44px; padding: 10px; border: 0; background: transparent; color: var(--color-secundario); }
+.refresh-list svg { width: 18px; height: 18px; }
+.collection-table { position: relative; border: 1px solid var(--color-divisor); border-radius: 16px; overflow-x: auto; background: var(--color-superficie); box-shadow: 0 1px 2px #00000012; }
+.collection-table table { width: 100%; min-width: 880px; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.collection-table thead { background: var(--color-header); color: #fff; }
+.collection-table th, .collection-table td { text-align: start; padding: 6px 16px; border-bottom: 1px solid var(--color-divisor); }
+.collection-table thead th { height: 40px; border-bottom: 0; font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase; font-weight: 700; }
+.table-state-filter { min-height: 44px; border: 0; border-radius: 0; padding: 0; background: var(--color-header); color: #fff; font-size: inherit; font-weight: inherit; letter-spacing: inherit; text-transform: uppercase; cursor: pointer; }
+.table-state-filter option { background: var(--color-control); color: var(--color-texto); }
+.collection-table tbody td { color: var(--color-secundario); }
+.collection-table tbody th { font-weight: 400; }
+.collection-table tbody tr:last-child > * { border-bottom: 0; }
+.identifier-column { width: 13%; }
+.title-column { width: 25%; }
+.actions-column { width: 64px; }
+.piece-identifier { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 11px ui-monospace, monospace; }
+.piece-title { width: 100%; padding: 6px 0; text-align: start; border: 0; background: transparent; border-radius: 0; font-size: inherit; line-height: 1.5; }
+.piece-state { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 11px; line-height: 1.4; }
+.piece-state.displayed { background: #effcf3; color: #17652f; }
+.piece-state.stored { background: var(--color-footer); color: var(--color-secundario); }
+.collection-table .row-actions { padding: 4px 8px; }
+.edit-piece { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; padding: 10px; border: 0; background: transparent; color: var(--color-secundario); }
+.edit-piece svg { width: 18px; height: 18px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.collection-table .empty-collection { padding: 40px 20px; text-align: center; }
+@media (hover: hover) {
+  .collection-table tbody tr:hover { background: var(--color-footer); }
+  .piece-title:hover { color: var(--color-enlace); text-decoration: underline; }
+  .edit-piece:hover { color: var(--color-enlace); background: var(--color-footer); }
 }
-.pieces li {
-  padding: 16px;
-  border: 1px solid var(--color-borde);
-  border-radius: 8px;
-}
-.pieces small {
-  display: block;
-  margin-top: 8px;
+@media (max-width: 600px) {
+  .collection-heading { align-items: flex-start; gap: 16px; }
+  .collection-heading h2 { font-size: 28px; }
+  .new-piece { padding-inline: 14px; }
 }
 dt {
   font-weight: bold;
@@ -520,21 +629,82 @@ dd {
   height: 100px;
   object-fit: cover;
 }
-.table-scroll {
-  overflow-x: auto;
-  max-width: 100%;
+.back-link { display: inline-flex; align-items: center; gap: 8px; padding: 8px 0; margin-bottom: 20px; border: 0; background: transparent; color: var(--color-secundario); font-size: 13px; }
+.back-link::before { content: "\2039"; font-size: 24px; line-height: 1; }
+.piece-sheet { border: 1px solid var(--color-divisor); border-radius: 16px; background: var(--color-superficie); }
+.piece-heading { padding: 32px; border-bottom: 1px solid var(--color-divisor); }
+.piece-category { margin: 0 0 10px; color: var(--color-secundario); font-size: 13px; }
+.piece-heading h2 { max-width: 24ch; margin: 0; font-size: clamp(28px, 3vw, 40px); line-height: 1.15; letter-spacing: -0.6px; }
+.piece-attribution { margin: 14px 0 18px; color: var(--color-secundario); font-size: 15px; line-height: 1.6; }
+.inactive-piece { margin-left: 12px; color: var(--color-error); font-size: 12px; }
+.piece-overview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; padding: 32px; }
+.piece-gallery, .piece-description { min-width: 0; }
+.hero-photo { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; padding: 16px; border: 0; background: var(--color-footer); }
+.hero-photo img { display: block; width: 100%; height: 330px; object-fit: contain; }
+.no-photo { display: grid; place-items: center; min-height: 280px; padding: 24px; border-radius: 8px; background: var(--color-footer); color: var(--color-secundario); }
+.gallery-thumbnails { gap: 10px; margin-top: 12px; }
+.gallery-thumbnails button { padding: 4px; border-color: var(--color-divisor); }
+.gallery-thumbnails img { display: block; width: 64px; height: 64px; }
+.piece-description h3, .piece-documentation h3 { margin: 0 0 16px; font-size: 22px; font-weight: 600; }
+.piece-subject { margin: 0 0 28px; white-space: pre-wrap; font-size: 15px; line-height: 1.8; }
+.piece-facts { display: grid; gap: 20px; margin: 0; }
+.piece-facts dt, .documentation-grid dt { margin-bottom: 6px; color: var(--color-secundario); font-size: 12px; font-weight: 400; }
+.piece-facts dd, .documentation-grid dd { margin: 0; font-size: 14px; line-height: 1.7; }
+.piece-documentation { border-top: 1px solid var(--color-divisor); padding: 28px 32px; }
+.documentation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; margin: 0; }
+.identifier-fact { grid-column: 1 / -1; padding-top: 20px; border-top: 1px solid var(--color-divisor); }
+.record-identifier { font: 12px/1.7 ui-monospace, monospace; overflow-wrap: anywhere; }
+.editor-heading { margin-bottom: 28px; }
+.editor-heading h2 { margin: 0 0 8px; font-size: 32px; letter-spacing: -0.5px; }
+.editor-heading p { margin: 0; color: var(--color-secundario); line-height: 1.6; }
+.editor-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 24px; align-items: start; }
+.record-panel { min-width: 0; padding: 24px; border: 1px solid var(--color-divisor); border-radius: 12px; background: var(--color-superficie); }
+.record-panel fieldset { margin: 0; }
+.record-panel legend, .record-panel h3 { margin: 0 0 16px; padding: 0; font: 600 20px Georgia, serif; }
+.record-panel label { margin-top: 0; margin-bottom: 8px; font-size: 13px; font-weight: 500; }
+.record-panel input, .record-panel textarea, .record-panel select { padding: 12px; font-size: 16px; }
+.record-panel textarea { min-height: 100px; resize: vertical; line-height: 1.6; }
+.record-panel select + label, .record-panel #location { margin-top: 12px; }
+.measurement-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
+.editor-sidebar { display: grid; gap: 24px; min-width: 0; }
+.editor-note p, .photo-editor p { color: var(--color-secundario); font-size: 13px; line-height: 1.6; }
+.photo-editor .photos { gap: 8px; margin-bottom: 20px; }
+.photo-editor .photos button { padding: 4px; }
+.photo-editor .photos img { display: block; width: 64px; height: 64px; }
+.editable-photo { display: grid; align-content: start; gap: 8px; width: 112px; margin: 0; }
+.photo-editor .editable-photo > button img { width: 100%; height: 88px; object-fit: cover; }
+.photo-position { color: var(--color-secundario); font-size: 12px; font-weight: 600; }
+.photo-order-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.photo-order-controls button { min-height: 44px; padding: 4px; border-color: var(--color-divisor); font-size: 24px; }
+.editable-photo figcaption { color: var(--color-secundario); font-size: 12px; overflow-wrap: anywhere; }
+.photo-editor .delete-photo { min-height: 44px; padding: 8px; border-color: var(--color-divisor); color: var(--color-error); font-size: 12px; }
+.delete-photo-dialog { width: min(440px, calc(100% - 32px)); padding: 24px; border-radius: 12px; }
+.delete-photo-dialog h3 { margin-top: 0; font-size: 24px; }
+.delete-photo-dialog p { line-height: 1.6; }
+.delete-photo-dialog .photo-note { color: var(--color-secundario); font-size: 13px; }
+.photo-editor input[type="file"] { padding: 12px; border-style: dashed; font-size: 12px; }
+.photo-editor input::file-selector-button { min-height: 36px; border: 0; border-radius: 4px; margin-right: 8px; padding: 8px; background: var(--color-footer); color: var(--color-texto); font: inherit; cursor: pointer; }
+.photo-editor .photo-note { font-size: 12px; }
+.editor-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-divisor); }
+.editor-footer > p { color: var(--color-secundario); font-size: 12px; }
+.editor-footer .actions { margin: 0; }
+.primary-action { padding-inline: 24px; border-color: var(--color-acento); background: var(--color-acento); color: #fff; font-weight: 600; }
+@media (min-width: 768px) {
+  .wide-field { grid-column: 1 / -1; }
 }
-table {
-  border-collapse: collapse;
-  width: 100%;
+@media (max-width: 1000px) {
+  .editor-layout { grid-template-columns: minmax(0, 1fr); }
+  .editor-sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 }
-th,
-td {
-  padding: 10px;
-  border-bottom: 1px solid var(--color-borde);
-  text-align: start;
-  min-width: 100px;
-  max-width: 240px;
+@media (max-width: 700px) {
+  .piece-overview, .documentation-grid, .editor-sidebar { grid-template-columns: minmax(0, 1fr); }
+  .piece-overview { gap: 28px; padding: 20px; }
+  .piece-heading, .piece-documentation, .record-panel { padding: 20px; }
+  .hero-photo img { height: 260px; }
+  .no-photo { min-height: 220px; }
+  .editor-heading h2 { font-size: 28px; }
+  .editor-footer .actions { width: 100%; }
+  .editor-footer .actions button { flex: 1; }
 }
 dialog {
   background: var(--color-control);
@@ -554,9 +724,6 @@ dialog::backdrop {
 }
 @media (min-width: 768px) {
   .fields {
-    grid-template-columns: 1fr 1fr;
-  }
-  .pieces {
     grid-template-columns: 1fr 1fr;
   }
 }

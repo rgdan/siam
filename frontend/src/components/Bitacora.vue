@@ -3,9 +3,10 @@ import { onMounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { solicitar } from "../api.js"
 import { formatearFecha, formatearHora } from "../i18n/index.js"
+import collectionMessages from "./collectionMessages.js"
 
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-const { t } = useI18n({ useScope: "global" })
+const { t, te, locale } = useI18n({ useScope: "global" })
 const registros = ref([])
 const pagina = ref(1)
 const total = ref(0)
@@ -14,8 +15,67 @@ const siguiente = ref(false)
 const cargando = ref(true)
 const error = ref("")
 const acciones = ["create", "modify", "decommission", "sensitive_read", "login", "failed_login"]
-const filtros = ref({ user: "", action_type: "", date_from: "", date_to: "" })
+const entidades = ["piece", "user", "visitor_entry", "incident", "system_parameter", "access"]
+const filtros = ref({ user: "", action_type: "", entity: "", date_from: "", date_to: "" })
 let filtrosAplicados = {}
+
+function nombreEntidad(registro) {
+  return entidades.includes(registro.entity) ? t(`audit.entities.${registro.entity}`) : registro.entity
+}
+
+function nombreCampo(campo, entidad) {
+  if (entidad === "piece") {
+    const key = campo === "title" ? "pieceTitle" : campo === "photos" ? "photosField" : campo
+    const label = collectionMessages[locale.value]?.[key]
+    if (label) return label
+  }
+  return te(`audit.fields.${campo}`) ? t(`audit.fields.${campo}`) : campo.replaceAll("_", " ")
+}
+
+function valor(value, campo) {
+  if (value === null || value === undefined || value === "") return t("audit.noValue")
+  if (typeof value === "boolean") return t(value ? "audit.yes" : "audit.no")
+  if (Array.isArray(value)) {
+    if (!value.length) return t("audit.noValue")
+    return value.map(item => campo === "photos" ? t("audit.photoReference", { id: item }) : valor(item, campo)).join(", ")
+  }
+  if (typeof value === "object")
+    return Object.entries(value).map(([key, item]) => `${nombreCampo(key)}: ${valor(item, key)}`).join("; ")
+  if (campo === "role" && te(`roles.${value}`)) return t(`roles.${value}`)
+  if (["timestamp", "last_login"].includes(campo)) return `${formatearFecha(value)} ${formatearHora(value)}`
+  if (campo === "state" && ["stored", "displayed"].includes(value)) return collectionMessages[locale.value][value]
+  if (te(`audit.values.${campo}.${value}`)) return t(`audit.values.${campo}.${value}`)
+  return String(value)
+}
+
+function tituloRegistro(registro) {
+  const referencia = `${nombreEntidad(registro)}${registro.entity_id ? ` #${registro.entity_id}` : ""}`
+  const cambios = registro.changes
+  const nombre = cambios.title || cambios.full_name || cambios.email
+  const identidad = nombre?.new || nombre?.old
+  return `${t(`audit.actions.${registro.action_type}`)} · ${referencia}${identidad ? `: ${identidad}` : ""}`
+}
+
+function resumen(registro) {
+  const campos = Object.keys(registro.changes).map(campo => nombreCampo(campo, registro.entity))
+  if (!campos.length) return ""
+  const fotoEliminada = registro.changes.photo
+  if (fotoEliminada?.old && fotoEliminada.new === null)
+    return t("audit.photoDeleted", { name: fotoEliminada.old.name })
+  const fotos = registro.changes.photos
+  if (campos.length === 1 && fotos && Array.isArray(fotos.old) && Array.isArray(fotos.new)) {
+    const added = fotos.new.filter(id => !fotos.old.includes(id)).length
+    const removed = fotos.old.filter(id => !fotos.new.includes(id)).length
+    if (!added && !removed && fotos.new.length)
+      return t("audit.photosReordered", { id: fotos.new[0] })
+    return [
+      added ? t("audit.photosAdded", { count: added }) : "",
+      removed ? t("audit.photosRemoved", { count: removed }) : "",
+    ].filter(Boolean).join(" ")
+  }
+  if (registro.action_type === "create") return t("audit.createdFields", { count: campos.length })
+  return t("audit.changedFields", { fields: campos.join(", ") })
+}
 
 // Conserva los filtros enviados aunque se edite el formulario mientras se navega entre páginas.
 function aplicarFiltros() {
@@ -25,7 +85,7 @@ function aplicarFiltros() {
 
 // Limpia los filtros y vuelve a consultar la primera página.
 function limpiarFiltros() {
-  filtros.value = { user: "", action_type: "", date_from: "", date_to: "" }
+  filtros.value = { user: "", action_type: "", entity: "", date_from: "", date_to: "" }
   aplicarFiltros()
 }
 
@@ -92,6 +152,13 @@ onMounted(cargar)
             </select>
           </div>
           <div>
+            <label for="filtro-entidad">{{ t("audit.entity") }}</label>
+            <select id="filtro-entidad" v-model="filtros.entity">
+              <option value="">{{ t("audit.allEntities") }}</option>
+              <option v-for="entidad in entidades" :key="entidad" :value="entidad">{{ t(`audit.entities.${entidad}`) }}</option>
+            </select>
+          </div>
+          <div>
             <label for="filtro-desde">{{ t("audit.dateFrom") }}</label>
             <input id="filtro-desde" v-model="filtros.date_from" type="date" :max="filtros.date_to" />
           </div>
@@ -113,7 +180,7 @@ onMounted(cargar)
     <ol class="registros" :aria-label="t('audit.title')">
       <li v-for="registro in registros" :key="registro.id">
         <header class="cabecera">
-          <h3>{{ t(`audit.actions.${registro.action_type}`) }}</h3>
+          <h3>{{ tituloRegistro(registro) }}</h3>
           <time :datetime="registro.timestamp">{{ formatearFecha(registro.timestamp) }} {{ formatearHora(registro.timestamp) }}</time>
         </header>
         <dl class="metadatos">
@@ -127,12 +194,30 @@ onMounted(cargar)
           </div>
           <div>
             <dt>{{ t("audit.entity") }}</dt>
-            <dd>{{ registro.entity }}<template v-if="registro.entity_id"> #{{ registro.entity_id }}</template></dd>
+            <dd>{{ nombreEntidad(registro) }}<template v-if="registro.entity_id"> #{{ registro.entity_id }}</template></dd>
           </div>
         </dl>
-        <details v-if="Object.keys(registro.changes).length">
+        <p v-if="resumen(registro)" class="resumen">{{ resumen(registro) }}</p>
+        <details v-if="Object.keys(registro.changes).length" open>
           <summary>{{ t("audit.changes") }}</summary>
-          <pre>{{ JSON.stringify(registro.changes, null, 2) }}</pre>
+          <div class="tabla-cambios" tabindex="0" role="region" :aria-label="t('audit.changes')">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">{{ t("audit.field") }}</th>
+                  <th v-if="registro.action_type !== 'create'" scope="col">{{ t("audit.before") }}</th>
+                  <th scope="col">{{ t(registro.action_type === 'create' ? "audit.createdValue" : "audit.after") }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(cambio, campo) in registro.changes" :key="campo">
+                  <th scope="row">{{ nombreCampo(campo, registro.entity) }}</th>
+                  <td v-if="registro.action_type !== 'create'">{{ valor(cambio.old, campo) }}</td>
+                  <td>{{ valor(cambio.new, campo) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </details>
         <p v-else>{{ t("audit.noChanges") }}</p>
       </li>
@@ -167,7 +252,12 @@ dd { margin: 4px 0 0; }
 button { min-height: 44px; padding: 10px 12px; border: 1px solid var(--color-borde); border-radius: 7px; background: var(--color-control); color: var(--color-texto); font: inherit; cursor: pointer; }
 button:disabled { cursor: default; }
 summary { min-height: 44px; padding-block: 12px; cursor: pointer; }
-pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
+.resumen { line-height: 1.6; }
+.tabla-cambios { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+th, td { padding: 12px 8px; border-bottom: 1px solid var(--color-divisor); text-align: start; vertical-align: top; white-space: pre-wrap; overflow-wrap: anywhere; }
+thead th { color: var(--color-secundario); font-size: 13px; }
+tbody th { font-weight: 600; }
 .error { color: var(--color-error); }
 @media (max-width: 560px) { .campos-filtro { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 480px) { .registros li, .filtros { padding: 16px; } }

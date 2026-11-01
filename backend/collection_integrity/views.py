@@ -1,17 +1,17 @@
 import logging
 
-from api.permissions import registrar_denegacion
-from audit.services import snapshot
+from api.permissions import requiere_permiso
+from audit.models import AuditEntry
+from audit.services import record, snapshot
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import BasePermission, IsAuthenticated
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import Piece
+from .models import Photo, Piece
 from .serializers import (
-    HistorySerializer,
+    PhotoOrderSerializer,
     PhotoSerializer,
     PieceSerializer,
     UploadSerializer,
@@ -21,17 +21,8 @@ from .services import _finish, attach_photo, register_piece
 logger = logging.getLogger(__name__)
 
 
-class CuratorOnly(BasePermission):
-    def has_permission(self, request, view):
-        if request.user.is_active and request.user.role == "museologo":
-            return True
-        if request.user.is_authenticated:
-            registrar_denegacion(request, "piezas.actualizar")
-        return False
-
-
 @api_view(["GET", "POST"])
-@permission_classes([IsAuthenticated, CuratorOnly])
+@requiere_permiso("piezas.crear")
 def pieces(request):
     if request.method == "GET":
         queryset = Piece.objects.order_by("-id")
@@ -48,7 +39,7 @@ def pieces(request):
 
 
 @api_view(["GET", "PATCH"])
-@permission_classes([IsAuthenticated, CuratorOnly])
+@requiere_permiso("piezas.actualizar")
 def piece_detail(request, piece_id):
     with transaction.atomic():
         piece = get_object_or_404(Piece.objects.select_for_update(), pk=piece_id)
@@ -62,16 +53,12 @@ def piece_detail(request, piece_id):
             if old != snapshot(piece):
                 _finish(piece, request.user, "edit", old)
         data = dict(PieceSerializer(piece).data)
-        data["history"] = HistorySerializer(
-            piece.history.select_related("user").order_by("-timestamp", "-id"),
-            many=True,
-        ).data
         data["photos"] = PhotoSerializer(piece.photos.all(), many=True).data
         return Response(data)
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, CuratorOnly])
+@requiere_permiso("piezas.adjuntar_fotos")
 def upload_photos(request, piece_id):
     piece = get_object_or_404(Piece, pk=piece_id)
     if not isinstance(request.data, dict):
@@ -98,3 +85,57 @@ def upload_photos(request, piece_id):
                 {"index": index, "errors": {"non_field_errors": ["upload_failed"]}}
             )
     return Response({"results": results})
+
+
+@api_view(["DELETE"])
+@requiere_permiso("piezas.actualizar")
+def delete_photo(request, piece_id, photo_id):
+    with transaction.atomic():
+        piece = get_object_or_404(Piece.objects.select_for_update(), pk=piece_id)
+        if piece.decommissioned:
+            raise serializers.ValidationError({"detail": "inactive_piece"})
+        photo = get_object_or_404(Photo, pk=photo_id, piece=piece)
+        old = {
+            "photos": list(piece.photos.values_list("pk", flat=True)),
+            "photo": snapshot(photo),
+        }
+        photo.delete()
+        record(
+            user=request.user,
+            action_type=AuditEntry.Action.MODIFY,
+            entity="piece",
+            entity_id=piece.pk,
+            old=old,
+            new={"photos": list(piece.photos.values_list("pk", flat=True))},
+        )
+    return Response({"deleted": photo_id})
+
+
+@api_view(["PATCH"])
+@requiere_permiso("piezas.actualizar")
+def reorder_photos(request, piece_id):
+    serializer = PhotoOrderSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    photo_ids = serializer.validated_data["photos"]
+    with transaction.atomic():
+        piece = get_object_or_404(Piece.objects.select_for_update(), pk=piece_id)
+        if piece.decommissioned:
+            raise serializers.ValidationError({"detail": "inactive_piece"})
+        photos = list(piece.photos.only("id", "position"))
+        old_ids = [photo.pk for photo in photos]
+        if len(photo_ids) != len(old_ids) or set(photo_ids) != set(old_ids):
+            raise serializers.ValidationError({"photos": "invalid_photo_order"})
+        if photo_ids != old_ids:
+            by_id = {photo.pk: photo for photo in photos}
+            for position, photo_id in enumerate(photo_ids):
+                by_id[photo_id].position = position
+            Photo.objects.bulk_update(photos, ["position"])
+            record(
+                user=request.user,
+                action_type=AuditEntry.Action.MODIFY,
+                entity="piece",
+                entity_id=piece.pk,
+                old={"photos": old_ids},
+                new={"photos": photo_ids},
+            )
+    return Response({"photos": photo_ids})

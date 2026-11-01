@@ -30,7 +30,6 @@ function navegar(ruta) {
 }
 
 const rutasPublicas = ["/", "/informacion", "/horarios"]
-const rutasDeRegistro = ["/interno/ingresos", "/interno/incidencias"]
 const permisosPorRuta = {
   "/interno/coleccion": "piezas.crear",
   "/interno/usuarios": "usuarios.consultar",
@@ -85,7 +84,6 @@ async function cargarSesion() {
 
 // El menú ayuda a navegar; la API vuelve a comprobar los permisos en cada solicitud.
 function puedeVerRuta() {
-  if (rutaActual.value === "/interno/coleccion") return usuario.value?.role === "museologo"
   return rutaActual.value === "/interno"
     || usuario.value?.permissions?.includes(permisosPorRuta[rutaActual.value]) === true
 }
@@ -200,7 +198,7 @@ onUnmounted(() => {
 
     <!-- Autenticación y área interna -->
     <div v-else class="pagina-autenticacion" :class="{ 'pagina-administracion': permisosPorRuta[rutaActual] && usuario }">
-      <template v-if="!rutasDeRegistro.includes(rutaActual)">
+      <template v-if="rutaActual === '/interno'">
         <h1>SIAM</h1>
         <p>{{ t("common.systemName") }}</p>
       </template>
@@ -213,9 +211,9 @@ onUnmounted(() => {
       <!-- Área interna -->
       <section
         v-else-if="usuario"
-        :aria-labelledby="rutasDeRegistro.includes(rutaActual) ? undefined : 'titulo-interno'"
+        :aria-labelledby="rutaActual === '/interno' ? 'titulo-interno' : undefined"
       >
-        <template v-if="!rutasDeRegistro.includes(rutaActual)">
+        <template v-if="rutaActual === '/interno'">
           <h2 id="titulo-interno">{{ t("auth.internalArea") }}</h2>
           <p>{{ t("auth.loggedInAs", { name: usuario.full_name }) }}</p>
         </template>
@@ -320,6 +318,16 @@ onUnmounted(() => {
 
 .pagina-administracion {
   max-width: 900px;
+}
+
+.pagina-administracion:has(.collection) {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.pagina-administracion:has(.collection-list) {
+  max-width: none;
+  margin: 0;
 }
 
 h1 {
