@@ -1,12 +1,11 @@
 import logging
 
-from api.permissions import registrar_denegacion
+from api.permissions import requiere_permiso
 from audit.services import snapshot
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import BasePermission, IsAuthenticated
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from .models import Piece
@@ -20,17 +19,8 @@ from .services import _finish, attach_photo, register_piece
 logger = logging.getLogger(__name__)
 
 
-class CuratorOnly(BasePermission):
-    def has_permission(self, request, view):
-        if request.user.is_active and request.user.role == "museologo":
-            return True
-        if request.user.is_authenticated:
-            registrar_denegacion(request, "piezas.actualizar")
-        return False
-
-
 @api_view(["GET", "POST"])
-@permission_classes([IsAuthenticated, CuratorOnly])
+@requiere_permiso("piezas.crear")
 def pieces(request):
     if request.method == "GET":
         queryset = Piece.objects.order_by("-id")
@@ -47,7 +37,7 @@ def pieces(request):
 
 
 @api_view(["GET", "PATCH"])
-@permission_classes([IsAuthenticated, CuratorOnly])
+@requiere_permiso("piezas.actualizar")
 def piece_detail(request, piece_id):
     with transaction.atomic():
         piece = get_object_or_404(Piece.objects.select_for_update(), pk=piece_id)
@@ -66,7 +56,7 @@ def piece_detail(request, piece_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, CuratorOnly])
+@requiere_permiso("piezas.adjuntar_fotos")
 def upload_photos(request, piece_id):
     piece = get_object_or_404(Piece, pk=piece_id)
     if not isinstance(request.data, dict):
