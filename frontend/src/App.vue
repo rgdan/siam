@@ -5,10 +5,13 @@ import { useI18n } from "vue-i18n"
 import Coleccion from "./components/Coleccion.vue"
 import AppLayout from "./components/AppLayout.vue"
 import MuseoPublico from "./components/MuseoPublico.vue"
+import EventosPublicos from "./components/EventosPublicos.vue"
+import EventosInternos from "./components/EventosInternos.vue"
 import Usuarios from "./components/Usuarios.vue"
 import Bitacora from "./components/Bitacora.vue"
 import RegistrarIngreso from "./components/RegistrarIngreso.vue"
 import RegistrarIncidencia from "./components/RegistrarIncidencia.vue"
+import RegistrarEvento from "./components/RegistrarEvento.vue"
 import { solicitar, enviar } from "./api.js"
 
 // Traducciones de SIAM.
@@ -29,13 +32,16 @@ function navegar(ruta) {
   actualizarRuta()
 }
 
-const rutasPublicas = ["/", "/informacion", "/horarios"]
+// SIAM-13: la consulta de eventos públicos no requiere iniciar sesión.
+const rutasPublicas = ["/", "/informacion", "/horarios", "/eventos"]
 const permisosPorRuta = {
   "/interno/coleccion": "piezas.crear",
   "/interno/usuarios": "usuarios.consultar",
   "/interno/bitacora": "bitacora.consultar",
   "/interno/ingresos": "visitantes.registrar",
   "/interno/incidencias": "incidencias.registrar",
+  "/interno/eventos/registrar": "eventos.crear",
+  "/interno/eventos": "eventos.ver_privados",
 }
 
 function esRutaPublica() {
@@ -49,7 +55,6 @@ const contrasena = ref("")
 const comprobando = ref(false)
 const enviando = ref(false)
 const error = ref("")
-
 const accesoDenegado = ref(false)
 
 // Una sesión expirada deja de mostrar inmediatamente los datos internos.
@@ -84,8 +89,16 @@ async function cargarSesion() {
 
 // El menú ayuda a navegar; la API vuelve a comprobar los permisos en cada solicitud.
 function puedeVerRuta() {
-  return rutaActual.value === "/interno"
-    || usuario.value?.permissions?.includes(permisosPorRuta[rutaActual.value]) === true
+  if (rutaActual.value === "/interno") return true
+
+  if (rutaActual.value === "/interno/eventos/registrar") {
+    return (
+      usuario.value?.role === "coordinador"
+      && usuario.value?.permissions?.includes("eventos.crear") === true
+    )
+  }
+
+  return usuario.value?.permissions?.includes(permisosPorRuta[rutaActual.value]) === true
 }
 
 // Retira la sección si Django rechaza un permiso que cambió durante la sesión.
@@ -151,7 +164,7 @@ async function cerrarSesion() {
   }
 }
 
-// Reconoce la sesión pública sin exigirla ni ocultar la información del museo.
+// Reconoce las rutas públicas sin exigir sesión.
 async function comprobarSesion() {
   if (esRutaPublica()) {
     try {
@@ -175,7 +188,7 @@ async function comprobarSesion() {
   }
 }
 
-// También protege la navegación mediante los botones Atrás y Adelante del navegador.
+// También protege la navegación con Atrás y Adelante del navegador.
 watch(rutaActual, comprobarSesion)
 
 onMounted(() => {
@@ -189,10 +202,20 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <AppLayout :usuario="usuario" :ruta-actual="rutaActual" :enviando="enviando" @cerrar-sesion="cerrarSesion">
-    <!-- Información pública: no requiere iniciar sesión -->
+  <AppLayout
+    :usuario="usuario"
+    :ruta-actual="rutaActual"
+    :enviando="enviando"
+    @cerrar-sesion="cerrarSesion"
+  >
+    <!-- SIAM-13: eventos visibles sin iniciar sesión -->
+    <EventosPublicos
+      v-if="rutaActual === '/eventos'"
+    />
+
+    <!-- Información pública del museo -->
     <MuseoPublico
-      v-if="esRutaPublica()"
+      v-else-if="esRutaPublica()"
       :key="rutaActual"
     />
 
@@ -231,23 +254,39 @@ onUnmounted(() => {
           @sin-acceso="denegarAcceso"
           @cuenta-actualizada="cargarSesion().catch(sesionExpirada)"
         />
+
         <Bitacora
           v-else-if="rutaActual === '/interno/bitacora'"
           @sesion-expirada="sesionExpirada"
           @sin-acceso="denegarAcceso"
         />
+
         <RegistrarIngreso
           v-else-if="rutaActual === '/interno/ingresos'"
           @sesion-expirada="sesionExpirada"
           @sin-acceso="denegarAcceso"
         />
+
         <RegistrarIncidencia
           v-else-if="rutaActual === '/interno/incidencias'"
           @sesion-expirada="sesionExpirada"
           @sin-acceso="denegarAcceso"
         />
-        <p v-else>{{ t("users.chooseSection") }}</p>
 
+        <RegistrarEvento
+          v-else-if="rutaActual === '/interno/eventos/registrar'"
+          @sesion-expirada="sesionExpirada"
+          @sin-acceso="denegarAcceso"
+        />
+
+        <!-- SIAM-14: calendario interno de eventos públicos y privados -->
+        <EventosInternos
+          v-else-if="rutaActual === '/interno/eventos'"
+          @sesion-expirada="sesionExpirada"
+          @sin-acceso="denegarAcceso"
+        />
+
+        <p v-else>{{ t("users.chooseSection") }}</p>
       </section>
 
       <!-- Formulario de inicio de sesión -->
@@ -299,8 +338,8 @@ onUnmounted(() => {
       <p role="status">
         {{ enviando ? t("common.processing") : "" }}
       </p>
-
     </div>
+
     <p v-if="error" role="alert" class="error">{{ t(error) }}</p>
   </AppLayout>
 </template>
@@ -347,7 +386,6 @@ form {
   width: 100%;
 }
 
-/* Campos y botones */
 input,
 button {
   box-sizing: border-box;
@@ -376,12 +414,10 @@ button:disabled {
   cursor: wait;
 }
 
-/* Mensajes de error */
 .error {
   color: var(--color-error);
 }
 
-/* Adaptación para celulares */
 @media (max-width: 767px) {
   .pagina-autenticacion {
     margin: 8px auto;

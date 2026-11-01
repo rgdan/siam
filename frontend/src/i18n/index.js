@@ -4,6 +4,22 @@ import { createI18n } from "vue-i18n"
 // Traducciones de la interfaz de SIAM.
 const mensajes = {
   es: {
+    publicEvents: {
+      title: "Eventos públicos",
+      description: "Consulte los próximos eventos públicos del museo.",
+      refresh: "Actualizar eventos",
+      loading: "Cargando eventos…",
+      loadError: "No se pudieron cargar los eventos. Intente nuevamente.",
+      empty: "No hay eventos públicos próximos.",
+      location: "Ubicación",
+      calendar: "Calendario de eventos",
+      previousMonth: "Mes anterior",
+      nextMonth: "Mes siguiente",
+      today: "Hoy",
+      eventCount: "evento(s)",
+      noEventsOnDay: "No hay eventos públicos programados para este día.",
+      upcoming: "Próximos eventos públicos",
+    },
     common: {
       systemName: "Sistema de Información y Analítica Museal",
       museumSystem: "Sistema museal",
@@ -59,6 +75,7 @@ const mensajes = {
       noAccess: "Sin acceso", noAccessDescription: "Su cuenta no tiene permiso para abrir esta sección.",
       chooseSection: "Seleccione una sección del menú.",
     },
+
     audit: {
       title: "Bitácora", refresh: "Actualizar bitácora", loading: "Cargando bitácora…",
       total: "Registros: {count}", empty: "No se encontraron registros.",
@@ -110,6 +127,7 @@ const mensajes = {
         sensitive_read: "Acceso sensible", login: "Inicio de sesión", failed_login: "Inicio de sesión fallido",
       },
     },
+
     visitors: {
       title: "Registrar ingreso", age: "Edad", nationality: "Nacionalidad", sex: "Sexo",
       select: "Seleccione una opción", confirmTitle: "¿Confirma este ingreso?",
@@ -124,6 +142,7 @@ const mensajes = {
         extranjero: "Extranjero", masculino: "Masculino", femenino: "Femenino",
       },
     },
+
     incidents: {
       title: "Registrar incidencia", description: "Descripción", category: "Categoría",
       select: "Seleccione una categoría", minimum: "La descripción debe tener al menos 10 caracteres.",
@@ -139,6 +158,30 @@ const mensajes = {
         comportamiento_indebido: "Comportamiento indebido", emergencia_medica: "Emergencia médica", otro: "Otro",
       },
     },
+
+    // SIAM-12: Registro de eventos.
+    events: {
+      registerTitle: "Registrar evento",
+      instructions: "Complete los datos para programar un nuevo evento del museo.",
+      dateTime: "Fecha y hora",
+      description: "Descripción",
+      location: "Ubicación",
+      type: "Tipo de evento",
+      public: "Público",
+      private: "Privado",
+      expectedAttendees: "Asistentes esperados",
+      futureDate: "Seleccione una fecha y hora futuras.",
+      descriptionRule: "La descripción es obligatoria y no puede superar los 500 caracteres.",
+      locationRequired: "La ubicación es obligatoria.",
+      typeRequired: "Seleccione un tipo de evento válido.",
+      attendeesRule: "Indique un número entero de asistentes igual o mayor a 1.",
+      saving: "Guardando evento…",
+      save: "Registrar evento",
+      saved: "Evento registrado correctamente.",
+      invalid: "Revise los datos del formulario y vuelva a intentarlo.",
+      connectionError: "No se pudo confirmar el registro. El evento podría haberse guardado; verifíquelo antes de intentar nuevamente.",
+    },
+
     roles: {
       guarda: "Guarda", coordinador: "Coordinador", museologo: "Museólogo",
       administrador_general: "Administrador general", administrador_sistema: "Administrador de sistema",
@@ -179,6 +222,22 @@ const mensajes = {
   },
 
   en: {
+    publicEvents: {
+      title: "Public events",
+      description: "Explore the museum's upcoming public events.",
+      refresh: "Refresh events",
+      loading: "Loading events…",
+      loadError: "Could not load events. Please try again.",
+      empty: "There are no upcoming public events.",
+      location: "Location",
+      calendar: "Event calendar",
+      previousMonth: "Previous month",
+      nextMonth: "Next month",
+      today: "Today",
+      eventCount: "event(s)",
+      noEventsOnDay: "There are no public events scheduled for this day.",
+      upcoming: "Upcoming public events",
+    },
     common: {
       systemName: "Museum Information and Analytics System",
       museumSystem: "Museum system",
@@ -234,6 +293,7 @@ const mensajes = {
       noAccess: "Access denied", noAccessDescription: "Your account does not have permission to open this section.",
       chooseSection: "Select a section from the menu.",
     },
+
     audit: {
       title: "Audit log", refresh: "Refresh audit log", loading: "Loading audit log…",
       total: "Records: {count}", empty: "No matching audit records.",
@@ -285,6 +345,7 @@ const mensajes = {
         sensitive_read: "Sensitive access", login: "Sign in", failed_login: "Failed sign in",
       },
     },
+
     visitors: {
       title: "Register entry", age: "Age", nationality: "Nationality", sex: "Sex",
       select: "Select an option", confirmTitle: "Confirm this entry?",
@@ -299,6 +360,7 @@ const mensajes = {
         masculino: "Male", femenino: "Female",
       },
     },
+
     incidents: {
       title: "Register incident", description: "Description", category: "Category",
       select: "Select a category", minimum: "The description must contain at least 10 characters.",
@@ -308,12 +370,36 @@ const mensajes = {
       retry: "Retry registration", saving: "Saving incident…", saved: "Incident registered successfully.",
       invalid: "Check the description and category and try again.",
       saveError: "Could not save the incident. Select Retry registration to try again.",
-      connectionError: "Could not confirm the incident. It may have been saved; check before retrying.",
+      connectionError: "Could not confirm the incident. It may have been saved; check before trying again.",
       categories: {
         objeto_extraviado: "Lost object", dano_infraestructura: "Infrastructure damage",
         comportamiento_indebido: "Misconduct", emergencia_medica: "Medical emergency", otro: "Other",
       },
     },
+
+    // SIAM-12: Event registration.
+    events: {
+      registerTitle: "Register event",
+      instructions: "Fill in the details to schedule a new museum event.",
+      dateTime: "Date and time",
+      description: "Description",
+      location: "Location",
+      type: "Event type",
+      public: "Public",
+      private: "Private",
+      expectedAttendees: "Expected attendees",
+      futureDate: "Select a future date and time.",
+      descriptionRule: "A description is required and must not exceed 500 characters.",
+      locationRequired: "A location is required.",
+      typeRequired: "Select a valid event type.",
+      attendeesRule: "Enter a whole number of expected attendees, at least 1.",
+      saving: "Saving event…",
+      save: "Register event",
+      saved: "Event registered successfully.",
+      invalid: "Check the form details and try again.",
+      connectionError: "Could not confirm registration. The event may have been saved; check before trying again.",
+    },
+
     roles: {
       guarda: "Guard", coordinador: "Coordinator", museologo: "Museologist",
       administrador_general: "General administrator", administrador_sistema: "System administrator",

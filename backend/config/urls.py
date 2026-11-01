@@ -1,3 +1,4 @@
+
 from api import views
 from audit.views import AuditList
 from django.urls import path
@@ -26,6 +27,15 @@ urlpatterns = [
     path("api/auth/logout/", views.sign_out, name="logout"),
     path("api/users/", views.users, name="users"),
     path("api/users/<int:user_id>/", views.user_detail, name="user-detail"),
+    path("api/events/", views.events, name="events"),
+    path("api/events/internal/", views.internal_events, name="internal-events"),
+
+    # SIAM-15: modificación y cancelación de eventos.
+    path("api/events/<int:event_id>/", views.event_detail, name="event-detail"),
+    path("api/events/<int:event_id>/cancel/", views.cancel_event, name="event-cancel"),
+
+    # SIAM-16: registro de asistencia real.
+    path("api/events/<int:event_id>/attendance/", views.event_attendance, name="event-attendance"),
 ]
 
 handler400 = views.bad_request
