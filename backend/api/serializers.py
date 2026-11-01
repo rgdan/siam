@@ -172,3 +172,51 @@ class EventoSerializer(serializers.ModelSerializer):
             )
 
         return value
+
+
+# SIAM-15: valida los campos permitidos para modificar eventos.
+class EventoUpdateSerializer(EventoSerializer):
+    class Meta(EventoSerializer.Meta):
+        pass
+
+    def validate_fecha(self, value):
+        if value <= timezone.now():
+            raise serializers.ValidationError(
+                "La nueva fecha y hora del evento deben ser futuras."
+            )
+
+        return value
+
+    def validate(self, attrs):
+        campos_permitidos = {
+            "fecha",
+            "descripcion",
+            "ubicacion",
+            "tipo",
+            "asistentes_esperados",
+        }
+
+        datos = self.initial_data
+
+        if not isinstance(datos, dict):
+            raise serializers.ValidationError(
+                "Debe enviar los datos del evento en un objeto."
+            )
+
+        campos_enviados = set(datos.keys())
+        campos_no_permitidos = campos_enviados - campos_permitidos
+
+        if campos_no_permitidos:
+            raise serializers.ValidationError({
+                "detail": (
+                    "No se pueden modificar estos campos: "
+                    + ", ".join(sorted(campos_no_permitidos))
+                )
+            })
+
+        if not campos_enviados:
+            raise serializers.ValidationError(
+                "Debe indicar al menos un campo para modificar."
+            )
+
+        return attrs
