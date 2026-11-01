@@ -23,6 +23,7 @@ from .serializers import (
     UserUpdateSerializer,
     EventoSerializer,
     EventoUpdateSerializer,
+    EventoAsistenciaSerializer,
 )
 
 
@@ -324,7 +325,7 @@ def events(request):
     return Response(serializer.data, status=201)
 
 
-# SIAM-14: consulta de eventos para el personal autorizado.
+# SIAM-14 y SIAM-16: eventos internos y sus datos de asistencia.
 @never_cache
 @api_view(["GET"])
 @requiere_permiso("eventos.ver_privados")
@@ -341,12 +342,14 @@ def internal_events(request):
             "descripcion": evento.descripcion,
             "ubicacion": evento.ubicacion,
             "tipo": evento.tipo,
+            "asistentes_esperados": evento.asistentes_esperados,
+            "asistentes_reales": evento.asistentes_reales,
         }
         for evento in eventos
     ])
 
 
-# SIAM-15: valida la autorización del coordinador.
+# SIAM-15 y SIAM-16: valida la autorización del coordinador.
 def verificar_permiso_evento(request, permiso):
     if not request.user.is_authenticated:
         raise NotAuthenticated(
@@ -475,6 +478,54 @@ def cancel_event(request, event_id):
 
         return Response({
             "detail": "Evento cancelado correctamente.",
+            "evento": EventoSerializer(evento).data,
+        })
+
+
+# SIAM-16: registro o corrección de asistencia real.
+@never_cache
+@api_view(["PATCH"])
+def event_attendance(request, event_id):
+    verificar_permiso_evento(
+        request,
+        "eventos.registrar_asistencia",
+    )
+
+    serializer = EventoAsistenciaSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    with transaction.atomic():
+        evento = get_object_or_404(
+            Evento.objects.select_for_update(),
+            pk=event_id,
+        )
+
+        if evento.estado != Evento.Estado.PROGRAMADO:
+            raise serializers.ValidationError(
+                "No se puede registrar asistencia en un evento cancelado."
+            )
+
+        if evento.fecha > timezone.now():
+            raise serializers.ValidationError(
+                "Solo se puede registrar asistencia en eventos que ya ocurrieron."
+            )
+
+        old = snapshot(evento)
+
+        evento.asistentes_reales = serializer.validated_data["asistentes_reales"]
+        evento.save(update_fields=["asistentes_reales", "actualizado_en"])
+
+        record(
+            user=request.user,
+            action_type=AuditEntry.Action.MODIFY,
+            entity="evento",
+            entity_id=evento.pk,
+            old=old,
+            new=snapshot(evento),
+        )
+
+        return Response({
+            "detail": "Asistencia real registrada correctamente.",
             "evento": EventoSerializer(evento).data,
         })
 

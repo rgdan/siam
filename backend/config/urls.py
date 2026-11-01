@@ -26,6 +26,9 @@ urlpatterns = [
     # SIAM-15: modificación y cancelación de eventos.
     path("api/events/<int:event_id>/", views.event_detail, name="event-detail"),
     path("api/events/<int:event_id>/cancel/", views.cancel_event, name="event-cancel"),
+
+    # SIAM-16: registro de asistencia real.
+    path("api/events/<int:event_id>/attendance/", views.event_attendance, name="event-attendance"),
 ]
 
 handler400 = views.bad_request

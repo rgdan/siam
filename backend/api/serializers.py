@@ -220,3 +220,32 @@ class EventoUpdateSerializer(EventoSerializer):
             )
 
         return attrs
+
+
+# SIAM-16: registra o corrige la asistencia real de un evento.
+class EventoAsistenciaSerializer(serializers.Serializer):
+    asistentes_reales = serializers.IntegerField(
+        min_value=0,
+        max_value=2147483647,
+    )
+
+    def validate(self, attrs):
+        datos = self.initial_data
+
+        if (
+            not isinstance(datos, dict)
+            or set(datos.keys()) != {"asistentes_reales"}
+        ):
+            raise serializers.ValidationError(
+                "Solo se permite enviar el campo asistentes_reales."
+            )
+
+        # Exigimos un número entero JSON, no texto, booleanos ni decimales.
+        valor = datos["asistentes_reales"]
+
+        if type(valor) is not int:
+            raise serializers.ValidationError({
+                "asistentes_reales": "Debe ser un número entero mayor o igual a 0."
+            })
+
+        return attrs
