@@ -1,12 +1,11 @@
 
 <script setup>
-import { computed, onMounted, ref } from "vue"
+import { computed, nextTick, onMounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { solicitar } from "../api.js"
 import { formatearFecha, formatearHora } from "../i18n/index.js"
 
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-
 const { locale } = useI18n({ useScope: "global" })
 
 const textos = {
@@ -26,6 +25,25 @@ const textos = {
     ubicacion: "Ubicación",
     publico: "Público",
     privado: "Privado",
+    editar: "Editar",
+    cancelar: "Cancelar evento",
+    editarTitulo: "Modificar evento",
+    fecha: "Fecha y hora",
+    descripcionEvento: "Descripción",
+    tipoEvento: "Tipo de evento",
+    asistentes: "Asistentes esperados",
+    guardar: "Guardar cambios",
+    descartar: "Descartar cambios",
+    guardando: "Procesando...",
+    confirmarTitulo: "Confirmar cancelación",
+    confirmarMensaje: "¿Está seguro de que desea cancelar este evento? Esta acción no se puede deshacer.",
+    confirmar: "Sí, cancelar evento",
+    volver: "Volver",
+    modificado: "Evento modificado correctamente.",
+    cancelado: "Evento cancelado correctamente.",
+    errorOperacion: "No se pudo completar la operación.",
+    sinPermiso: "No tiene permiso para realizar esta operación.",
+    fechaInvalida: "Seleccione una fecha y hora futuras.",
   },
   en: {
     titulo: "Internal event calendar",
@@ -43,6 +61,25 @@ const textos = {
     ubicacion: "Location",
     publico: "Public",
     privado: "Private",
+    editar: "Edit",
+    cancelar: "Cancel event",
+    editarTitulo: "Edit event",
+    fecha: "Date and time",
+    descripcionEvento: "Description",
+    tipoEvento: "Event type",
+    asistentes: "Expected attendees",
+    guardar: "Save changes",
+    descartar: "Discard changes",
+    guardando: "Processing...",
+    confirmarTitulo: "Confirm cancellation",
+    confirmarMensaje: "Are you sure you want to cancel this event? This action cannot be undone.",
+    confirmar: "Yes, cancel event",
+    volver: "Go back",
+    modificado: "Event updated successfully.",
+    cancelado: "Event cancelled successfully.",
+    errorOperacion: "The operation could not be completed.",
+    sinPermiso: "You do not have permission to perform this operation.",
+    fechaInvalida: "Select a future date and time.",
   },
 }
 
@@ -58,6 +95,38 @@ const eventos = ref([])
 const cargando = ref(false)
 const error = ref(false)
 
+// SIAM-15: permisos y gestión de eventos.
+const usuario = ref(null)
+const procesando = ref(false)
+const mensaje = ref("")
+const errorOperacion = ref("")
+const eventoEditando = ref(null)
+const eventoCancelando = ref(null)
+const panelGestion = ref(null)
+
+const formulario = ref({
+  fecha: "",
+  descripcion: "",
+  ubicacion: "",
+  tipo: "publico",
+  asistentes_esperados: 1,
+})
+
+const puedeEditar = computed(() =>
+  usuario.value?.role === "coordinador" &&
+  usuario.value?.permissions?.includes("eventos.actualizar") === true
+)
+
+const puedeCancelar = computed(() =>
+  usuario.value?.role === "coordinador" &&
+  usuario.value?.permissions?.includes("eventos.cancelar") === true
+)
+
+function esEventoFuturo(evento) {
+  return new Date(evento.fecha).getTime() > Date.now()
+}
+
+// SIAM-9 y SIAM-14: calendario mensual.
 const hoy = new Date()
 const mesActual = ref(new Date(hoy.getFullYear(), hoy.getMonth(), 1))
 const diaSeleccionado = ref(
@@ -95,7 +164,6 @@ function eventosDelDia(fecha) {
   )
 }
 
-// Genera el calendario comenzando por lunes.
 const diasCalendario = computed(() => {
   const anio = mesActual.value.getFullYear()
   const mes = mesActual.value.getMonth()
@@ -126,7 +194,7 @@ const eventosSeleccionados = computed(() =>
 
 const proximosEventos = computed(() =>
   eventos.value.filter(evento =>
-    new Date(evento.fecha).getTime() >= Date.now()
+    esEventoFuturo(evento)
   )
 )
 
@@ -177,6 +245,38 @@ function nombreTipo(tipo) {
     : texto.value.publico
 }
 
+// SIAM-15: lleva al usuario al formulario abierto.
+async function mostrarPanelGestion() {
+  await nextTick()
+
+  panelGestion.value?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  })
+}
+
+// Obtiene la sesión y los permisos actuales.
+async function cargarUsuario() {
+  try {
+    const respuesta = await solicitar("auth/me/")
+
+    if (respuesta.status === 401) {
+      usuario.value = null
+      emit("sesion-expirada")
+      return
+    }
+
+    if (!respuesta.ok) {
+      usuario.value = null
+      return
+    }
+
+    usuario.value = await respuesta.json()
+  } catch {
+    usuario.value = null
+  }
+}
+
 // SIAM-14: consulta protegida de eventos internos.
 async function cargarEventos() {
   if (cargando.value) return
@@ -200,7 +300,7 @@ async function cargarEventos() {
     }
 
     if (!respuesta.ok) {
-      throw new Error("No se pudieron consultar los eventos internos.")
+      throw new Error("No se pudieron consultar los eventos.")
     }
 
     const datos = await respuesta.json()
@@ -227,7 +327,261 @@ async function cargarEventos() {
   }
 }
 
-onMounted(cargarEventos)
+// Convierte una fecha a formato local para datetime-local.
+function fechaParaInput(valor) {
+  const fecha = new Date(valor)
+
+  if (Number.isNaN(fecha.getTime())) return ""
+
+  const completar = numero => String(numero).padStart(2, "0")
+
+  return (
+    `${fecha.getFullYear()}-` +
+    `${completar(fecha.getMonth() + 1)}-` +
+    `${completar(fecha.getDate())}T` +
+    `${completar(fecha.getHours())}:` +
+    `${completar(fecha.getMinutes())}`
+  )
+}
+
+// Obtiene el token CSRF desde Django.
+async function obtenerCsrf() {
+  const respuesta = await solicitar("auth/csrf/")
+
+  if (!respuesta.ok) {
+    throw new Error(texto.value.errorOperacion)
+  }
+
+  const datos = await respuesta.json()
+
+  if (!datos.csrfToken) {
+    throw new Error(texto.value.errorOperacion)
+  }
+
+  return datos.csrfToken
+}
+
+// Peticiones protegidas para modificar y cancelar eventos.
+async function solicitarGestion(ruta, metodo, datos) {
+  const csrfToken = await obtenerCsrf()
+
+  const baseApi = (
+    import.meta.env.VITE_API_BASE_URL ||
+    "http://127.0.0.1:8000/api/"
+  ).replace(/\/+$/, "")
+
+  return fetch(`${baseApi}/${ruta}`, {
+    method: metodo,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": csrfToken,
+    },
+    body: JSON.stringify(datos),
+  })
+}
+
+function limpiarOperacion() {
+  mensaje.value = ""
+  errorOperacion.value = ""
+}
+
+function cerrarEdicion() {
+  eventoEditando.value = null
+}
+
+function cerrarCancelacion() {
+  eventoCancelando.value = null
+}
+
+// SIAM-15: abre la edición cargando los datos reales.
+async function iniciarEdicion(evento) {
+  if (!puedeEditar.value || !esEventoFuturo(evento)) return
+
+  limpiarOperacion()
+  eventoCancelando.value = null
+  procesando.value = true
+
+  try {
+    const respuesta = await solicitar(`events/${evento.id}/`)
+
+    if (respuesta.status === 401) {
+      emit("sesion-expirada")
+      return
+    }
+
+    if (respuesta.status === 403) {
+      emit("sin-acceso")
+      return
+    }
+
+    if (!respuesta.ok) {
+      throw new Error(texto.value.errorOperacion)
+    }
+
+    const datos = await respuesta.json()
+
+    if (datos.estado !== "programado" || !esEventoFuturo(datos)) {
+      throw new Error(texto.value.errorOperacion)
+    }
+
+    formulario.value = {
+      fecha: fechaParaInput(datos.fecha),
+      descripcion: datos.descripcion,
+      ubicacion: datos.ubicacion,
+      tipo: datos.tipo,
+      asistentes_esperados: datos.asistentes_esperados,
+    }
+
+    eventoEditando.value = datos
+
+    // Desplazamiento automático al formulario de edición.
+    await mostrarPanelGestion()
+  } catch (error) {
+    errorOperacion.value = error.message || texto.value.errorOperacion
+  } finally {
+    procesando.value = false
+  }
+}
+
+// Procesa los errores que devuelve Django.
+async function obtenerMensajeError(respuesta) {
+  try {
+    const datos = await respuesta.json()
+
+    if (typeof datos.detail === "string") {
+      return datos.detail
+    }
+
+    if (Array.isArray(datos)) {
+      return datos[0] || texto.value.errorOperacion
+    }
+
+    const mensajes = Object.values(datos)
+      .flat()
+      .filter(valor => typeof valor === "string")
+
+    return mensajes[0] || texto.value.errorOperacion
+  } catch {
+    return texto.value.errorOperacion
+  }
+}
+
+// SIAM-15: guarda los cambios del evento.
+async function guardarCambios() {
+  if (!eventoEditando.value || procesando.value) return
+
+  limpiarOperacion()
+
+  const nuevaFecha = new Date(formulario.value.fecha)
+
+  if (
+    Number.isNaN(nuevaFecha.getTime()) ||
+    nuevaFecha.getTime() <= Date.now()
+  ) {
+    errorOperacion.value = texto.value.fechaInvalida
+    return
+  }
+
+  procesando.value = true
+
+  try {
+    const respuesta = await solicitarGestion(
+      `events/${eventoEditando.value.id}/`,
+      "PATCH",
+      {
+        fecha: nuevaFecha.toISOString(),
+        descripcion: formulario.value.descripcion,
+        ubicacion: formulario.value.ubicacion,
+        tipo: formulario.value.tipo,
+        asistentes_esperados: Number(
+          formulario.value.asistentes_esperados
+        ),
+      }
+    )
+
+    if (respuesta.status === 401) {
+      emit("sesion-expirada")
+      return
+    }
+
+    if (respuesta.status === 403) {
+      errorOperacion.value = texto.value.sinPermiso
+      await cargarUsuario()
+      return
+    }
+
+    if (!respuesta.ok) {
+      errorOperacion.value = await obtenerMensajeError(respuesta)
+      return
+    }
+
+    cerrarEdicion()
+    await cargarEventos()
+    mensaje.value = texto.value.modificado
+  } catch {
+    errorOperacion.value = texto.value.errorOperacion
+  } finally {
+    procesando.value = false
+  }
+}
+
+// SIAM-15: solicita confirmación antes de cancelar.
+async function iniciarCancelacion(evento) {
+  if (!puedeCancelar.value || !esEventoFuturo(evento)) return
+
+  limpiarOperacion()
+  cerrarEdicion()
+  eventoCancelando.value = evento
+
+  // Desplazamiento automático al panel de confirmación.
+  await mostrarPanelGestion()
+}
+
+// SIAM-15: cancela sin eliminar el registro.
+async function confirmarCancelacion() {
+  if (!eventoCancelando.value || procesando.value) return
+
+  limpiarOperacion()
+  procesando.value = true
+
+  try {
+    const respuesta = await solicitarGestion(
+      `events/${eventoCancelando.value.id}/cancel/`,
+      "POST",
+      { confirm: true }
+    )
+
+    if (respuesta.status === 401) {
+      emit("sesion-expirada")
+      return
+    }
+
+    if (respuesta.status === 403) {
+      errorOperacion.value = texto.value.sinPermiso
+      await cargarUsuario()
+      return
+    }
+
+    if (!respuesta.ok) {
+      errorOperacion.value = await obtenerMensajeError(respuesta)
+      return
+    }
+
+    cerrarCancelacion()
+    await cargarEventos()
+    mensaje.value = texto.value.cancelado
+  } catch {
+    errorOperacion.value = texto.value.errorOperacion
+  } finally {
+    procesando.value = false
+  }
+}
+
+onMounted(async () => {
+  await cargarUsuario()
+  await cargarEventos()
+})
 </script>
 
 <template>
@@ -240,12 +594,144 @@ onMounted(cargarEventos)
 
       <button
         type="button"
-        :disabled="cargando"
+        :disabled="cargando || procesando"
         @click="cargarEventos"
       >
         {{ texto.actualizar }}
       </button>
     </header>
+
+    <p v-if="mensaje" role="status" class="mensaje-exito">
+      {{ mensaje }}
+    </p>
+
+    <p v-if="errorOperacion" role="alert" class="mensaje-error">
+      {{ errorOperacion }}
+    </p>
+
+    <!-- Formulario para modificar eventos -->
+    <section
+      v-if="eventoEditando"
+      ref="panelGestion"
+      class="panel-gestion"
+      :aria-label="texto.editarTitulo"
+    >
+      <h3>{{ texto.editarTitulo }}</h3>
+
+      <form class="formulario-evento" @submit.prevent="guardarCambios">
+        <div class="campo">
+          <label for="editar-fecha">{{ texto.fecha }}</label>
+          <input
+            id="editar-fecha"
+            v-model="formulario.fecha"
+            type="datetime-local"
+            required
+            :disabled="procesando"
+          />
+        </div>
+
+        <div class="campo">
+          <label for="editar-descripcion">
+            {{ texto.descripcionEvento }}
+          </label>
+          <textarea
+            id="editar-descripcion"
+            v-model="formulario.descripcion"
+            maxlength="500"
+            rows="4"
+            required
+            :disabled="procesando"
+          ></textarea>
+        </div>
+
+        <div class="campo">
+          <label for="editar-ubicacion">{{ texto.ubicacion }}</label>
+          <input
+            id="editar-ubicacion"
+            v-model="formulario.ubicacion"
+            type="text"
+            maxlength="200"
+            required
+            :disabled="procesando"
+          />
+        </div>
+
+        <div class="campo">
+          <label for="editar-tipo">{{ texto.tipoEvento }}</label>
+          <select
+            id="editar-tipo"
+            v-model="formulario.tipo"
+            :disabled="procesando"
+          >
+            <option value="publico">{{ texto.publico }}</option>
+            <option value="privado">{{ texto.privado }}</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="editar-asistentes">{{ texto.asistentes }}</label>
+          <input
+            id="editar-asistentes"
+            v-model.number="formulario.asistentes_esperados"
+            type="number"
+            min="1"
+            step="1"
+            required
+            :disabled="procesando"
+          />
+        </div>
+
+        <div class="acciones-evento">
+          <button type="submit" :disabled="procesando">
+            {{ procesando ? texto.guardando : texto.guardar }}
+          </button>
+
+          <button
+            type="button"
+            class="boton-secundario"
+            :disabled="procesando"
+            @click="cerrarEdicion"
+          >
+            {{ texto.descartar }}
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Confirmación para cancelar eventos -->
+    <section
+      v-if="eventoCancelando"
+      ref="panelGestion"
+      class="panel-gestion"
+      role="group"
+      :aria-label="texto.confirmarTitulo"
+    >
+      <h3>{{ texto.confirmarTitulo }}</h3>
+
+      <p>{{ texto.confirmarMensaje }}</p>
+      <p><strong>{{ eventoCancelando.descripcion }}</strong></p>
+      <p>{{ formatearFecha(eventoCancelando.fecha) }}</p>
+
+      <div class="acciones-evento">
+        <button
+          type="button"
+          class="boton-peligro"
+          :disabled="procesando"
+          @click="confirmarCancelacion"
+        >
+          {{ procesando ? texto.guardando : texto.confirmar }}
+        </button>
+
+        <button
+          type="button"
+          class="boton-secundario"
+          :disabled="procesando"
+          @click="cerrarCancelacion"
+        >
+          {{ texto.volver }}
+        </button>
+      </div>
+    </section>
 
     <p v-if="cargando" role="status">
       {{ texto.cargando }}
@@ -256,7 +742,7 @@ onMounted(cargarEventos)
     </p>
 
     <template v-else>
-      <!-- SIAM-14: calendario de eventos internos. -->
+      <!-- SIAM-14: calendario interno -->
       <section class="calendario" :aria-label="texto.titulo">
         <div class="navegacion-calendario">
           <h3 class="titulo-mes">{{ tituloMes }}</h3>
@@ -311,9 +797,6 @@ onMounted(cargarEventos)
                 seleccionado: mismoDia(fecha, diaSeleccionado),
                 'con-eventos': eventosDelDia(fecha).length > 0,
                 'es-hoy': mismoDia(fecha, new Date()),
-                'con-privados': eventosDelDia(fecha).some(
-                  evento => evento.tipo === 'privado'
-                ),
               }"
               :aria-pressed="mismoDia(fecha, diaSeleccionado)"
               :aria-label="`${formatearFecha(fecha)}. ${eventosDelDia(fecha).length} ${texto.cantidad}`"
@@ -345,7 +828,7 @@ onMounted(cargarEventos)
         </div>
       </section>
 
-      <!-- Eventos del día seleccionado. -->
+      <!-- Eventos del día seleccionado -->
       <section class="detalle-dia">
         <h3>{{ tituloDiaSeleccionado }}</h3>
 
@@ -376,11 +859,35 @@ onMounted(cargarEventos)
               <strong>{{ texto.ubicacion }}:</strong>
               {{ evento.ubicacion }}
             </p>
+
+            <div
+              v-if="esEventoFuturo(evento) && (puedeEditar || puedeCancelar)"
+              class="acciones-evento"
+            >
+              <button
+                v-if="puedeEditar"
+                type="button"
+                :disabled="procesando"
+                @click="iniciarEdicion(evento)"
+              >
+                {{ texto.editar }}
+              </button>
+
+              <button
+                v-if="puedeCancelar"
+                type="button"
+                class="boton-peligro"
+                :disabled="procesando"
+                @click="iniciarCancelacion(evento)"
+              >
+                {{ texto.cancelar }}
+              </button>
+            </div>
           </article>
         </div>
       </section>
 
-      <!-- Próximos eventos públicos y privados. -->
+      <!-- Próximos eventos públicos y privados -->
       <section class="proximos-eventos">
         <h3>{{ texto.proximos }}</h3>
 
@@ -412,6 +919,30 @@ onMounted(cargarEventos)
               <strong>{{ texto.ubicacion }}:</strong>
               {{ evento.ubicacion }}
             </p>
+
+            <div
+              v-if="puedeEditar || puedeCancelar"
+              class="acciones-evento"
+            >
+              <button
+                v-if="puedeEditar"
+                type="button"
+                :disabled="procesando"
+                @click="iniciarEdicion(evento)"
+              >
+                {{ texto.editar }}
+              </button>
+
+              <button
+                v-if="puedeCancelar"
+                type="button"
+                class="boton-peligro"
+                :disabled="procesando"
+                @click="iniciarCancelacion(evento)"
+              >
+                {{ texto.cancelar }}
+              </button>
+            </div>
           </article>
         </div>
       </section>
@@ -463,11 +994,22 @@ button:disabled {
   cursor: wait;
 }
 
-.calendario {
+.calendario,
+.panel-gestion {
   padding: 20px;
   border: 1px solid var(--color-borde);
   border-radius: 10px;
   background: var(--color-control);
+}
+
+.panel-gestion {
+  margin-bottom: 28px;
+  scroll-margin-top: 20px;
+}
+
+.panel-gestion h3 {
+  margin-top: 0;
+  color: var(--color-enlace);
 }
 
 .navegacion-calendario {
@@ -610,8 +1152,64 @@ button:disabled {
   line-height: 1.6;
 }
 
+.acciones-evento {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.boton-secundario {
+  background: var(--color-control);
+  color: var(--color-texto);
+}
+
+.boton-peligro {
+  background: #a82018;
+  border-color: #a82018;
+  color: #ffffff;
+}
+
+.formulario-evento {
+  display: grid;
+  gap: 16px;
+}
+
+.campo {
+  display: grid;
+  gap: 8px;
+}
+
+.campo label {
+  font-weight: 600;
+}
+
+.campo input,
+.campo textarea,
+.campo select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-borde);
+  border-radius: 6px;
+  background: var(--color-control);
+  color: var(--color-texto);
+  font: inherit;
+}
+
+.campo textarea {
+  resize: vertical;
+}
+
 .mensaje-error {
   color: var(--color-error);
+}
+
+.mensaje-exito {
+  color: var(--color-enlace);
+  font-weight: 600;
 }
 
 @media (max-width: 767px) {
@@ -623,7 +1221,8 @@ button:disabled {
     width: 100%;
   }
 
-  .calendario {
+  .calendario,
+  .panel-gestion {
     padding: 10px;
   }
 
@@ -653,6 +1252,10 @@ button:disabled {
   .controles-calendario {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .acciones-evento button {
+    width: 100%;
   }
 }
 </style>
