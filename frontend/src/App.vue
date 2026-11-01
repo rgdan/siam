@@ -320,6 +320,11 @@ onUnmounted(() => {
   max-width: 900px;
 }
 
+.pagina-administracion:has(.collection-list) {
+  max-width: none;
+  margin: 0;
+}
+
 h1 {
   color: var(--color-enlace);
 }

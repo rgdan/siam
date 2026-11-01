@@ -190,41 +190,70 @@ function showPhoto(photo) {
 onMounted(load)
 </script>
 <template>
-  <section class="collection" :aria-busy="busy">
-    <h2>{{ t("title") }}</h2>
+  <section class="collection" :class="{ 'collection-list': mode === 'list' }" :aria-busy="busy">
+    <h2 v-if="mode !== 'list'">{{ t("title") }}</h2>
     <p v-if="busy" role="status">{{ t("loading") }}</p>
     <p v-if="notice" role="status">{{ t(notice) }}</p>
     <p v-if="failure" role="alert" class="error">{{ t("error") }}</p>
     <template v-if="mode === 'list'">
-      <div class="actions">
-        <button :disabled="busy" @click="edit(true)">{{ t("new") }}</button
-        ><button :disabled="busy" @click="load">{{ t("refresh") }}</button>
+      <header class="collection-heading">
+        <div>
+          <h2>{{ t("listTitle") }}</h2>
+          <p v-if="!busy && !failure" class="piece-count">{{ t(filter ? "filteredCount" : "pieceCount", { count: pieces.length }) }}</p>
+        </div>
+        <div class="list-actions">
+          <button class="refresh-list" :disabled="busy" :aria-label="t('refresh')" :title="t('refresh')" @click="load">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3a7 7 0 0 0 11.5-1" /></svg>
+          </button>
+          <button class="new-piece" :disabled="busy" @click="edit(true)">
+            <span aria-hidden="true">+</span>{{ t("new") }}
+          </button>
+        </div>
+      </header>
+      <div class="collection-table" role="region" :aria-label="t('listTitle')" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col" class="identifier-column">{{ t("id") }}</th>
+              <th scope="col" class="title-column">{{ t("pieceTitle") }}</th>
+              <th scope="col">{{ t("typeColumn") }}</th>
+              <th scope="col">{{ t("authorColumn") }}</th>
+              <th scope="col">
+                <select id="state-filter" v-model="filter" class="table-state-filter" :aria-label="t('state')" :disabled="busy" @change="load">
+                  <option value="">{{ t("state") }}</option>
+                  <option value="stored">{{ t("stored") }}</option>
+                  <option value="displayed">{{ t("displayed") }}</option>
+                </select>
+              </th>
+              <th scope="col">{{ t("location") }}</th>
+              <th scope="col" class="actions-column"><span class="sr-only">{{ t("edit") }}</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="piece in pieces" :key="piece.id">
+              <td><span class="piece-identifier" :title="piece.identifier">{{ piece.identifier }}</span></td>
+              <th scope="row">
+                <button class="piece-title" :disabled="busy" @click="open(piece.id)">{{ piece.title }}</button>
+              </th>
+              <td>{{ piece.object_type }}</td>
+              <td>{{ piece.author_maker }}</td>
+              <td><span class="piece-state" :class="piece.state">{{ t(piece.state) }}</span></td>
+              <td>{{ piece.location || t("noLocation") }}</td>
+              <td class="row-actions">
+                <button v-if="!piece.decommissioned" class="edit-piece" :disabled="busy" :aria-label="t('editPiece', { title: piece.title })" :title="t('edit')" @click="open(piece.id)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M13.5 5.5 18.5 10.5M4 20l4.5-1 12-12a2.1 2.1 0 0 0-3-3l-12 12L4 20Z" />
+                    <path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7" />
+                  </svg>
+                </button>
+              </td>
+            </tr>
+            <tr v-if="!pieces.length">
+              <td colspan="7" class="empty-collection">{{ t(busy ? "loading" : failure ? "error" : "empty") }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <label for="state-filter">{{ t("state") }}</label
-      ><select
-        id="state-filter"
-        v-model="filter"
-        :disabled="busy"
-        @change="load"
-      >
-        <option value="">{{ t("all") }}</option>
-        <option value="stored">{{ t("stored") }}</option>
-        <option value="displayed">{{ t("displayed") }}</option>
-      </select>
-      <p v-if="!busy && !pieces.length">{{ t("empty") }}</p>
-      <ul class="pieces">
-        <li v-for="piece in pieces" :key="piece.id">
-          <button :disabled="busy" @click="open(piece.id)">
-            {{ piece.title }}</button
-          ><small>{{ piece.identifier }}</small>
-          <p>
-            {{ t(piece.state)
-            }}<span v-if="piece.state === 'displayed'">
-              / {{ piece.location }}</span
-            >
-          </p>
-        </li>
-      </ul>
     </template>
     <template v-else-if="mode === 'new' || mode === 'edit'">
       <h3>{{ t(mode === "new" ? "new" : "edit") }}</h3>
@@ -445,20 +474,46 @@ fieldset {
 [aria-invalid="true"] {
   border: 2px solid var(--color-error);
 }
-.pieces {
-  list-style: none;
-  padding: 0;
-  display: grid;
-  gap: 16px;
+.collection-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin-bottom: 22px; }
+.collection-heading h2 { margin: 0; font-size: 32px; line-height: 1.2; letter-spacing: -0.6px; }
+.piece-count { margin: 6px 0 0; color: var(--color-secundario); font-size: 13px; }
+.new-piece { display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 20px; border-color: var(--color-acento); border-radius: 8px; background: var(--color-acento); color: #fff; font-size: 13px; font-weight: 600; }
+.new-piece span { font-size: 20px; line-height: 1; font-weight: 400; }
+.list-actions { display: flex; align-items: center; gap: 8px; }
+.refresh-list { display: inline-flex; align-items: center; justify-content: center; width: 44px; padding: 10px; border: 0; background: transparent; color: var(--color-secundario); }
+.refresh-list svg { width: 18px; height: 18px; }
+.collection-table { position: relative; border: 1px solid var(--color-divisor); border-radius: 16px; overflow-x: auto; background: var(--color-superficie); box-shadow: 0 1px 2px #00000012; }
+.collection-table table { width: 100%; min-width: 880px; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.collection-table thead { background: var(--color-header); color: #fff; }
+.collection-table th, .collection-table td { text-align: start; padding: 6px 16px; border-bottom: 1px solid var(--color-divisor); }
+.collection-table thead th { height: 40px; border-bottom: 0; font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase; font-weight: 700; }
+.table-state-filter { min-height: 44px; border: 0; border-radius: 0; padding: 0; background: var(--color-header); color: #fff; font-size: inherit; font-weight: inherit; letter-spacing: inherit; text-transform: uppercase; cursor: pointer; }
+.table-state-filter option { background: var(--color-control); color: var(--color-texto); }
+.collection-table tbody td { color: var(--color-secundario); }
+.collection-table tbody th { font-weight: 400; }
+.collection-table tbody tr:last-child > * { border-bottom: 0; }
+.identifier-column { width: 13%; }
+.title-column { width: 25%; }
+.actions-column { width: 64px; }
+.piece-identifier { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 11px ui-monospace, monospace; }
+.piece-title { width: 100%; padding: 6px 0; text-align: start; border: 0; background: transparent; border-radius: 0; font-size: inherit; line-height: 1.5; }
+.piece-state { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 11px; line-height: 1.4; }
+.piece-state.displayed { background: #effcf3; color: #17652f; }
+.piece-state.stored { background: var(--color-footer); color: var(--color-secundario); }
+.collection-table .row-actions { padding: 4px 8px; }
+.edit-piece { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; padding: 10px; border: 0; background: transparent; color: var(--color-secundario); }
+.edit-piece svg { width: 18px; height: 18px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.collection-table .empty-collection { padding: 40px 20px; text-align: center; }
+@media (hover: hover) {
+  .collection-table tbody tr:hover { background: var(--color-footer); }
+  .piece-title:hover { color: var(--color-enlace); text-decoration: underline; }
+  .edit-piece:hover { color: var(--color-enlace); background: var(--color-footer); }
 }
-.pieces li {
-  padding: 16px;
-  border: 1px solid var(--color-borde);
-  border-radius: 8px;
-}
-.pieces small {
-  display: block;
-  margin-top: 8px;
+@media (max-width: 600px) {
+  .collection-heading { align-items: flex-start; gap: 16px; }
+  .collection-heading h2 { font-size: 28px; }
+  .new-piece { padding-inline: 14px; }
 }
 dt {
   font-weight: bold;
@@ -495,9 +550,6 @@ dialog::backdrop {
 }
 @media (min-width: 768px) {
   .fields {
-    grid-template-columns: 1fr 1fr;
-  }
-  .pieces {
     grid-template-columns: 1fr 1fr;
   }
 }
