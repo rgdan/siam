@@ -11,7 +11,6 @@ from rest_framework.response import Response
 
 from .models import Piece
 from .serializers import (
-    HistorySerializer,
     PhotoSerializer,
     PieceSerializer,
     UploadSerializer,
@@ -62,10 +61,6 @@ def piece_detail(request, piece_id):
             if old != snapshot(piece):
                 _finish(piece, request.user, "edit", old)
         data = dict(PieceSerializer(piece).data)
-        data["history"] = HistorySerializer(
-            piece.history.select_related("user").order_by("-timestamp", "-id"),
-            many=True,
-        ).data
         data["photos"] = PhotoSerializer(piece.photos.all(), many=True).data
         return Response(data)
 

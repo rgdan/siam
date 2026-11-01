@@ -5,7 +5,7 @@ from io import BytesIO
 from PIL import Image, UnidentifiedImageError
 from rest_framework import serializers
 
-from .models import Photo, Piece, PieceHistory
+from .models import Photo, Piece
 
 OBJECT_FIELDS = [
     "object_type",
@@ -67,14 +67,6 @@ class PieceSerializer(serializers.ModelSerializer):
         if errors:
             raise serializers.ValidationError(errors)
         return attrs
-
-
-class HistorySerializer(serializers.ModelSerializer):
-    user = serializers.CharField(source="user.email")
-
-    class Meta:
-        model = PieceHistory
-        fields = ["id", "user", "timestamp", "operation", "changes"]
 
 
 class PhotoSerializer(serializers.ModelSerializer):

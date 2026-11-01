@@ -1,10 +1,10 @@
 <script setup>
-import { ref, onMounted, computed } from "vue"
+import { ref, onMounted } from "vue"
 import { useI18n } from "vue-i18n"
 import { solicitar, enviar } from "../api.js"
 import messages from "./collectionMessages.js"
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-const { t, locale } = useI18n({ messages, useScope: "local" })
+const { t } = useI18n({ messages, useScope: "local" })
 const fields = [
   "object_type",
   "materials_techniques",
@@ -30,15 +30,6 @@ const stateForm = ref({}),
   photoResults = ref([]),
   enlarged = ref(null),
   dialog = ref(null)
-const changes = computed(() =>
-  (selected.value?.history || []).flatMap((entry) =>
-    Object.entries(entry.changes).map(([field, values]) => ({
-      ...entry,
-      field,
-      ...values,
-    })),
-  ),
-)
 async function json(response) {
   if (response.status === 401) emit("sesion-expirada")
   if (response.status === 403) emit("sin-acceso")
@@ -191,16 +182,6 @@ async function upload(event) {
     input.value = ""
     busy.value = false
   }
-}
-function display(value, field) {
-  if (typeof value === "boolean") return t(value ? "yes" : "no")
-  if (field === "state" && ["stored", "displayed"].includes(value))
-    return t(value)
-  return value === null || value === ""
-    ? "\u2014"
-    : typeof value === "object"
-      ? JSON.stringify(value)
-      : value
 }
 function showPhoto(photo) {
   enlarged.value = photo
@@ -386,30 +367,6 @@ onMounted(load)
           {{ result.name }}: {{ t(result.code) }}
         </li>
       </ul>
-      <h3>{{ t("history") }}</h3>
-      <div class="table-scroll" tabindex="0">
-        <table>
-          <thead>
-            <tr>
-              <th
-                v-for="key in ['user', 'date', 'field', 'old', 'next']"
-                :key="key"
-              >
-                {{ t(key) }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(change, index) in changes" :key="index">
-              <td>{{ change.user }}</td>
-              <td>{{ new Date(change.timestamp).toLocaleString(locale) }}</td>
-              <td>{{ label(change.field) }}</td>
-              <td>{{ display(change.old, change.field) }}</td>
-              <td>{{ display(change.new, change.field) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
     </template>
     <dialog
       ref="dialog"
@@ -519,22 +476,6 @@ dd {
   width: 100px;
   height: 100px;
   object-fit: cover;
-}
-.table-scroll {
-  overflow-x: auto;
-  max-width: 100%;
-}
-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-th,
-td {
-  padding: 10px;
-  border-bottom: 1px solid var(--color-borde);
-  text-align: start;
-  min-width: 100px;
-  max-width: 240px;
 }
 dialog {
   background: var(--color-control);

@@ -31,7 +31,6 @@ async function setup(page, language, theme) {
     state: "stored",
     location: "",
     decommissioned: false,
-    history: [],
     photos: [],
   }
   await page.route("**/api/**", async (route) => {
@@ -85,23 +84,12 @@ async function setup(page, language, theme) {
       const data = route.request().postDataJSON()
       if (data.state === "displayed" && !data.location?.trim())
         return reply({ location: ["required"] }, 400)
-      const changes = Object.fromEntries(
-        Object.entries(data)
-          .filter(([key, value]) => value !== piece[key])
-          .map(([key, value]) => [key, { old: piece[key], new: value }]),
-      )
       piece = {
         ...piece,
         ...data,
         location:
           data.state === "stored" ? "" : (data.location ?? piece.location),
       }
-      piece.history.unshift({
-        id: piece.history.length + 1,
-        user: "curator@example.com",
-        timestamp: "2026-10-31T18:00:00Z",
-        changes,
-      })
     }
     return reply(piece)
   })
@@ -148,6 +136,9 @@ for (const width of [360, 768, 1280])
         await expect(
           page.getByRole("heading", { name: "New vase", exact: true }),
         ).toBeVisible()
+        await expect(
+          page.getByRole("heading", { name: /Historial de cambios|Change history/ }),
+        ).toHaveCount(0)
         await expect(
           page.locator(".collection").getByRole("status"),
         ).toContainText(es ? "guardada" : "saved")

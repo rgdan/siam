@@ -4,7 +4,7 @@ from audit.models import AuditEntry
 from audit.services import record, snapshot
 from django.db import transaction
 
-from .models import Photo, Piece, PieceHistory
+from .models import Photo, Piece
 
 
 @contextmanager
@@ -20,16 +20,13 @@ def _finish(piece, user, operation, old):
         "register": AuditEntry.Action.CREATE,
         "decommission": AuditEntry.Action.DECOMMISSION,
     }.get(operation, AuditEntry.Action.MODIFY)
-    entry = record(
+    record(
         user=user,
         action_type=action,
         entity="piece",
         entity_id=piece.pk,
         old=old,
         new=new,
-    )
-    PieceHistory.objects.create(
-        piece=piece, user=user, operation=operation, changes=entry.changes
     )
 
 
@@ -64,16 +61,13 @@ def _change(*, user, piece_id, operation, values, photos=None):
             if operation == "decommission"
             else AuditEntry.Action.MODIFY
         )
-        entry = record(
+        record(
             user=user,
             action_type=action,
             entity="piece",
             entity_id=piece.pk,
             old=old,
             new=new,
-        )
-        PieceHistory.objects.create(
-            piece=piece, user=user, operation=operation, changes=entry.changes
         )
         return piece
 
@@ -125,15 +119,12 @@ def attach_photo(*, user, piece_id, values):
     photo = Photo.objects.create(piece=piece, **values)
     new = snapshot(piece)
     new["photos"] = list(piece.photos.values_list("pk", flat=True))
-    entry = record(
+    record(
         user=user,
         action_type=AuditEntry.Action.MODIFY,
         entity="piece",
         entity_id=piece.pk,
         old=old,
         new=new,
-    )
-    PieceHistory.objects.create(
-        piece=piece, user=user, operation="photo", changes=entry.changes
     )
     return photo

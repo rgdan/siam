@@ -214,7 +214,7 @@ class AuditTests(TestCase):
             self.assertEqual((entry.action_type, entry.entity_id, entry.user_id), ("decommission", str(account_id), self.admin.pk))
         target.refresh_from_db()
         self.assertFalse(target.is_active)
-        self.assertEqual(piece.history.get().user_id, target.pk)
+        self.assertEqual(AuditEntry.objects.get(entity="piece", entity_id=str(piece.pk)).user_id, target.pk)
         self.assertTrue(AuditEntry.objects.filter(user=target).exists())
 
     def test_delete_rolls_back_if_audit_fails(self):

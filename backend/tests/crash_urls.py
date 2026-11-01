@@ -4,7 +4,7 @@ from pathlib import Path
 
 from api.models import User
 from audit.models import AuditEntry
-from collection_integrity.models import Photo, Piece, PieceHistory
+from collection_integrity.models import Photo, Piece
 from collection_integrity.services import collection_transaction, register_piece
 from django.http import JsonResponse
 from django.urls import path
@@ -19,7 +19,7 @@ def status(request):
             ),
             "counts": [
                 model.objects.count()
-                for model in (Piece, Photo, PieceHistory, AuditEntry)
+                for model in (Piece, Photo, AuditEntry)
             ],
             "photos": [bytes(p.content).decode() for p in Photo.objects.order_by("pk")],
         }

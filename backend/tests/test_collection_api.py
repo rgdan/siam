@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from api.models import User
 from audit.models import AuditEntry
-from collection_integrity.models import Photo, Piece, PieceHistory
+from collection_integrity.models import Photo, Piece
 from collection_integrity.serializers import OBJECT_FIELDS
 from django.db import IntegrityError, transaction
 from django.test import TestCase
@@ -137,24 +137,30 @@ class CollectionAPITests(TestCase):
         self.assertEqual(displayed[0]["location"], "Room A, case 2")
         self.assertEqual(len(stored), 1)
 
-    def test_location_only_change_and_storage_keep_history(self):
+    def test_location_only_change_and_storage_are_audited(self):
         piece = self.create_piece()
         self.update(piece, {"state": "displayed", "location": "Room A"})
         changed = self.update(piece, {"location": "Room B"})
         self.assertEqual(changed.data["state"], "displayed")
         self.assertEqual(
-            changed.data["history"][0]["changes"]["location"],
+            AuditEntry.objects.first().changes["location"],
             {"old": "Room A", "new": "Room B"},
         )
         response = self.update(piece, {"state": "stored"})
         self.assertEqual(response.data["location"], "")
-        history = response.data["history"][0]
-        self.assertEqual(history["user"], self.curator.email)
-        self.assertTrue(history["timestamp"])
-        self.assertEqual(history["changes"]["location"], {"old": "Room B", "new": ""})
+        entry = AuditEntry.objects.first()
+        self.assertEqual(entry.user_id, self.curator.pk)
+        self.assertEqual(entry.role, "museologo")
+        self.assertEqual((entry.entity, entry.entity_id), ("piece", str(piece["id"])))
+        self.assertTrue(entry.timestamp)
+        self.assertEqual(entry.changes["location"], {"old": "Room B", "new": ""})
         self.assertEqual(
-            history["changes"]["state"], {"old": "displayed", "new": "stored"}
+            entry.changes["state"], {"old": "displayed", "new": "stored"}
         )
+        self.assertNotIn("history", response.data)
+        detail = self.client.get(f"/api/pieces/{piece['id']}/")
+        self.assertEqual(detail.status_code, 200)
+        self.assertNotIn("history", detail.data)
         self.assertEqual(self.update(piece, {"state": "displayed"}).status_code, 400)
 
     def test_every_object_field_updates_and_is_recorded(self):
@@ -170,8 +176,7 @@ class CollectionAPITests(TestCase):
                 changes[field] = "Updated " + field
         response = self.update(piece, changes)
         self.assertEqual(response.status_code, 200, response.data)
-        history = response.data["history"][0]
-        self.assertEqual(set(history["changes"]), set(OBJECT_FIELDS))
+        self.assertEqual(set(AuditEntry.objects.first().changes), set(OBJECT_FIELDS))
         self.assertEqual(self.client.get("/api/pieces/").data[0]["title"], "Updated")
         self.assertEqual(response.data["identifier"], piece["identifier"])
 
@@ -185,15 +190,37 @@ class CollectionAPITests(TestCase):
         self.assertEqual(self.update(piece, {"title": "Altered"}).status_code, 400)
         self.assertEqual(Piece.objects.get().title, "Vase")
 
-    def test_noop_does_not_add_history(self):
+    def test_noop_does_not_add_audit(self):
         piece = self.create_piece()
         self.assertEqual(self.update(piece, {"title": "Vase"}).status_code, 200)
-        self.assertEqual(PieceHistory.objects.count(), 1)
+        self.assertEqual(AuditEntry.objects.count(), 1)
 
-    def test_atomic_creation_and_edit_when_history_fails(self):
+    def test_piece_operations_feed_the_system_audit_endpoint(self):
+        piece = self.create_piece()
+        self.update(piece, {"title": "Updated"})
+        self.upload(piece, [self.image()])
+        self.assertEqual(self.client.get("/api/audit/?entity=piece").status_code, 403)
+        admin = User.objects.create_user(
+            email="admin@example.com", full_name="Admin", role="administrador_sistema"
+        )
+        self.client.force_authenticate(admin)
+        response = self.client.get("/api/audit/?entity=piece")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 3)
+        entries = response.data["results"]
+        self.assertEqual([entry["action_type"] for entry in entries], ["modify", "modify", "create"])
+        for entry in entries:
+            self.assertEqual(entry["entity_id"], str(piece["id"]))
+            self.assertEqual(entry["user"], self.curator.pk)
+            self.assertEqual(entry["role"], "museologo")
+        self.assertEqual(entries[1]["changes"]["title"], {"old": "Vase", "new": "Updated"})
+        self.assertEqual(entries[0]["changes"]["photos"]["old"], [])
+        self.assertEqual(len(entries[0]["changes"]["photos"]["new"]), 1)
+
+    def test_atomic_creation_and_edit_when_audit_fails(self):
         with (
             patch.object(
-                PieceHistory.objects, "create", side_effect=RuntimeError("history")
+                AuditEntry.objects, "create", side_effect=RuntimeError("audit")
             ),
             self.assertRaises(RuntimeError),
         ):
@@ -203,7 +230,7 @@ class CollectionAPITests(TestCase):
         piece = self.create_piece()
         with (
             patch.object(
-                PieceHistory.objects, "create", side_effect=RuntimeError("history")
+                AuditEntry.objects, "create", side_effect=RuntimeError("audit")
             ),
             self.assertRaises(RuntimeError),
         ):
@@ -250,18 +277,18 @@ class CollectionAPITests(TestCase):
     def test_failed_photo_transaction_preserves_previous_and_other_uploads(self):
         piece = self.create_piece()
         self.upload(piece, [self.image("existing.png")])
-        original = PieceHistory.objects.create
+        original = AuditEntry.objects.create
         calls = 0
 
         def fail_once(**kwargs):
             nonlocal calls
             calls += 1
             if calls == 1:
-                raise RuntimeError("history failed")
+                raise RuntimeError("audit failed")
             return original(**kwargs)
 
         with (
-            patch.object(PieceHistory.objects, "create", side_effect=fail_once),
+            patch.object(AuditEntry.objects, "create", side_effect=fail_once),
             self.assertLogs("collection_integrity.views", level="ERROR"),
         ):
             response = self.upload(
@@ -274,7 +301,6 @@ class CollectionAPITests(TestCase):
             {"existing.png", "success.png"},
         )
         self.assertEqual(Piece.objects.get().title, "Vase")
-        self.assertEqual(PieceHistory.objects.count(), 3)
         self.assertEqual(AuditEntry.objects.count(), 3)
 
     def test_database_rejects_invalid_state_or_current_location(self):

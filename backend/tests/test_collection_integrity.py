@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 from api.models import User
 from audit.models import AuditEntry
-from collection_integrity.models import Photo, Piece, PieceHistory
+from collection_integrity.models import Photo, Piece
 from collection_integrity.services import (
     change_piece_state,
     decommission_piece,
@@ -43,11 +43,11 @@ class CollectionIntegrityTests(TestCase):
                 )
         self.assertEqual(calls, 2)
         self.assertEqual(
-            [m.objects.count() for m in (Piece, Photo, PieceHistory, AuditEntry)],
-            [0, 0, 0, 0],
+            [m.objects.count() for m in (Piece, Photo, AuditEntry)],
+            [0, 0, 0],
         )
 
-    def test_each_operation_logs_once_and_keeps_history(self):
+    def test_each_operation_logs_once_and_keeps_audit(self):
         piece = register_piece(
             user=self.user,
             title="Original",
@@ -65,11 +65,10 @@ class CollectionIntegrityTests(TestCase):
         change_piece_state(user=self.user, piece_id=piece.pk, state="stored")
         decommission_piece(user=self.user, piece_id=piece.pk)
         self.assertEqual(AuditEntry.objects.count(), 5)
-        self.assertEqual(PieceHistory.objects.count(), 5)
         self.assertEqual(Photo.objects.get().name, "new")
         self.assertEqual(AuditEntry.objects.first().action_type, "decommission")
 
-    def test_every_operation_rolls_back_on_history_failure(self):
+    def test_every_operation_rolls_back_on_audit_failure(self):
         piece = register_piece(
             user=self.user,
             title="Original",
@@ -88,9 +87,9 @@ class CollectionIntegrityTests(TestCase):
         for operation in operations:
             with self.subTest(operation=operation):
                 with patch.object(
-                    PieceHistory.objects,
+                    AuditEntry.objects,
                     "create",
-                    side_effect=RuntimeError("history failed"),
+                    side_effect=RuntimeError("audit failed"),
                 ):
                     with self.assertRaises(RuntimeError):
                         operation()
@@ -101,11 +100,10 @@ class CollectionIntegrityTests(TestCase):
                 )
                 self.assertEqual(Photo.objects.count(), 1)
                 self.assertEqual(AuditEntry.objects.count(), 1)
-                self.assertEqual(PieceHistory.objects.count(), 1)
 
-    def test_register_rolls_back_even_after_audit(self):
+    def test_register_rolls_back_on_audit_failure(self):
         with patch.object(
-            PieceHistory.objects, "create", side_effect=RuntimeError("history failed")
+            AuditEntry.objects, "create", side_effect=RuntimeError("audit failed")
         ):
             with self.assertRaises(RuntimeError):
                 register_piece(
@@ -114,6 +112,6 @@ class CollectionIntegrityTests(TestCase):
                     photos=[{"name": "p", "content": b"p"}],
                 )
         self.assertEqual(
-            [m.objects.count() for m in (Piece, Photo, PieceHistory, AuditEntry)],
-            [0, 0, 0, 0],
+            [m.objects.count() for m in (Piece, Photo, AuditEntry)],
+            [0, 0, 0],
         )

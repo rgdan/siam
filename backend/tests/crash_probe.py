@@ -112,7 +112,7 @@ def main():
             assert before == after, (before, after)
             assert after == {
                 "titles": ["committed"],
-                "counts": [1, 1, 1, 1],
+                "counts": [1, 1, 1],
                 "photos": ["intact"],
             }, after
             print(
