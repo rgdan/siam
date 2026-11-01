@@ -88,7 +88,7 @@ function seleccionarTema(evento) {
           </a>
 
           <a
-            v-if="usuario?.role === 'coordinador' && usuario?.permissions?.includes('eventos.crear')"
+            v-if="usuario?.permissions?.includes('eventos.crear')"
             href="/interno/eventos/registrar"
             :aria-current="props.rutaActual === '/interno/eventos/registrar' ? 'page' : undefined"
             @click="cerrarMenu"

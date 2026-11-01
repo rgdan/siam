@@ -90,13 +90,6 @@ async function cargarSesion() {
 function puedeVerRuta() {
   if (rutaActual.value === "/interno") return true
 
-  if (rutaActual.value === "/interno/eventos/registrar") {
-    return (
-      usuario.value?.role === "coordinador"
-      && usuario.value?.permissions?.includes("eventos.crear") === true
-    )
-  }
-
   return usuario.value?.permissions?.includes(permisosPorRuta[rutaActual.value]) === true
 }
 

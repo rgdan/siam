@@ -133,17 +133,14 @@ const formulario = ref({
 })
 
 const puedeEditar = computed(() =>
-  usuario.value?.role === "coordinador" &&
   usuario.value?.permissions?.includes("eventos.actualizar") === true
 )
 
 const puedeCancelar = computed(() =>
-  usuario.value?.role === "coordinador" &&
   usuario.value?.permissions?.includes("eventos.cancelar") === true
 )
 
 const puedeRegistrarAsistencia = computed(() =>
-  usuario.value?.role === "coordinador" &&
   usuario.value?.permissions?.includes("eventos.registrar_asistencia") === true
 )
 

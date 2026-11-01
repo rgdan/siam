@@ -297,21 +297,7 @@ def events(request):
             for evento in eventos
         ])
 
-    # SIAM-12: registro exclusivo del coordinador.
-    if not request.user.is_authenticated:
-        raise NotAuthenticated(
-            "Debe iniciar sesión para registrar eventos."
-        )
-
-    if (
-        not request.user.is_active
-        or request.user.role != "coordinador"
-        or "eventos.crear" not in permisos_para(request.user)
-    ):
-        registrar_denegacion(request, "eventos.crear")
-        raise PermissionDenied(
-            "Solo el coordinador puede registrar eventos."
-        )
+    verificar_permiso_evento(request, "eventos.crear")
 
     serializer = EventoSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -349,21 +335,16 @@ def internal_events(request):
     ])
 
 
-# SIAM-15 y SIAM-16: valida la autorización del coordinador.
 def verificar_permiso_evento(request, permiso):
     if not request.user.is_authenticated:
         raise NotAuthenticated(
             "Debe iniciar sesión para gestionar eventos."
         )
 
-    if (
-        not request.user.is_active
-        or request.user.role != "coordinador"
-        or permiso not in permisos_para(request.user)
-    ):
+    if permiso not in permisos_para(request.user):
         registrar_denegacion(request, permiso)
         raise PermissionDenied(
-            "Solo el coordinador puede realizar esta operación."
+            "No tiene permiso para realizar esta operación."
         )
 
 
