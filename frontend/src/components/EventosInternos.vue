@@ -10,7 +10,7 @@ const { locale } = useI18n({ useScope: "global" })
 
 const textos = {
   es: {
-    titulo: "Calendario interno de eventos",
+    titulo: "Calendario de eventos",
     descripcion: "Consulte los eventos públicos y privados del museo.",
     actualizar: "Actualizar eventos",
     cargando: "Cargando eventos...",
@@ -54,7 +54,7 @@ const textos = {
     eventoPasado: "La asistencia solo puede registrarse en eventos pasados.",
   },
   en: {
-    titulo: "Internal event calendar",
+    titulo: "Event calendar",
     descripcion: "View the museum's public and private events.",
     actualizar: "Refresh events",
     cargando: "Loading events...",

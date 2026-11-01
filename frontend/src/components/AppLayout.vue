@@ -70,7 +70,6 @@ function seleccionarTema(evento) {
             {{ t("common.information") }}
           </a>
 
-          <!-- SIAM-13: consulta pública de eventos -->
           <a
             href="/eventos"
             :aria-current="props.rutaActual === '/eventos' ? 'page' : undefined"
@@ -86,16 +85,6 @@ function seleccionarTema(evento) {
             @click="cerrarMenu"
           >
             {{ t("auth.internalArea") }}
-          </a>
-
-          <!-- SIAM-14: calendario de eventos públicos y privados -->
-          <a
-            v-if="usuario?.permissions?.includes('eventos.ver_privados')"
-            href="/interno/eventos"
-            :aria-current="props.rutaActual === '/interno/eventos' ? 'page' : undefined"
-            @click="cerrarMenu"
-          >
-            {{ locale === "en" ? "Internal calendar" : "Calendario interno" }}
           </a>
 
           <a

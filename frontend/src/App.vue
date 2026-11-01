@@ -41,7 +41,6 @@ const permisosPorRuta = {
   "/interno/ingresos": "visitantes.registrar",
   "/interno/incidencias": "incidencias.registrar",
   "/interno/eventos/registrar": "eventos.crear",
-  "/interno/eventos": "eventos.ver_privados",
 }
 
 function esRutaPublica() {
@@ -52,7 +51,7 @@ function esRutaPublica() {
 const usuario = ref(null)
 const correo = ref("")
 const contrasena = ref("")
-const comprobando = ref(false)
+const comprobando = ref(true)
 const enviando = ref(false)
 const error = ref("")
 const accesoDenegado = ref(false)
@@ -166,17 +165,25 @@ async function cerrarSesion() {
 
 // Reconoce las rutas públicas sin exigir sesión.
 async function comprobarSesion() {
+  if (rutaActual.value === "/interno/eventos") {
+    window.history.replaceState(null, "", "/eventos")
+    actualizarRuta()
+    return
+  }
+
+  comprobando.value = true
   if (esRutaPublica()) {
     try {
       await cargarSesion()
     } catch {
       usuario.value = null
+    } finally {
+      comprobando.value = false
     }
     return
   }
 
   accesoDenegado.value = false
-  comprobando.value = true
 
   try {
     await cargarSesion()
@@ -208,10 +215,15 @@ onUnmounted(() => {
     :enviando="enviando"
     @cerrar-sesion="cerrarSesion"
   >
-    <!-- SIAM-13: eventos visibles sin iniciar sesión -->
-    <EventosPublicos
-      v-if="rutaActual === '/eventos'"
-    />
+    <template v-if="rutaActual === '/eventos'">
+      <p v-if="comprobando" role="status">{{ t("auth.checking") }}</p>
+      <EventosInternos
+        v-else-if="usuario?.permissions?.includes('eventos.ver_privados')"
+        @sesion-expirada="sesionExpirada"
+        @sin-acceso="denegarAcceso"
+      />
+      <EventosPublicos v-else />
+    </template>
 
     <!-- Información pública del museo -->
     <MuseoPublico
@@ -275,13 +287,6 @@ onUnmounted(() => {
 
         <RegistrarEvento
           v-else-if="rutaActual === '/interno/eventos/registrar'"
-          @sesion-expirada="sesionExpirada"
-          @sin-acceso="denegarAcceso"
-        />
-
-        <!-- SIAM-14: calendario interno de eventos públicos y privados -->
-        <EventosInternos
-          v-else-if="rutaActual === '/interno/eventos'"
           @sesion-expirada="sesionExpirada"
           @sin-acceso="denegarAcceso"
         />
