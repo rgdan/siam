@@ -33,9 +33,9 @@ def _finish(piece, user, operation, old):
     )
 
 
-def register_piece(*, user, title, photos=()):
+def register_piece(*, user, title, photos=(), **fields):
     with collection_transaction():
-        piece = Piece(title=title)
+        piece = Piece(title=title, **fields)
         piece.full_clean()
         piece.save()
         for photo in photos:
@@ -93,7 +93,7 @@ def decommission_piece(*, user, piece_id):
         user=user,
         piece_id=piece_id,
         operation="decommission",
-        values={"decommissioned": True, "state": "decommissioned"},
+        values={"decommissioned": True},
     )
 
 
@@ -104,11 +104,36 @@ def loan_piece(*, user, piece_id, recipient):
         user=user,
         piece_id=piece_id,
         operation="loan",
-        values={"loan_to": recipient, "state": "loaned"},
+        values={"loan_to": recipient},
     )
 
 
-def change_piece_state(*, user, piece_id, state):
+def change_piece_state(*, user, piece_id, state, location=""):
     return _change(
-        user=user, piece_id=piece_id, operation="state", values={"state": state}
+        user=user,
+        piece_id=piece_id,
+        operation="state",
+        values={"state": state, "location": location if state == "displayed" else ""},
     )
+
+
+@transaction.atomic
+def attach_photo(*, user, piece_id, values):
+    piece = Piece.objects.select_for_update().get(pk=piece_id)
+    old = snapshot(piece)
+    old["photos"] = list(piece.photos.values_list("pk", flat=True))
+    photo = Photo.objects.create(piece=piece, **values)
+    new = snapshot(piece)
+    new["photos"] = list(piece.photos.values_list("pk", flat=True))
+    entry = record(
+        user=user,
+        action_type=AuditEntry.Action.MODIFY,
+        entity="piece",
+        entity_id=piece.pk,
+        old=old,
+        new=new,
+    )
+    PieceHistory.objects.create(
+        piece=piece, user=user, operation="photo", changes=entry.changes
+    )
+    return photo

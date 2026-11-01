@@ -52,6 +52,7 @@ function seleccionarTema(evento) {
 
       <div id="navegacion-lateral" class="contenido-lateral" :class="{ abierto: menuAbierto }">
         <nav :aria-label="t('common.navigation')">
+          <a v-if="usuario?.role === 'museologo'" href="/interno/coleccion" :aria-current="props.rutaActual === '/interno/coleccion' ? 'page' : undefined" @click="cerrarMenu">{{ locale === 'es' ? 'Colecci\u00f3n' : 'Collection' }}</a>
           <a
             href="/"
             :aria-current="['/', '/informacion', '/horarios'].includes(props.rutaActual) ? 'page' : undefined"

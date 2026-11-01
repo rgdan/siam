@@ -2,6 +2,7 @@
 <script setup>
 import { onMounted, onUnmounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
+import Coleccion from "./components/Coleccion.vue"
 import AppLayout from "./components/AppLayout.vue"
 import MuseoPublico from "./components/MuseoPublico.vue"
 import Usuarios from "./components/Usuarios.vue"
@@ -31,6 +32,7 @@ function navegar(ruta) {
 const rutasPublicas = ["/", "/informacion", "/horarios"]
 const rutasDeRegistro = ["/interno/ingresos", "/interno/incidencias"]
 const permisosPorRuta = {
+  "/interno/coleccion": "piezas.crear",
   "/interno/usuarios": "usuarios.consultar",
   "/interno/bitacora": "bitacora.consultar",
   "/interno/ingresos": "visitantes.registrar",
@@ -83,6 +85,7 @@ async function cargarSesion() {
 
 // El menú ayuda a navegar; la API vuelve a comprobar los permisos en cada solicitud.
 function puedeVerRuta() {
+  if (rutaActual.value === "/interno/coleccion") return usuario.value?.role === "museologo"
   return rutaActual.value === "/interno"
     || usuario.value?.permissions?.includes(permisosPorRuta[rutaActual.value]) === true
 }
@@ -222,6 +225,7 @@ onUnmounted(() => {
           <p>{{ t("users.noAccessDescription") }}</p>
           <a href="/interno">{{ t("auth.internalArea") }}</a>
         </section>
+        <Coleccion v-else-if="rutaActual === '/interno/coleccion'" @sesion-expirada="sesionExpirada" @sin-acceso="denegarAcceso" />
         <Usuarios
           v-else-if="rutaActual === '/interno/usuarios'"
           :usuario-actual="usuario"

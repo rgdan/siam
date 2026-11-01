@@ -5,7 +5,12 @@ from incidents.views import register_incident
 from system_configuration import views as configuration_views
 from visitors.views import register_entry
 
+from collection_integrity import views as collection_views
+
 urlpatterns = [
+    path("api/pieces/", collection_views.pieces, name="pieces"),
+    path("api/pieces/<int:piece_id>/", collection_views.piece_detail, name="piece-detail"),
+    path("api/pieces/<int:piece_id>/photos/", collection_views.upload_photos, name="piece-photos"),
     path("api/incidents/", register_incident, name="incident-register"),
     path("api/visitor-entries/", register_entry, name="visitor-entry-register"),
     path("api/audit/", AuditList.as_view(), name="audit-list"),
