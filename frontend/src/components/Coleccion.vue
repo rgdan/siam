@@ -3,8 +3,9 @@ import { ref, onMounted } from "vue"
 import { useI18n } from "vue-i18n"
 import { solicitar, enviar } from "../api.js"
 import messages from "./collectionMessages.js"
+const props = defineProps({ usuario: Object })
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-const { t } = useI18n({ messages, useScope: "local" })
+const { t, te, locale } = useI18n({ messages, useScope: "local" })
 const fields = [
   "title",
   "object_type",
@@ -231,6 +232,30 @@ async function movePhoto(index, direction) {
     busy.value = false
   }
 }
+function historyValue(field, value) {
+  if (value === null || value === undefined || value === "") return t('notRecorded')
+  if (field === 'state' && te(value)) return t(value)
+  if (typeof value === 'boolean') return t(value ? 'yes' : 'no')
+  return typeof value === 'object' ? JSON.stringify(value) : String(value)
+}
+const lifecycleDialog = ref(null), reason = ref("")
+function beginDecommission() {
+  reason.value = ""
+  errors.value = {}
+  lifecycleDialog.value.showModal()
+}
+async function decommission() {
+  if (busy.value || !reason.value.trim()) return
+  busy.value = true
+  failure.value = false
+  try {
+    await json(await enviar(`pieces/${selected.value.id}/decommission/`, { reason: reason.value, confirmed: true }))
+    lifecycleDialog.value.close()
+    await detail(selected.value.id)
+    notice.value = "saved"
+  } catch { failure.value = true }
+  finally { busy.value = false }
+}
 onMounted(load)
 </script>
 <template>
@@ -266,6 +291,7 @@ onMounted(load)
                   <option value="">{{ t("state") }}</option>
                   <option value="stored">{{ t("stored") }}</option>
                   <option value="displayed">{{ t("displayed") }}</option>
+                  <option value="decommissioned">{{ t("decommissioned") }}</option>
                 </select>
               </th>
               <th scope="col">{{ t("location") }}</th>
@@ -482,8 +508,41 @@ onMounted(load)
             <div class="identifier-fact"><dt>{{ t('identifier') }}</dt><dd class="record-identifier">{{ selected.identifier }}</dd></div>
           </dl>
         </section>
+        <section class="piece-documentation">
+          <div v-if="!selected.decommissioned && props.usuario?.role === 'museologo'" class="actions">
+            <button :disabled="busy" @click="beginDecommission">{{ t('decommission') }}</button>
+          </div>
+          <dl v-if="selected.decommissioned">
+            <dt>{{ t('decommissionReason') }}</dt><dd>{{ selected.decommission_reason || t('notRecorded') }}</dd>
+            <dt>{{ t('recordedAt') }}</dt><dd>{{ selected.decommissioned_at ? new Date(selected.decommissioned_at).toLocaleString(locale) : t('notRecorded') }}</dd>
+            <dt>{{ t('recordedBy') }}</dt><dd>{{ selected.decommissioned_user || t('notRecorded') }}</dd>
+          </dl>
+          <h3>{{ t('history') }}</h3>
+          <ol class="history-list">
+            <li v-for="entry in selected.history" :key="entry.id">
+              <p>{{ new Date(entry.timestamp).toLocaleString(locale) }} · {{ entry.user || t('notRecorded') }} · {{ t(entry.action) }}</p>
+              <dl><div v-for="(change, field) in entry.changes" :key="field">
+                <dt>{{ te(field) ? t(field) : field }}</dt>
+                <dd>{{ historyValue(field, change.old) }} → {{ historyValue(field, change.new) }}</dd>
+              </div></dl>
+            </li>
+          </ol>
+        </section>
       </article>
     </template>
+    <dialog ref="lifecycleDialog" class="delete-photo-dialog" aria-labelledby="lifecycle-heading" @cancel="busy && $event.preventDefault()">
+      <form @submit.prevent="decommission">
+        <h3 id="lifecycle-heading">{{ t('decommission') }}</h3>
+        <p>{{ t('decommissionWarning') }}</p>
+        <label for="decommission-reason">{{ t('decommissionReason') }} *</label>
+        <textarea id="decommission-reason" v-model="reason" required :disabled="busy" />
+        <p v-if="failure" role="alert" class="error">{{ t('error') }}</p>
+        <div class="actions">
+          <button type="button" :disabled="busy" autofocus @click="lifecycleDialog.close()">{{ t('cancel') }}</button>
+          <button :disabled="busy || !reason.trim()">{{ t('confirm') }}</button>
+        </div>
+      </form>
+    </dialog>
     <dialog ref="deleteDialog" class="delete-photo-dialog" aria-labelledby="delete-photo-heading" :aria-busy="busy" @cancel="busy && $event.preventDefault()">
       <h3 id="delete-photo-heading">{{ t('deletePhoto') }}</h3>
       <p>{{ t('deletePhotoConfirm', { name: photoToDelete?.name }) }}</p>
