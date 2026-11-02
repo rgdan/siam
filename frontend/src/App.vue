@@ -251,7 +251,7 @@ onUnmounted(() => {
           <p>{{ t("users.noAccessDescription") }}</p>
           <a href="/interno">{{ t("auth.internalArea") }}</a>
         </section>
-        <Coleccion :usuario="usuario" v-else-if="rutaActual === '/interno/coleccion'" @sesion-expirada="sesionExpirada" @sin-acceso="denegarAcceso" />
+        <Coleccion v-else-if="rutaActual === '/interno/coleccion'" @sesion-expirada="sesionExpirada" @sin-acceso="denegarAcceso" />
         <Usuarios
           v-else-if="rutaActual === '/interno/usuarios'"
           :usuario-actual="usuario"
