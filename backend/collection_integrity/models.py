@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.conf import settings
 
 
 class Piece(models.Model):
@@ -27,19 +28,22 @@ class Piece(models.Model):
     state = models.CharField(
         max_length=40,
         default="stored",
-        choices=[("stored", "En almacenamiento"), ("displayed", "En exhibici\u00f3n")],
+        choices=[("stored", "En almacenamiento"), ("displayed", "En exhibici\u00f3n"), ("decommissioned", "De baja")],
     )
     decommissioned = models.BooleanField(default=False)
+    decommissioned_at = models.DateTimeField(null=True, blank=True)
+    decommission_reason = models.TextField(blank=True)
+    decommissioned_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT)
     loan_to = models.CharField(max_length=200, blank=True)
 
     class Meta:
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(state__in=["stored", "displayed"]),
+                condition=models.Q(state__in=["stored", "displayed", "decommissioned"]),
                 name="piece_valid_state",
             ),
             models.CheckConstraint(
-                condition=models.Q(state="stored", location="")
+                condition=models.Q(state__in=["stored", "decommissioned"], location="")
                 | (models.Q(state="displayed") & ~models.Q(location="")),
                 name="piece_current_location",
             ),
