@@ -28,7 +28,7 @@ def pieces(request):
         queryset = Piece.objects.order_by("-id")
         state = request.query_params.get("state")
         if state:
-            if state not in ["stored", "displayed"]:
+            if state not in dict(Piece._meta.get_field("state").choices):
                 raise serializers.ValidationError({"state": "invalid_state"})
             queryset = queryset.filter(state=state)
         return Response(PieceSerializer(queryset, many=True).data)
@@ -53,6 +53,11 @@ def piece_detail(request, piece_id):
             if old != snapshot(piece):
                 _finish(piece, request.user, "edit", old)
         data = dict(PieceSerializer(piece).data)
+        data["history"] = [
+            {"id": entry.pk, "timestamp": entry.timestamp, "user": entry.user.full_name if entry.user else None,
+             "action": entry.action_type, "changes": entry.changes}
+            for entry in AuditEntry.objects.filter(entity="piece", entity_id=str(piece.pk)).select_related("user")
+        ]
         data["photos"] = PhotoSerializer(piece.photos.all(), many=True).data
         return Response(data)
 
@@ -139,3 +144,16 @@ def reorder_photos(request, piece_id):
                 new={"photos": photo_ids},
             )
     return Response({"photos": photo_ids})
+
+
+@api_view(["POST"])
+@requiere_permiso("piezas.marcar_robo_extravio")
+def missing(request, piece_id):
+    from .services import mark_missing, require_museologist
+    from .serializers import MissingPieceSerializer
+    require_museologist(request.user)
+    get_object_or_404(Piece, pk=piece_id)
+    serializer = MissingPieceSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    piece = mark_missing(user=request.user, piece_id=piece_id, **serializer.validated_data)
+    return Response(PieceSerializer(piece).data)

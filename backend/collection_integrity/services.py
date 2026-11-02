@@ -3,6 +3,8 @@ from contextlib import contextmanager
 from audit.models import AuditEntry
 from audit.services import record, snapshot
 from django.db import transaction
+from rest_framework.exceptions import ValidationError, PermissionDenied
+from api.models import User
 
 from .models import Photo, Piece
 
@@ -44,6 +46,8 @@ def register_piece(*, user, title, photos=(), **fields):
 def _change(*, user, piece_id, operation, values, photos=None):
     with collection_transaction():
         piece = Piece.objects.select_for_update().get(pk=piece_id)
+        if operation == "missing" and piece.decommissioned:
+            raise ValidationError({"detail": "inactive_piece"})
         old = snapshot(piece)
         old["photos"] = list(piece.photos.values_list("pk", flat=True))
         for key, value in values.items():
@@ -131,3 +135,25 @@ def attach_photo(*, user, piece_id, values):
         new=new,
     )
     return photo
+
+
+def require_museologist(user):
+    if not user.is_active or user.role != User.Role.MUSEOLOGO:
+        raise PermissionDenied("museologist_only")
+
+
+def mark_missing(*, user, piece_id, state, event_date, observations="", confirmed=False):
+    from .serializers import MissingPieceSerializer
+
+    require_museologist(user)
+    serializer = MissingPieceSerializer(
+        data={"state": state, "event_date": event_date,
+              "observations": observations, "confirmed": confirmed},
+    )
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+    return _change(
+        user=user, piece_id=piece_id, operation="missing",
+        values={"state": data["state"], "event_date": data["event_date"],
+                "event_observations": data["observations"], "location": ""},
+    )

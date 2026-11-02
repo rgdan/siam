@@ -3,8 +3,9 @@ import { ref, onMounted } from "vue"
 import { useI18n } from "vue-i18n"
 import { solicitar, enviar } from "../api.js"
 import messages from "./collectionMessages.js"
+const props = defineProps({ usuario: Object })
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-const { t } = useI18n({ messages, useScope: "local" })
+const { t, te, locale } = useI18n({ messages, useScope: "local" })
 const fields = [
   "title",
   "object_type",
@@ -117,6 +118,10 @@ async function save() {
   try {
     const creating = mode.value === "new"
     const data = { ...form.value }
+    if (!creating && ['stolen', 'lost'].includes(selected.value.state)) {
+      delete data.state
+      delete data.location
+    }
     const saved = await json(
       await enviar(
         creating ? "pieces/" : `pieces/${selected.value.id}/`,
@@ -137,7 +142,7 @@ function fieldError(field) {
   const value = Array.isArray(errors.value[field])
     ? errors.value[field][0]
     : errors.value[field]
-  return t(["required", "positive"].includes(value) ? value : "invalid")
+  return t(["required", "positive", "future_date", "invalid_date", "invalid_state", "confirmation_required"].includes(value) ? value : "invalid")
 }
 async function upload(event) {
   const input = event.target,
@@ -231,6 +236,41 @@ async function movePhoto(index, direction) {
     busy.value = false
   }
 }
+function historyValue(field, value) {
+  if (value === null || value === undefined || value === "") return t('notRecorded')
+  if (field === 'state' && te(value)) return t(value)
+  if (typeof value === 'boolean') return t(value ? 'yes' : 'no')
+  return typeof value === 'object' ? JSON.stringify(value) : String(value)
+}
+const missingDialog = ref(null), missingForm = ref({})
+function today() {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'America/Costa_Rica', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date())
+  const part = key => parts.find(value => value.type === key).value
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
+function eventDate(value) {
+  return new Date(`${value}T12:00:00`).toLocaleDateString(locale.value)
+}
+function beginMissing() {
+  missingForm.value = { state: "", event_date: "", observations: "", confirmed: false }
+  errors.value = {}
+  failure.value = false
+  missingDialog.value.showModal()
+}
+async function saveMissing() {
+  if (busy.value) return
+  busy.value = true
+  failure.value = false
+  try {
+    await json(await enviar(`pieces/${selected.value.id}/missing/`, missingForm.value))
+    missingDialog.value.close()
+    await detail(selected.value.id)
+    notice.value = "saved"
+  } catch { failure.value = true }
+  finally { busy.value = false }
+}
 onMounted(load)
 </script>
 <template>
@@ -266,6 +306,8 @@ onMounted(load)
                   <option value="">{{ t("state") }}</option>
                   <option value="stored">{{ t("stored") }}</option>
                   <option value="displayed">{{ t("displayed") }}</option>
+                  <option value="stolen">{{ t("stolen") }}</option>
+                  <option value="lost">{{ t("lost") }}</option>
                 </select>
               </th>
               <th scope="col">{{ t("location") }}</th>
@@ -363,7 +405,7 @@ onMounted(load)
         </fieldset>
         </section>
         <aside class="editor-sidebar">
-        <section v-if="mode === 'edit'" class="record-panel">
+        <section v-if="mode === 'edit' && !['stolen', 'lost'].includes(selected.state)" class="record-panel">
         <fieldset :disabled="busy">
           <legend>{{ t("stateAndLocation") }}</legend>
           <label for="piece-state">{{ t("state") }}</label>
@@ -482,8 +524,49 @@ onMounted(load)
             <div class="identifier-fact"><dt>{{ t('identifier') }}</dt><dd class="record-identifier">{{ selected.identifier }}</dd></div>
           </dl>
         </section>
+        <section class="piece-documentation">
+          <div v-if="!selected.decommissioned && props.usuario?.role === 'museologo'" class="actions">
+            <button :disabled="busy" @click="beginMissing">{{ t("markMissing") }}</button>
+          </div>
+          <dl v-if="selected.event_date">
+            <dt>{{ t('event_date') }}</dt><dd>{{ eventDate(selected.event_date) }}</dd>
+            <dt>{{ t('event_observations') }}</dt><dd>{{ selected.event_observations || t('notRecorded') }}</dd>
+          </dl>
+          <h3>{{ t('history') }}</h3>
+          <ol class="history-list">
+            <li v-for="entry in selected.history" :key="entry.id">
+              <p>{{ new Date(entry.timestamp).toLocaleString(locale) }} · {{ entry.user || t('notRecorded') }} · {{ t(entry.action) }}</p>
+              <dl><div v-for="(change, field) in entry.changes" :key="field">
+                <dt>{{ te(field) ? t(field) : field }}</dt>
+                <dd>{{ historyValue(field, change.old) }} → {{ historyValue(field, change.new) }}</dd>
+              </div></dl>
+            </li>
+          </ol>
+        </section>
       </article>
     </template>
+    <dialog ref="missingDialog" class="delete-photo-dialog" aria-labelledby="missing-heading" @cancel="busy && $event.preventDefault()">
+      <form @submit.prevent="saveMissing">
+        <h3 id="missing-heading">{{ t('markMissing') }}</h3>
+        <fieldset :disabled="busy">
+          <label for="missing-state">{{ t('state') }} *</label>
+          <select id="missing-state" v-model="missingForm.state" required :aria-invalid="!!errors.state" aria-describedby="missing-state-error">
+            <option disabled value="">{{ t('chooseState') }}</option>
+            <option value="stolen">{{ t('stolen') }}</option><option value="lost">{{ t('lost') }}</option>
+          </select>
+          <p v-if="errors.state" id="missing-state-error" class="error">{{ fieldError('state') }}</p>
+          <label for="event-date">{{ t('event_date') }} *</label>
+          <input id="event-date" v-model="missingForm.event_date" type="date" required :max="today()" :aria-invalid="!!errors.event_date" aria-describedby="event-date-error" />
+          <p v-if="errors.event_date" id="event-date-error" class="error">{{ fieldError('event_date') }}</p>
+          <label for="observations">{{ t('observations') }}</label>
+          <textarea id="observations" v-model="missingForm.observations" />
+          <label><input v-model="missingForm.confirmed" class="confirmation" type="checkbox" required /> {{ t('missingConfirm') }}</label>
+          <p v-if="errors.confirmed" class="error">{{ fieldError('confirmed') }}</p>
+        </fieldset>
+        <p v-if="failure" role="alert" class="error">{{ t('error') }}</p>
+        <div class="actions"><button type="button" :disabled="busy" @click="missingDialog.close()">{{ t('cancel') }}</button><button :disabled="busy">{{ t('confirm') }}</button></div>
+      </form>
+    </dialog>
     <dialog ref="deleteDialog" class="delete-photo-dialog" aria-labelledby="delete-photo-heading" :aria-busy="busy" @cancel="busy && $event.preventDefault()">
       <h3 id="delete-photo-heading">{{ t('deletePhoto') }}</h3>
       <p>{{ t('deletePhotoConfirm', { name: photoToDelete?.name }) }}</p>
@@ -508,6 +591,8 @@ onMounted(load)
   </section>
 </template>
 <style scoped>
+.confirmation { width: auto; min-height: auto; }
+.history-list { padding-inline-start: 24px; }
 .collection {
   color: var(--color-texto);
   overflow-wrap: anywhere;
@@ -597,6 +682,7 @@ fieldset {
 .piece-state { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 11px; line-height: 1.4; }
 .piece-state.displayed { background: #effcf3; color: #17652f; }
 .piece-state.stored { background: var(--color-footer); color: var(--color-secundario); }
+.piece-state.stolen, .piece-state.lost { color: var(--color-error); border: 1px solid currentColor; }
 .collection-table .row-actions { padding: 4px 8px; }
 .edit-piece { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; padding: 10px; border: 0; background: transparent; color: var(--color-secundario); }
 .edit-piece svg { width: 18px; height: 18px; }

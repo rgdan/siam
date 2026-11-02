@@ -1,5 +1,23 @@
 export default {
   es: {
+    confirm: "Confirmar",
+    future_date: "La fecha del evento no puede ser posterior a hoy.",
+    invalid_date: "Ingrese una fecha válida.",
+    invalid_state: "Seleccione Robada o Extraviada.",
+    confirmation_required: "Confirme explícitamente antes de guardar.",
+    stolen: "Robada",
+    lost: "Extraviada",
+    markMissing: "Registrar robo o extravío",
+    event_date: "Fecha del evento",
+    observations: "Observaciones (opcional)",
+    event_observations: "Observaciones",
+    chooseState: "Seleccione un estado",
+    missingConfirm: "Confirmo el estado y la fecha del evento. Se borrará la ubicación física actual.",
+
+    history: "Historial de cambios",
+    create: "Registro",
+    modify: "Modificación",
+
     yes: "S\u00ed",
     no: "No",
     id: "ID",
@@ -79,6 +97,24 @@ export default {
     refresh: "Actualizar colección",
   },
   en: {
+    confirm: "Confirm",
+    future_date: "The event date cannot be later than today.",
+    invalid_date: "Enter a valid date.",
+    invalid_state: "Select Stolen or Lost.",
+    confirmation_required: "Confirm explicitly before saving.",
+    stolen: "Stolen",
+    lost: "Lost",
+    markMissing: "Record theft or loss",
+    event_date: "Event date",
+    observations: "Observations (optional)",
+    event_observations: "Observations",
+    chooseState: "Choose a state",
+    missingConfirm: "I confirm the state and event date. The current physical location will be cleared.",
+
+    history: "Change history",
+    create: "Registration",
+    modify: "Modification",
+
     yes: "Yes",
     no: "No",
     id: "ID",

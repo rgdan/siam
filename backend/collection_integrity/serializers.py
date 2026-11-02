@@ -4,6 +4,7 @@ from io import BytesIO
 
 from PIL import Image, UnidentifiedImageError
 from rest_framework import serializers
+from django.utils import timezone
 
 from .models import Photo, Piece
 
@@ -29,10 +30,10 @@ class PieceSerializer(serializers.ModelSerializer):
             "identifier",
             *OBJECT_FIELDS,
             "state",
-            "location",
+            "location", "event_date", "event_observations",
             "decommissioned",
         ]
-        read_only_fields = ["id", "identifier", "decommissioned"]
+        read_only_fields = ["id", "identifier", "decommissioned", "event_date", "event_observations"]
         extra_kwargs = {
             key: {"required": True, "allow_blank": False}
             for key in OBJECT_FIELDS
@@ -47,7 +48,7 @@ class PieceSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         errors = {}
-        for key in ["id", "identifier", "decommissioned"]:
+        for key in ["id", "identifier", "decommissioned", "event_date", "event_observations"]:
             if key in self.initial_data:
                 errors[key] = "immutable"
         if self.instance is None:
@@ -55,11 +56,14 @@ class PieceSerializer(serializers.ModelSerializer):
                 errors["state"] = "initial_storage"
             attrs["state"] = "stored"
         state = attrs.get("state", self.instance.state if self.instance else "stored")
-        if state not in ["stored", "displayed"]:
+        if "state" in attrs and state not in ["stored", "displayed"]:
             errors["state"] = "invalid_state"
         location = attrs.get(
             "location", self.instance.location if self.instance else ""
         )
+        if self.instance and self.instance.state in ["stolen", "lost"]:
+            if "state" in attrs or "location" in attrs:
+                errors["state"] = "unavailable_piece"
         if state == "displayed" and not location.strip():
             errors["location"] = "required"
         if state == "stored":
@@ -129,3 +133,25 @@ class UploadSerializer(serializers.Serializer):
             "WEBP": "image/webp",
         }[fmt]
         return attrs
+
+
+class MissingPieceSerializer(serializers.Serializer):
+    state = serializers.ChoiceField(
+        choices=["stolen", "lost"],
+        error_messages={"required": "required", "invalid_choice": "invalid_state"},
+    )
+    event_date = serializers.DateField(
+        error_messages={"required": "required", "invalid": "invalid_date"},
+    )
+    observations = serializers.CharField(required=False, allow_blank=True, default="")
+    confirmed = serializers.BooleanField(error_messages={"required": "confirmation_required"})
+
+    def validate_confirmed(self, value):
+        if not value:
+            raise serializers.ValidationError("confirmation_required")
+        return value
+
+    def validate_event_date(self, value):
+        if value > timezone.localdate():
+            raise serializers.ValidationError("future_date")
+        return value
