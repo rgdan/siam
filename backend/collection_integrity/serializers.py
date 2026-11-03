@@ -22,7 +22,6 @@ OBJECT_FIELDS = [
 
 
 class PieceSerializer(serializers.ModelSerializer):
-    decommissioned_user = serializers.CharField(source="decommissioned_by.full_name", read_only=True, default=None)
     class Meta:
         model = Piece
         fields = [
@@ -31,9 +30,9 @@ class PieceSerializer(serializers.ModelSerializer):
             *OBJECT_FIELDS,
             "state",
             "location",
-            "decommissioned", "decommissioned_at", "decommission_reason", "decommissioned_by", "decommissioned_user",
+            "decommissioned",
         ]
-        read_only_fields = ["id", "identifier", "decommissioned", "decommissioned_at", "decommission_reason", "decommissioned_by", "decommissioned_user"]
+        read_only_fields = ["id", "identifier", "decommissioned"]
         extra_kwargs = {
             key: {"required": True, "allow_blank": False}
             for key in OBJECT_FIELDS
@@ -48,7 +47,7 @@ class PieceSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         errors = {}
-        for key in ["id", "identifier", "decommissioned", "decommissioned_at", "decommission_reason", "decommissioned_by", "decommissioned_user"]:
+        for key in ["id", "identifier", "decommissioned"]:
             if key in self.initial_data:
                 errors[key] = "immutable"
         if self.instance is None:
@@ -130,13 +129,3 @@ class UploadSerializer(serializers.Serializer):
             "WEBP": "image/webp",
         }[fmt]
         return attrs
-
-
-class DecommissionSerializer(serializers.Serializer):
-    reason = serializers.CharField()
-    confirmed = serializers.BooleanField()
-
-    def validate_confirmed(self, value):
-        if not value:
-            raise serializers.ValidationError("confirmation_required")
-        return value
