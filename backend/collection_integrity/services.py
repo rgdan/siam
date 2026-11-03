@@ -3,9 +3,6 @@ from contextlib import contextmanager
 from audit.models import AuditEntry
 from audit.services import record, snapshot
 from django.db import transaction
-from django.utils import timezone
-from rest_framework.exceptions import ValidationError, PermissionDenied
-from api.models import User
 
 from .models import Photo, Piece
 
@@ -47,8 +44,6 @@ def register_piece(*, user, title, photos=(), **fields):
 def _change(*, user, piece_id, operation, values, photos=None):
     with collection_transaction():
         piece = Piece.objects.select_for_update().get(pk=piece_id)
-        if piece.decommissioned:
-            raise ValidationError({"detail": "inactive_piece"})
         old = snapshot(piece)
         old["photos"] = list(piece.photos.values_list("pk", flat=True))
         for key, value in values.items():
@@ -87,20 +82,12 @@ def edit_piece(*, user, piece_id, title, photos=None):
     )
 
 
-def require_museologist(user):
-    if not user.is_active or user.role != User.Role.MUSEOLOGO:
-        raise PermissionDenied("museologist_only")
-
-
-def decommission_piece(*, user, piece_id, reason, confirmed):
-    require_museologist(user)
-    if not confirmed or not reason.strip():
-        raise ValidationError({"detail": "confirmation_and_reason_required"})
+def decommission_piece(*, user, piece_id):
     return _change(
-        user=user, piece_id=piece_id, operation="decommission",
-        values={"state": "decommissioned", "location": "", "decommissioned": True,
-                "decommissioned_at": timezone.now(), "decommission_reason": reason.strip(),
-                "decommissioned_by": user},
+        user=user,
+        piece_id=piece_id,
+        operation="decommission",
+        values={"decommissioned": True},
     )
 
 
@@ -127,8 +114,6 @@ def change_piece_state(*, user, piece_id, state, location=""):
 @transaction.atomic
 def attach_photo(*, user, piece_id, values):
     piece = Piece.objects.select_for_update().get(pk=piece_id)
-    if piece.decommissioned:
-        raise ValidationError({"detail": "inactive_piece"})
     old = snapshot(piece)
     old["photos"] = list(piece.photos.values_list("pk", flat=True))
     last_position = piece.photos.order_by("-position").values_list("position", flat=True).first()
