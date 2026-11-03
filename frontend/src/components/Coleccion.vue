@@ -1,12 +1,15 @@
 <script setup>
-import { ref, onMounted } from "vue"
+import { computed, ref, onMounted } from "vue"
 import { useI18n } from "vue-i18n"
 import { solicitar, enviar } from "../api.js"
+import CollectionReport from "./CollectionReport.vue"
 import messages from "./collectionMessages.js"
+const props = defineProps({ usuario: Object })
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-const { t } = useI18n({ messages, useScope: "local" })
+const { t, te, locale } = useI18n({ messages, useScope: "local" })
 const fields = [
   "title",
+  "collection",
   "object_type",
   "author_maker",
   "date_period",
@@ -98,7 +101,7 @@ function edit(create = false) {
 }
 function validate() {
   errors.value = {}
-  for (const field of fields)
+  for (const field of fields.filter(field => field !== "collection"))
     if (!String(form.value[field] || "").trim())
       errors.value[field] = "required"
   const value = String(form.value.measurement_value)
@@ -117,6 +120,10 @@ async function save() {
   try {
     const creating = mode.value === "new"
     const data = { ...form.value }
+    if (!creating && ['stolen', 'lost', 'loaned'].includes(selected.value.state)) {
+      delete data.state
+      delete data.location
+    }
     const saved = await json(
       await enviar(
         creating ? "pieces/" : `pieces/${selected.value.id}/`,
@@ -137,7 +144,7 @@ function fieldError(field) {
   const value = Array.isArray(errors.value[field])
     ? errors.value[field][0]
     : errors.value[field]
-  return t(["required", "positive"].includes(value) ? value : "invalid")
+  return t(["required", "positive", "invalid_loan_period", "invalid_date", "recipient_too_long", "future_date", "invalid_state", "confirmation_required"].includes(value) ? value : "invalid")
 }
 async function upload(event) {
   const input = event.target,
@@ -231,6 +238,105 @@ async function movePhoto(index, direction) {
     busy.value = false
   }
 }
+const loanDialog = ref(null)
+const loanForm = ref({ recipient: "", start_date: "", end_date: "" })
+const invalidLoanPeriod = computed(() => loanForm.value.start_date && loanForm.value.end_date && loanForm.value.end_date < loanForm.value.start_date)
+const loanBlockReason = computed(() => {
+  if (selected.value?.decommissioned || selected.value?.state === 'decommissioned') return 'cannot_loan_decommissioned'
+  if (selected.value?.state === 'stolen') return 'cannot_loan_stolen'
+  if (selected.value?.state === 'lost') return 'cannot_loan_lost'
+  return ''
+})
+function beginLoan() {
+  loanForm.value = { recipient: "", start_date: "", end_date: "" }
+  errors.value = {}
+  failure.value = false
+  loanDialog.value.showModal()
+}
+function loanFailure() {
+  const code = errors.value.detail
+  return t(typeof code === 'string' && te(code) ? code : 'error')
+}
+async function saveLoan(returning = false) {
+  if (busy.value || (!returning && invalidLoanPeriod.value)) return
+  busy.value = true
+  errors.value = {}
+  failure.value = false
+  notice.value = ""
+  try {
+    await json(await enviar(`pieces/${selected.value.id}/${returning ? 'return' : 'loan'}/`, returning ? {} : loanForm.value))
+    loanDialog.value.close()
+    await detail(selected.value.id)
+    notice.value = returning ? "loanReturned" : "loanSaved"
+  } catch { failure.value = true }
+  finally { busy.value = false }
+}
+function loanDate(value) {
+  return value ? new Date(`${value}T12:00:00`).toLocaleDateString(locale.value) : t('notRecorded')
+}
+function historyValue(field, value) {
+  if (value === null || value === undefined || value === "") return t('notRecorded')
+  if (field === 'state' && te(value)) return t(value)
+  if (field === 'decommissioned_at') return new Date(value).toLocaleString(locale.value)
+  if (['loan_start', 'loan_end', 'event_date'].includes(field)) return loanDate(value)
+  if (field === 'decommissioned_by' && String(value) === String(selected.value?.decommissioned_by))
+    return selected.value.decommissioned_user || String(value)
+  if (typeof value === 'boolean') return t(value ? 'yes' : 'no')
+  return typeof value === 'object' ? JSON.stringify(value) : String(value)
+}
+const missingDialog = ref(null), missingForm = ref({})
+function today() {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'America/Costa_Rica', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date())
+  const part = key => parts.find(value => value.type === key).value
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
+function eventDate(value) {
+  return new Date(`${value}T12:00:00`).toLocaleDateString(locale.value)
+}
+function beginMissing() {
+  missingForm.value = { state: "", event_date: "", observations: "", confirmed: false }
+  errors.value = {}
+  failure.value = false
+  missingDialog.value.showModal()
+}
+async function saveMissing() {
+  if (busy.value) return
+  busy.value = true
+  failure.value = false
+  try {
+    await json(await enviar(`pieces/${selected.value.id}/missing/`, missingForm.value))
+    missingDialog.value.close()
+    await detail(selected.value.id)
+    notice.value = "saved"
+  } catch { failure.value = true }
+  finally { busy.value = false }
+}
+const lifecycleDialog = ref(null), reason = ref("")
+function beginDecommission() {
+  failure.value = false
+  reason.value = ""
+  errors.value = {}
+  lifecycleDialog.value.showModal()
+}
+async function decommission() {
+  if (busy.value || !reason.value.trim()) return
+  busy.value = true
+  failure.value = false
+  try {
+    await json(await enviar(`pieces/${selected.value.id}/decommission/`, { reason: reason.value, confirmed: true }))
+    lifecycleDialog.value.close()
+    await detail(selected.value.id)
+    notice.value = "saved"
+  } catch { failure.value = true }
+  finally { busy.value = false }
+}
+function openReport() {
+  notice.value = ""
+  failure.value = false
+  mode.value = "report"
+}
 onMounted(load)
 </script>
 <template>
@@ -238,13 +344,18 @@ onMounted(load)
     <p v-if="busy" role="status">{{ t("loading") }}</p>
     <p v-if="notice" role="status">{{ t(notice) }}</p>
     <p v-if="failure" role="alert" class="error">{{ t("error") }}</p>
-    <template v-if="mode === 'list'">
+    <template v-if="mode === 'report'">
+      <button class="back-link" @click="backToCollection">{{ t('back') }}</button>
+      <CollectionReport @sesion-expirada="emit('sesion-expirada')" @sin-acceso="emit('sin-acceso')" />
+    </template>
+    <template v-else-if="mode === 'list'">
       <header class="collection-heading">
         <div>
           <h2>{{ t("listTitle") }}</h2>
           <p v-if="!busy && !failure" class="piece-count">{{ t(filter ? "filteredCount" : "pieceCount", { count: pieces.length }) }}</p>
         </div>
         <div class="list-actions">
+          <button v-if="props.usuario?.role === 'museologo'" :disabled="busy" @click="openReport">{{ t('report') }}</button>
           <button class="refresh-list" :disabled="busy" :aria-label="t('refresh')" :title="t('refresh')" @click="load">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3a7 7 0 0 0 11.5-1" /></svg>
           </button>
@@ -266,6 +377,10 @@ onMounted(load)
                   <option value="">{{ t("state") }}</option>
                   <option value="stored">{{ t("stored") }}</option>
                   <option value="displayed">{{ t("displayed") }}</option>
+                  <option value="stolen">{{ t("stolen") }}</option>
+                  <option value="lost">{{ t("lost") }}</option>
+                  <option value="decommissioned">{{ t("decommissioned") }}</option>
+                  <option value="loaned">{{ t("loaned") }}</option>
                 </select>
               </th>
               <th scope="col">{{ t("location") }}</th>
@@ -310,13 +425,13 @@ onMounted(load)
         <fieldset :disabled="busy" class="fields">
           <legend>{{ t("catalogDetails") }}</legend>
           <div v-for="field in fields" :key="field" :class="{ 'wide-field': !['title', 'object_type', 'author_maker', 'date_period'].includes(field) }">
-            <label :for="field">{{ label(field) }} *</label
+            <label :for="field">{{ label(field) }}{{ field === 'collection' ? '' : ' *' }}</label
             ><input
-              v-if="['title', 'object_type', 'author_maker', 'date_period'].includes(field)"
+              v-if="['title', 'object_type', 'author_maker', 'date_period', 'collection'].includes(field)"
               :id="field"
               v-model="form[field]"
-              required
-              :maxlength="field === 'title' ? 200 : undefined"
+              :required="field !== 'collection'"
+              :maxlength="['title', 'collection'].includes(field) ? 200 : undefined"
               :aria-invalid="!!errors[field]"
               :aria-describedby="errors[field] ? `${field}-error` : undefined"
             /><textarea
@@ -363,7 +478,7 @@ onMounted(load)
         </fieldset>
         </section>
         <aside class="editor-sidebar">
-        <section v-if="mode === 'edit'" class="record-panel">
+        <section v-if="mode === 'edit' && ['stored', 'displayed'].includes(selected.state)" class="record-panel">
         <fieldset :disabled="busy">
           <legend>{{ t("stateAndLocation") }}</legend>
           <label for="piece-state">{{ t("state") }}</label>
@@ -449,7 +564,7 @@ onMounted(load)
           <h2>{{ selected.title }}</h2>
           <p class="piece-attribution">{{ selected.author_maker || t('notRecorded') }}<span v-if="selected.date_period"> · {{ selected.date_period }}</span></p>
           <span class="piece-state" :class="selected.state">{{ t(selected.state) }}</span>
-          <span v-if="selected.decommissioned" class="inactive-piece">{{ t('decommissioned') }}</span>
+          <span v-if="selected.decommissioned && selected.state !== 'decommissioned'" class="inactive-piece">{{ t('decommissioned') }}</span>
         </header>
         <div class="piece-overview">
           <section class="piece-gallery" :aria-label="t('photos')">
@@ -475,6 +590,7 @@ onMounted(load)
         </div>
         <section class="piece-documentation">
           <h3>{{ t('documentation') }}</h3>
+          <p>{{ t('collection') }}: {{ selected.collection || t('unassignedCollection') }}</p>
           <dl class="documentation-grid">
             <div v-for="field in ['inscriptions_marks', 'distinguishing_features']" :key="field">
               <dt>{{ label(field) }}</dt><dd>{{ selected[field] || t('notRecorded') }}</dd>
@@ -482,8 +598,103 @@ onMounted(load)
             <div class="identifier-fact"><dt>{{ t('identifier') }}</dt><dd class="record-identifier">{{ selected.identifier }}</dd></div>
           </dl>
         </section>
+        <section class="piece-documentation">
+          <h3>{{ t('loanDetails') }}</h3>
+          <template v-if="props.usuario?.role === 'museologo'">
+            <p v-if="loanBlockReason" role="status">{{ t(loanBlockReason) }}</p>
+            <div v-else class="actions">
+              <button v-if="['stored', 'displayed'].includes(selected.state)" :disabled="busy" @click="beginLoan">{{ t('registerLoan') }}</button>
+              <button v-if="selected.state === 'loaned'" :disabled="busy" @click="saveLoan(true)">{{ t('returnLoan') }}</button>
+            </div>
+            <p v-if="failure && !loanDialog?.open" class="error" role="alert">{{ loanFailure() }}</p>
+          </template>
+          <dl v-if="selected.state === 'loaned'" class="documentation-grid">
+            <div><dt>{{ t('loan_to') }}</dt><dd>{{ selected.loan_to }}</dd></div>
+            <div><dt>{{ t('loan_start') }}</dt><dd>{{ loanDate(selected.loan_start) }}</dd></div>
+            <div><dt>{{ t('loan_end') }}</dt><dd>{{ loanDate(selected.loan_end) }}</dd></div>
+          </dl>
+          <div v-if="props.usuario?.role === 'museologo' && !selected.decommissioned" class="actions">
+            <button :disabled="busy" @click="beginMissing">{{ t('markMissing') }}</button>
+            <button :disabled="busy" @click="beginDecommission">{{ t('decommission') }}</button>
+          </div>
+          <dl v-if="selected.decommissioned">
+            <dt>{{ t('decommissionReason') }}</dt><dd>{{ selected.decommission_reason || t('notRecorded') }}</dd>
+            <dt>{{ t('recordedAt') }}</dt><dd>{{ selected.decommissioned_at ? new Date(selected.decommissioned_at).toLocaleString(locale) : t('notRecorded') }}</dd>
+            <dt>{{ t('recordedBy') }}</dt><dd>{{ selected.decommissioned_user || t('notRecorded') }}</dd>
+          </dl>
+          <dl v-if="selected.event_date">
+            <dt>{{ t('event_date') }}</dt><dd>{{ eventDate(selected.event_date) }}</dd>
+            <dt>{{ t('event_observations') }}</dt><dd>{{ selected.event_observations || t('notRecorded') }}</dd>
+          </dl>
+          <h3>{{ t('history') }}</h3>
+          <ol class="history-list">
+            <li v-for="entry in selected.history" :key="entry.id">
+              <p>{{ new Date(entry.timestamp).toLocaleString(locale) }} · {{ entry.user || t('notRecorded') }} · {{ te(entry.action) ? t(entry.action) : entry.action }}</p>
+              <dl><div v-for="(change, field) in entry.changes" :key="field">
+                <dt>{{ field === 'title' ? t('pieceTitle') : te(field) ? t(field) : field }}</dt>
+                <dd>{{ historyValue(field, change.old) }} → {{ historyValue(field, change.new) }}</dd>
+              </div></dl>
+            </li>
+          </ol>
+        </section>
       </article>
     </template>
+    <dialog ref="loanDialog" class="delete-photo-dialog" aria-labelledby="loan-heading" :aria-busy="busy" @cancel="busy && $event.preventDefault()">
+      <form @submit.prevent="saveLoan(false)">
+        <h3 id="loan-heading">{{ t('registerLoan') }}</h3>
+        <fieldset :disabled="busy">
+          <label for="loan-recipient">{{ t('loan_to') }} *</label>
+          <input id="loan-recipient" v-model="loanForm.recipient" required maxlength="200" :aria-invalid="!!errors.recipient" aria-describedby="loan-recipient-error" />
+          <p v-if="errors.recipient" id="loan-recipient-error" class="error">{{ fieldError('recipient') }}</p>
+          <label for="loan-start">{{ t('loan_start') }} *</label>
+          <input id="loan-start" v-model="loanForm.start_date" type="date" required :aria-invalid="!!errors.start_date" aria-describedby="loan-start-error" />
+          <p v-if="errors.start_date" id="loan-start-error" class="error">{{ fieldError('start_date') }}</p>
+          <label for="loan-end">{{ t('loan_end') }} *</label>
+          <input id="loan-end" v-model="loanForm.end_date" type="date" required :min="loanForm.start_date" :aria-invalid="!!errors.end_date || !!invalidLoanPeriod" aria-describedby="loan-end-error" />
+          <p v-if="errors.end_date || invalidLoanPeriod" id="loan-end-error" class="error">{{ errors.end_date ? fieldError('end_date') : t('invalid_loan_period') }}</p>
+        </fieldset>
+        <p v-if="failure" role="alert" class="error">{{ loanFailure() }}</p>
+        <div class="actions">
+          <button type="button" :disabled="busy" @click="loanDialog.close()">{{ t('cancel') }}</button>
+          <button :disabled="busy">{{ t('save') }}</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog ref="missingDialog" class="delete-photo-dialog" aria-labelledby="missing-heading" @cancel="busy && $event.preventDefault()">
+      <form @submit.prevent="saveMissing">
+        <h3 id="missing-heading">{{ t('markMissing') }}</h3>
+        <fieldset :disabled="busy">
+          <label for="missing-state">{{ t('state') }} *</label>
+          <select id="missing-state" v-model="missingForm.state" required :aria-invalid="!!errors.state" aria-describedby="missing-state-error">
+            <option disabled value="">{{ t('chooseState') }}</option>
+            <option value="stolen">{{ t('stolen') }}</option><option value="lost">{{ t('lost') }}</option>
+          </select>
+          <p v-if="errors.state" id="missing-state-error" class="error">{{ fieldError('state') }}</p>
+          <label for="event-date">{{ t('event_date') }} *</label>
+          <input id="event-date" v-model="missingForm.event_date" type="date" required :max="today()" :aria-invalid="!!errors.event_date" aria-describedby="event-date-error" />
+          <p v-if="errors.event_date" id="event-date-error" class="error">{{ fieldError('event_date') }}</p>
+          <label for="observations">{{ t('observations') }}</label>
+          <textarea id="observations" v-model="missingForm.observations" />
+          <label><input v-model="missingForm.confirmed" class="confirmation" type="checkbox" required /> {{ t('missingConfirm') }}</label>
+          <p v-if="errors.confirmed" class="error">{{ fieldError('confirmed') }}</p>
+        </fieldset>
+        <p v-if="failure" role="alert" class="error">{{ t('error') }}</p>
+        <div class="actions"><button type="button" :disabled="busy" @click="missingDialog.close()">{{ t('cancel') }}</button><button :disabled="busy">{{ t('confirm') }}</button></div>
+      </form>
+    </dialog>
+    <dialog ref="lifecycleDialog" class="delete-photo-dialog" aria-labelledby="lifecycle-heading" @cancel="busy && $event.preventDefault()">
+      <form @submit.prevent="decommission">
+        <h3 id="lifecycle-heading">{{ t('decommission') }}</h3>
+        <p>{{ t('decommissionWarning') }}</p>
+        <label for="decommission-reason">{{ t('decommissionReason') }} *</label>
+        <textarea id="decommission-reason" v-model="reason" required :disabled="busy" />
+        <p v-if="failure" role="alert" class="error">{{ t('error') }}</p>
+        <div class="actions">
+          <button type="button" :disabled="busy" autofocus @click="lifecycleDialog.close()">{{ t('cancel') }}</button>
+          <button :disabled="busy || !reason.trim()">{{ t('confirm') }}</button>
+        </div>
+      </form>
+    </dialog>
     <dialog ref="deleteDialog" class="delete-photo-dialog" aria-labelledby="delete-photo-heading" :aria-busy="busy" @cancel="busy && $event.preventDefault()">
       <h3 id="delete-photo-heading">{{ t('deletePhoto') }}</h3>
       <p>{{ t('deletePhotoConfirm', { name: photoToDelete?.name }) }}</p>
@@ -508,6 +719,8 @@ onMounted(load)
   </section>
 </template>
 <style scoped>
+.confirmation { width: auto; min-height: auto; }
+.piece-state.stolen, .piece-state.lost { color: var(--color-error); border: 1px solid currentColor; }
 .collection {
   color: var(--color-texto);
   overflow-wrap: anywhere;
@@ -597,6 +810,8 @@ fieldset {
 .piece-state { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 11px; line-height: 1.4; }
 .piece-state.displayed { background: #effcf3; color: #17652f; }
 .piece-state.stored { background: var(--color-footer); color: var(--color-secundario); }
+.piece-state.loaned { color: var(--color-enlace); border: 1px solid currentColor; }
+.history-list { padding-inline-start: 24px; }
 .collection-table .row-actions { padding: 4px 8px; }
 .edit-piece { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; padding: 10px; border: 0; background: transparent; color: var(--color-secundario); }
 .edit-piece svg { width: 18px; height: 18px; }

@@ -3,6 +3,9 @@ from contextlib import contextmanager
 from audit.models import AuditEntry
 from audit.services import record, snapshot
 from django.db import transaction
+from django.utils import timezone
+from rest_framework.exceptions import ValidationError, PermissionDenied
+from api.models import User
 
 from .models import Photo, Piece
 
@@ -44,6 +47,16 @@ def register_piece(*, user, title, photos=(), **fields):
 def _change(*, user, piece_id, operation, values, photos=None):
     with collection_transaction():
         piece = Piece.objects.select_for_update().get(pk=piece_id)
+        if operation in ["loan", "return"] and piece.decommissioned:
+            raise ValidationError({"detail": "cannot_loan_decommissioned"})
+        if piece.decommissioned:
+            raise ValidationError({"detail": "inactive_piece"})
+        if operation == "loan" and piece.state not in ["stored", "displayed"]:
+            raise ValidationError({"detail": "cannot_loan_" + piece.state})
+        if operation == "return" and piece.state != "loaned":
+            raise ValidationError({"detail": "not_loaned"})
+        if operation == "state" and (piece.state not in ["stored", "displayed"] or values["state"] not in ["stored", "displayed"]):
+            raise ValidationError({"detail": "unavailable_piece"})
         old = snapshot(piece)
         old["photos"] = list(piece.photos.values_list("pk", flat=True))
         for key, value in values.items():
@@ -82,23 +95,44 @@ def edit_piece(*, user, piece_id, title, photos=None):
     )
 
 
-def decommission_piece(*, user, piece_id):
+def require_museologist(user):
+    if not user.is_active or user.role != User.Role.MUSEOLOGO:
+        raise PermissionDenied("museologist_only")
+
+
+def decommission_piece(*, user, piece_id, reason, confirmed):
+    require_museologist(user)
+    if not confirmed or not reason.strip():
+        raise ValidationError({"detail": "confirmation_and_reason_required"})
     return _change(
-        user=user,
-        piece_id=piece_id,
-        operation="decommission",
-        values={"decommissioned": True},
+        user=user, piece_id=piece_id, operation="decommission",
+        values={"state": "decommissioned", "location": "", "decommissioned": True,
+                "decommissioned_at": timezone.now(), "decommission_reason": reason.strip(),
+                "decommissioned_by": user},
     )
 
 
-def loan_piece(*, user, piece_id, recipient):
-    if not recipient.strip():
-        raise ValueError("El destinatario es obligatorio.")
+def loan_piece(*, user, piece_id, recipient, start_date, end_date):
+    from .serializers import LoanSerializer
+
+    require_museologist(user)
+    serializer = LoanSerializer(data={"recipient": recipient, "start_date": start_date, "end_date": end_date})
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
     return _change(
         user=user,
         piece_id=piece_id,
         operation="loan",
-        values={"loan_to": recipient},
+        values={"state": "loaned", "location": "", "loan_to": data["recipient"],
+                "loan_start": data["start_date"], "loan_end": data["end_date"]},
+    )
+
+
+def return_piece(*, user, piece_id):
+    require_museologist(user)
+    return _change(
+        user=user, piece_id=piece_id, operation="return",
+        values={"state": "stored", "location": "", "loan_to": "", "loan_start": None, "loan_end": None},
     )
 
 
@@ -114,6 +148,8 @@ def change_piece_state(*, user, piece_id, state, location=""):
 @transaction.atomic
 def attach_photo(*, user, piece_id, values):
     piece = Piece.objects.select_for_update().get(pk=piece_id)
+    if piece.decommissioned:
+        raise ValidationError({"detail": "inactive_piece"})
     old = snapshot(piece)
     old["photos"] = list(piece.photos.values_list("pk", flat=True))
     last_position = piece.photos.order_by("-position").values_list("position", flat=True).first()
@@ -131,3 +167,20 @@ def attach_photo(*, user, piece_id, values):
         new=new,
     )
     return photo
+
+
+def mark_missing(*, user, piece_id, state, event_date, observations="", confirmed=False):
+    from .serializers import MissingPieceSerializer
+
+    require_museologist(user)
+    serializer = MissingPieceSerializer(
+        data={"state": state, "event_date": event_date,
+              "observations": observations, "confirmed": confirmed},
+    )
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+    return _change(
+        user=user, piece_id=piece_id, operation="missing",
+        values={"state": data["state"], "event_date": data["event_date"],
+                "event_observations": data["observations"], "location": ""},
+    )

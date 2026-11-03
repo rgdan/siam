@@ -9,6 +9,11 @@ from visitors.views import register_entry
 from collection_integrity import views as collection_views
 
 urlpatterns = [
+    path("api/pieces/<int:piece_id>/decommission/", collection_views.decommission, name="piece-decommission"),
+    path("api/pieces/<int:piece_id>/missing/", collection_views.missing, name="piece-missing"),
+    path("api/pieces/<int:piece_id>/loan/", collection_views.loan, name="piece-loan"),
+    path("api/pieces/<int:piece_id>/return/", collection_views.return_loan, name="piece-return"),
+    path("api/collection/report/", collection_views.collection_report, name="collection-report"),
     path("api/pieces/", collection_views.pieces, name="pieces"),
     path("api/pieces/<int:piece_id>/", collection_views.piece_detail, name="piece-detail"),
     path("api/pieces/<int:piece_id>/photos/", collection_views.upload_photos, name="piece-photos"),

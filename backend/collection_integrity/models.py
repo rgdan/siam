@@ -3,10 +3,12 @@ from decimal import Decimal
 
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.conf import settings
 
 
 class Piece(models.Model):
     identifier = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    collection = models.CharField(max_length=200, blank=True)
     object_type = models.TextField(blank=True)
     materials_techniques = models.TextField(blank=True)
     measurement_value = models.DecimalField(
@@ -25,21 +27,29 @@ class Piece(models.Model):
     location = models.CharField(max_length=200, blank=True)
     title = models.CharField(max_length=200)
     state = models.CharField(
-        max_length=40,
-        default="stored",
-        choices=[("stored", "En almacenamiento"), ("displayed", "En exhibici\u00f3n")],
+        max_length=40, default="stored",
+        choices=[("stored", "En almacenamiento"), ("displayed", "En exhibición"),
+                 ("decommissioned", "De baja"), ("stolen", "Robada"),
+                 ("lost", "Extraviada"), ("loaned", "En préstamo")],
     )
     decommissioned = models.BooleanField(default=False)
+    decommissioned_at = models.DateTimeField(null=True, blank=True)
+    decommission_reason = models.TextField(blank=True)
+    decommissioned_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT)
+    event_date = models.DateField(null=True, blank=True)
+    event_observations = models.TextField(blank=True)
+    loan_start = models.DateField(null=True, blank=True)
+    loan_end = models.DateField(null=True, blank=True)
     loan_to = models.CharField(max_length=200, blank=True)
 
     class Meta:
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(state__in=["stored", "displayed"]),
+                condition=models.Q(state__in=["stored", "displayed", "decommissioned", "stolen", "lost", "loaned"]),
                 name="piece_valid_state",
             ),
             models.CheckConstraint(
-                condition=models.Q(state="stored", location="")
+                condition=models.Q(state__in=["stored", "decommissioned", "stolen", "lost", "loaned"], location="")
                 | (models.Q(state="displayed") & ~models.Q(location="")),
                 name="piece_current_location",
             ),

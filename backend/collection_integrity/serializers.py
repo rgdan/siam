@@ -4,6 +4,7 @@ from io import BytesIO
 
 from PIL import Image, UnidentifiedImageError
 from rest_framework import serializers
+from django.utils import timezone
 
 from .models import Photo, Piece
 
@@ -22,17 +23,19 @@ OBJECT_FIELDS = [
 
 
 class PieceSerializer(serializers.ModelSerializer):
+    decommissioned_user = serializers.CharField(source="decommissioned_by.full_name", read_only=True, default=None)
     class Meta:
         model = Piece
         fields = [
             "id",
             "identifier",
             *OBJECT_FIELDS,
+            "collection", "event_date", "event_observations", "loan_to", "loan_start", "loan_end",
             "state",
             "location",
-            "decommissioned",
+            "decommissioned", "decommissioned_at", "decommission_reason", "decommissioned_by", "decommissioned_user",
         ]
-        read_only_fields = ["id", "identifier", "decommissioned"]
+        read_only_fields = ["id", "identifier", "decommissioned", "decommissioned_at", "decommission_reason", "decommissioned_by", "decommissioned_user", "event_date", "event_observations", "loan_to", "loan_start", "loan_end"]
         extra_kwargs = {
             key: {"required": True, "allow_blank": False}
             for key in OBJECT_FIELDS
@@ -47,7 +50,7 @@ class PieceSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         errors = {}
-        for key in ["id", "identifier", "decommissioned"]:
+        for key in ["id", "identifier", "decommissioned", "decommissioned_at", "decommission_reason", "decommissioned_by", "decommissioned_user", "event_date", "event_observations", "loan_to", "loan_start", "loan_end"]:
             if key in self.initial_data:
                 errors[key] = "immutable"
         if self.instance is None:
@@ -55,11 +58,14 @@ class PieceSerializer(serializers.ModelSerializer):
                 errors["state"] = "initial_storage"
             attrs["state"] = "stored"
         state = attrs.get("state", self.instance.state if self.instance else "stored")
-        if state not in ["stored", "displayed"]:
+        if "state" in attrs and state not in ["stored", "displayed"]:
             errors["state"] = "invalid_state"
         location = attrs.get(
             "location", self.instance.location if self.instance else ""
         )
+        if self.instance and self.instance.state in ["stolen", "lost", "loaned"]:
+            if "state" in attrs or "location" in attrs:
+                errors["state"] = "unavailable_piece"
         if state == "displayed" and not location.strip():
             errors["location"] = "required"
         if state == "stored":
@@ -128,4 +134,50 @@ class UploadSerializer(serializers.Serializer):
             "PNG": "image/png",
             "WEBP": "image/webp",
         }[fmt]
+        return attrs
+
+
+class DecommissionSerializer(serializers.Serializer):
+    reason = serializers.CharField()
+    confirmed = serializers.BooleanField()
+
+    def validate_confirmed(self, value):
+        if not value:
+            raise serializers.ValidationError("confirmation_required")
+        return value
+
+
+class MissingPieceSerializer(serializers.Serializer):
+    state = serializers.ChoiceField(
+        choices=["stolen", "lost"],
+        error_messages={"required": "required", "invalid_choice": "invalid_state"},
+    )
+    event_date = serializers.DateField(
+        error_messages={"required": "required", "invalid": "invalid_date"},
+    )
+    observations = serializers.CharField(required=False, allow_blank=True, default="")
+    confirmed = serializers.BooleanField(error_messages={"required": "confirmation_required"})
+
+    def validate_confirmed(self, value):
+        if not value:
+            raise serializers.ValidationError("confirmation_required")
+        return value
+
+    def validate_event_date(self, value):
+        if value > timezone.localdate():
+            raise serializers.ValidationError("future_date")
+        return value
+
+
+class LoanSerializer(serializers.Serializer):
+    recipient = serializers.CharField(
+        max_length=200,
+        error_messages={"required": "required", "blank": "required", "max_length": "recipient_too_long"},
+    )
+    start_date = serializers.DateField(error_messages={"required": "required", "invalid": "invalid_date"})
+    end_date = serializers.DateField(error_messages={"required": "required", "invalid": "invalid_date"})
+
+    def validate(self, attrs):
+        if attrs["end_date"] < attrs["start_date"]:
+            raise serializers.ValidationError({"end_date": "invalid_loan_period"})
         return attrs
