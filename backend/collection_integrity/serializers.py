@@ -28,6 +28,7 @@ class PieceSerializer(serializers.ModelSerializer):
             "id",
             "identifier",
             *OBJECT_FIELDS,
+            "collection",
             "state",
             "location",
             "decommissioned",

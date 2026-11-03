@@ -7,6 +7,7 @@ from django.db import models
 
 class Piece(models.Model):
     identifier = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    collection = models.CharField(max_length=200, blank=True)
     object_type = models.TextField(blank=True)
     materials_techniques = models.TextField(blank=True)
     measurement_value = models.DecimalField(

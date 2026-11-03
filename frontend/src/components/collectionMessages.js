@@ -1,5 +1,8 @@
 export default {
   es: {
+    report: "Reporte de colección",
+    collection: "Colección",
+    unassignedCollection: "Sin colección asignada",
     yes: "S\u00ed",
     no: "No",
     id: "ID",
@@ -79,6 +82,9 @@ export default {
     refresh: "Actualizar colección",
   },
   en: {
+    report: "Collection report",
+    collection: "Collection",
+    unassignedCollection: "No assigned collection",
     yes: "Yes",
     no: "No",
     id: "ID",

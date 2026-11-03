@@ -8,6 +8,8 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
+from api.models import User
 
 from .models import Photo, Piece
 from .serializers import (
@@ -17,8 +19,20 @@ from .serializers import (
     UploadSerializer,
 )
 from .services import _finish, attach_photo, register_piece
+from .reports import collection_report_data
 
 logger = logging.getLogger(__name__)
+
+
+@api_view(["GET"])
+@requiere_permiso("colecciones.generar_reportes")
+def collection_report(request):
+    if request.user.role != User.Role.MUSEOLOGO:
+        raise PermissionDenied("museologist_only")
+    return Response(collection_report_data(**{
+        key: request.query_params[key]
+        for key in ["state", "object_type", "collection"] if key in request.query_params
+    }))
 
 
 @api_view(["GET", "POST"])

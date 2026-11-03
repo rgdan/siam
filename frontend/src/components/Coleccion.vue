@@ -3,10 +3,13 @@ import { ref, onMounted } from "vue"
 import { useI18n } from "vue-i18n"
 import { solicitar, enviar } from "../api.js"
 import messages from "./collectionMessages.js"
+import CollectionReport from "./CollectionReport.vue"
+const props = defineProps({ usuario: Object })
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
 const { t } = useI18n({ messages, useScope: "local" })
 const fields = [
   "title",
+  "collection",
   "object_type",
   "author_maker",
   "date_period",
@@ -98,7 +101,7 @@ function edit(create = false) {
 }
 function validate() {
   errors.value = {}
-  for (const field of fields)
+  for (const field of fields.filter(field => field !== 'collection'))
     if (!String(form.value[field] || "").trim())
       errors.value[field] = "required"
   const value = String(form.value.measurement_value)
@@ -231,6 +234,11 @@ async function movePhoto(index, direction) {
     busy.value = false
   }
 }
+function openReport() {
+  notice.value = ""
+  failure.value = false
+  mode.value = "report"
+}
 onMounted(load)
 </script>
 <template>
@@ -238,13 +246,18 @@ onMounted(load)
     <p v-if="busy" role="status">{{ t("loading") }}</p>
     <p v-if="notice" role="status">{{ t(notice) }}</p>
     <p v-if="failure" role="alert" class="error">{{ t("error") }}</p>
-    <template v-if="mode === 'list'">
+    <template v-if="mode === 'report'">
+      <button class="back-link" @click="backToCollection">{{ t('back') }}</button>
+      <CollectionReport @sesion-expirada="emit('sesion-expirada')" @sin-acceso="emit('sin-acceso')" />
+    </template>
+    <template v-else-if="mode === 'list'">
       <header class="collection-heading">
         <div>
           <h2>{{ t("listTitle") }}</h2>
           <p v-if="!busy && !failure" class="piece-count">{{ t(filter ? "filteredCount" : "pieceCount", { count: pieces.length }) }}</p>
         </div>
         <div class="list-actions">
+          <button v-if="props.usuario?.role === 'museologo'" :disabled="busy" @click="openReport">{{ t('report') }}</button>
           <button class="refresh-list" :disabled="busy" :aria-label="t('refresh')" :title="t('refresh')" @click="load">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3a7 7 0 0 0 11.5-1" /></svg>
           </button>
@@ -310,13 +323,13 @@ onMounted(load)
         <fieldset :disabled="busy" class="fields">
           <legend>{{ t("catalogDetails") }}</legend>
           <div v-for="field in fields" :key="field" :class="{ 'wide-field': !['title', 'object_type', 'author_maker', 'date_period'].includes(field) }">
-            <label :for="field">{{ label(field) }} *</label
+            <label :for="field">{{ label(field) }}{{ field === 'collection' ? '' : ' *' }}</label
             ><input
-              v-if="['title', 'object_type', 'author_maker', 'date_period'].includes(field)"
+              v-if="['title', 'object_type', 'author_maker', 'date_period', 'collection'].includes(field)"
               :id="field"
               v-model="form[field]"
-              required
-              :maxlength="field === 'title' ? 200 : undefined"
+              :required="field !== 'collection'"
+              :maxlength="['title', 'collection'].includes(field) ? 200 : undefined"
               :aria-invalid="!!errors[field]"
               :aria-describedby="errors[field] ? `${field}-error` : undefined"
             /><textarea
@@ -475,6 +488,7 @@ onMounted(load)
         </div>
         <section class="piece-documentation">
           <h3>{{ t('documentation') }}</h3>
+          <p>{{ t('collection') }}: {{ selected.collection || t('unassignedCollection') }}</p>
           <dl class="documentation-grid">
             <div v-for="field in ['inscriptions_marks', 'distinguishing_features']" :key="field">
               <dt>{{ label(field) }}</dt><dd>{{ selected[field] || t('notRecorded') }}</dd>
