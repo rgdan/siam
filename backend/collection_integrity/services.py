@@ -3,6 +3,8 @@ from contextlib import contextmanager
 from audit.models import AuditEntry
 from audit.services import record, snapshot
 from django.db import transaction
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from api.models import User
 
 from .models import Photo, Piece
 
@@ -44,6 +46,12 @@ def register_piece(*, user, title, photos=(), **fields):
 def _change(*, user, piece_id, operation, values, photos=None):
     with collection_transaction():
         piece = Piece.objects.select_for_update().get(pk=piece_id)
+        if operation in ["loan", "return"] and piece.decommissioned:
+            raise ValidationError({"detail": "cannot_loan_decommissioned"})
+        if operation == "loan" and piece.state not in ["stored", "displayed"]:
+            raise ValidationError({"detail": "cannot_loan_" + piece.state})
+        if operation == "return" and piece.state != "loaned":
+            raise ValidationError({"detail": "not_loaned"})
         old = snapshot(piece)
         old["photos"] = list(piece.photos.values_list("pk", flat=True))
         for key, value in values.items():
@@ -91,14 +99,27 @@ def decommission_piece(*, user, piece_id):
     )
 
 
-def loan_piece(*, user, piece_id, recipient):
-    if not recipient.strip():
-        raise ValueError("El destinatario es obligatorio.")
+def loan_piece(*, user, piece_id, recipient, start_date, end_date):
+    from .serializers import LoanSerializer
+
+    require_museologist(user)
+    serializer = LoanSerializer(data={"recipient": recipient, "start_date": start_date, "end_date": end_date})
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
     return _change(
         user=user,
         piece_id=piece_id,
         operation="loan",
-        values={"loan_to": recipient},
+        values={"state": "loaned", "location": "", "loan_to": data["recipient"],
+                "loan_start": data["start_date"], "loan_end": data["end_date"]},
+    )
+
+
+def return_piece(*, user, piece_id):
+    require_museologist(user)
+    return _change(
+        user=user, piece_id=piece_id, operation="return",
+        values={"state": "stored", "location": "", "loan_to": "", "loan_start": None, "loan_end": None},
     )
 
 
@@ -131,3 +152,8 @@ def attach_photo(*, user, piece_id, values):
         new=new,
     )
     return photo
+
+
+def require_museologist(user):
+    if not user.is_active or user.role != User.Role.MUSEOLOGO:
+        raise PermissionDenied("museologist_only")

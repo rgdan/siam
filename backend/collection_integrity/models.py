@@ -27,19 +27,25 @@ class Piece(models.Model):
     state = models.CharField(
         max_length=40,
         default="stored",
-        choices=[("stored", "En almacenamiento"), ("displayed", "En exhibici\u00f3n")],
+        choices=[
+            ("stored", "En almacenamiento"),
+            ("displayed", "En exhibici\u00f3n"),
+            ("loaned", "En préstamo"),
+        ],
     )
     decommissioned = models.BooleanField(default=False)
     loan_to = models.CharField(max_length=200, blank=True)
+    loan_start = models.DateField(null=True, blank=True)
+    loan_end = models.DateField(null=True, blank=True)
 
     class Meta:
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(state__in=["stored", "displayed"]),
+                condition=models.Q(state__in=["stored", "displayed", "loaned"]),
                 name="piece_valid_state",
             ),
             models.CheckConstraint(
-                condition=models.Q(state="stored", location="")
+                condition=models.Q(state__in=["stored", "loaned"], location="")
                 | (models.Q(state="displayed") & ~models.Q(location="")),
                 name="piece_current_location",
             ),

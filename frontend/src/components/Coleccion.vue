@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted } from "vue"
+import { computed, ref, onMounted } from "vue"
 import { useI18n } from "vue-i18n"
 import { solicitar, enviar } from "../api.js"
 import messages from "./collectionMessages.js"
+const props = defineProps({ usuario: Object })
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-const { t } = useI18n({ messages, useScope: "local" })
+const { t, te, locale } = useI18n({ messages, useScope: "local" })
 const fields = [
   "title",
   "object_type",
@@ -117,6 +118,10 @@ async function save() {
   try {
     const creating = mode.value === "new"
     const data = { ...form.value }
+    if (!creating && selected.value.state === 'loaned') {
+      delete data.state
+      delete data.location
+    }
     const saved = await json(
       await enviar(
         creating ? "pieces/" : `pieces/${selected.value.id}/`,
@@ -137,7 +142,7 @@ function fieldError(field) {
   const value = Array.isArray(errors.value[field])
     ? errors.value[field][0]
     : errors.value[field]
-  return t(["required", "positive"].includes(value) ? value : "invalid")
+  return t(["required", "positive", "invalid_loan_period", "invalid_date", "recipient_too_long"].includes(value) ? value : "invalid")
 }
 async function upload(event) {
   const input = event.target,
@@ -231,6 +236,48 @@ async function movePhoto(index, direction) {
     busy.value = false
   }
 }
+const loanDialog = ref(null)
+const loanForm = ref({ recipient: "", start_date: "", end_date: "" })
+const invalidLoanPeriod = computed(() => loanForm.value.start_date && loanForm.value.end_date && loanForm.value.end_date < loanForm.value.start_date)
+const loanBlockReason = computed(() => {
+  if (selected.value?.decommissioned || selected.value?.state === 'decommissioned') return 'cannot_loan_decommissioned'
+  if (selected.value?.state === 'stolen') return 'cannot_loan_stolen'
+  if (selected.value?.state === 'lost') return 'cannot_loan_lost'
+  return ''
+})
+function beginLoan() {
+  loanForm.value = { recipient: "", start_date: "", end_date: "" }
+  errors.value = {}
+  failure.value = false
+  loanDialog.value.showModal()
+}
+function loanFailure() {
+  const code = errors.value.detail
+  return t(typeof code === 'string' && te(code) ? code : 'error')
+}
+async function saveLoan(returning = false) {
+  if (busy.value || (!returning && invalidLoanPeriod.value)) return
+  busy.value = true
+  errors.value = {}
+  failure.value = false
+  notice.value = ""
+  try {
+    await json(await enviar(`pieces/${selected.value.id}/${returning ? 'return' : 'loan'}/`, returning ? {} : loanForm.value))
+    loanDialog.value.close()
+    await detail(selected.value.id)
+    notice.value = returning ? "loanReturned" : "loanSaved"
+  } catch { failure.value = true }
+  finally { busy.value = false }
+}
+function loanDate(value) {
+  return value ? new Date(`${value}T12:00:00`).toLocaleDateString(locale.value) : t('notRecorded')
+}
+function historyValue(field, value) {
+  if (value === null || value === undefined || value === "") return t('notRecorded')
+  if (field === 'state' && te(value)) return t(value)
+  if (typeof value === 'boolean') return t(value ? 'yes' : 'no')
+  return typeof value === 'object' ? JSON.stringify(value) : String(value)
+}
 onMounted(load)
 </script>
 <template>
@@ -266,6 +313,7 @@ onMounted(load)
                   <option value="">{{ t("state") }}</option>
                   <option value="stored">{{ t("stored") }}</option>
                   <option value="displayed">{{ t("displayed") }}</option>
+                  <option value="loaned">{{ t("loaned") }}</option>
                 </select>
               </th>
               <th scope="col">{{ t("location") }}</th>
@@ -363,7 +411,7 @@ onMounted(load)
         </fieldset>
         </section>
         <aside class="editor-sidebar">
-        <section v-if="mode === 'edit'" class="record-panel">
+        <section v-if="mode === 'edit' && selected.state !== 'loaned'" class="record-panel">
         <fieldset :disabled="busy">
           <legend>{{ t("stateAndLocation") }}</legend>
           <label for="piece-state">{{ t("state") }}</label>
@@ -482,8 +530,55 @@ onMounted(load)
             <div class="identifier-fact"><dt>{{ t('identifier') }}</dt><dd class="record-identifier">{{ selected.identifier }}</dd></div>
           </dl>
         </section>
+        <section class="piece-documentation">
+          <h3>{{ t('loanDetails') }}</h3>
+          <template v-if="props.usuario?.role === 'museologo'">
+            <p v-if="loanBlockReason" role="status">{{ t(loanBlockReason) }}</p>
+            <div v-else class="actions">
+              <button v-if="['stored', 'displayed'].includes(selected.state)" :disabled="busy" @click="beginLoan">{{ t('registerLoan') }}</button>
+              <button v-if="selected.state === 'loaned'" :disabled="busy" @click="saveLoan(true)">{{ t('returnLoan') }}</button>
+            </div>
+            <p v-if="failure && !loanDialog?.open" class="error" role="alert">{{ loanFailure() }}</p>
+          </template>
+          <dl v-if="selected.state === 'loaned'" class="documentation-grid">
+            <div><dt>{{ t('loan_to') }}</dt><dd>{{ selected.loan_to }}</dd></div>
+            <div><dt>{{ t('loan_start') }}</dt><dd>{{ loanDate(selected.loan_start) }}</dd></div>
+            <div><dt>{{ t('loan_end') }}</dt><dd>{{ loanDate(selected.loan_end) }}</dd></div>
+          </dl>
+          <h3>{{ t('history') }}</h3>
+          <ol class="history-list">
+            <li v-for="entry in selected.history" :key="entry.id">
+              <p>{{ new Date(entry.timestamp).toLocaleString(locale) }} · {{ entry.user || t('notRecorded') }} · {{ te(entry.action) ? t(entry.action) : entry.action }}</p>
+              <dl><div v-for="(change, field) in entry.changes" :key="field">
+                <dt>{{ te(field) ? t(field) : field }}</dt>
+                <dd>{{ historyValue(field, change.old) }} → {{ historyValue(field, change.new) }}</dd>
+              </div></dl>
+            </li>
+          </ol>
+        </section>
       </article>
     </template>
+    <dialog ref="loanDialog" class="delete-photo-dialog" aria-labelledby="loan-heading" :aria-busy="busy" @cancel="busy && $event.preventDefault()">
+      <form @submit.prevent="saveLoan(false)">
+        <h3 id="loan-heading">{{ t('registerLoan') }}</h3>
+        <fieldset :disabled="busy">
+          <label for="loan-recipient">{{ t('loan_to') }} *</label>
+          <input id="loan-recipient" v-model="loanForm.recipient" required maxlength="200" :aria-invalid="!!errors.recipient" aria-describedby="loan-recipient-error" />
+          <p v-if="errors.recipient" id="loan-recipient-error" class="error">{{ fieldError('recipient') }}</p>
+          <label for="loan-start">{{ t('loan_start') }} *</label>
+          <input id="loan-start" v-model="loanForm.start_date" type="date" required :aria-invalid="!!errors.start_date" aria-describedby="loan-start-error" />
+          <p v-if="errors.start_date" id="loan-start-error" class="error">{{ fieldError('start_date') }}</p>
+          <label for="loan-end">{{ t('loan_end') }} *</label>
+          <input id="loan-end" v-model="loanForm.end_date" type="date" required :min="loanForm.start_date" :aria-invalid="!!errors.end_date || !!invalidLoanPeriod" aria-describedby="loan-end-error" />
+          <p v-if="errors.end_date || invalidLoanPeriod" id="loan-end-error" class="error">{{ errors.end_date ? fieldError('end_date') : t('invalid_loan_period') }}</p>
+        </fieldset>
+        <p v-if="failure" role="alert" class="error">{{ loanFailure() }}</p>
+        <div class="actions">
+          <button type="button" :disabled="busy" @click="loanDialog.close()">{{ t('cancel') }}</button>
+          <button :disabled="busy">{{ t('save') }}</button>
+        </div>
+      </form>
+    </dialog>
     <dialog ref="deleteDialog" class="delete-photo-dialog" aria-labelledby="delete-photo-heading" :aria-busy="busy" @cancel="busy && $event.preventDefault()">
       <h3 id="delete-photo-heading">{{ t('deletePhoto') }}</h3>
       <p>{{ t('deletePhotoConfirm', { name: photoToDelete?.name }) }}</p>
@@ -597,6 +692,8 @@ fieldset {
 .piece-state { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 11px; line-height: 1.4; }
 .piece-state.displayed { background: #effcf3; color: #17652f; }
 .piece-state.stored { background: var(--color-footer); color: var(--color-secundario); }
+.piece-state.loaned { color: var(--color-enlace); border: 1px solid currentColor; }
+.history-list { padding-inline-start: 24px; }
 .collection-table .row-actions { padding: 4px 8px; }
 .edit-piece { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; padding: 10px; border: 0; background: transparent; color: var(--color-secundario); }
 .edit-piece svg { width: 18px; height: 18px; }
