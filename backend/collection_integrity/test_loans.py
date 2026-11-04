@@ -94,9 +94,9 @@ class LoanTests(TestCase):
                 self.assertEqual(response.json()["detail"], "cannot_loan_" + state)
         self.assertFalse(AuditEntry.objects.filter(entity="piece").exists())
 
-    def test_all_other_roles_receive_403_for_loan_and_return(self):
+    def test_roles_without_collection_permissions_receive_403_for_loan_and_return(self):
         for role in User.Role.values:
-            if role != User.Role.MUSEOLOGO:
+            if role in [User.Role.GUARDA, User.Role.COORDINADOR]:
                 with self.subTest(role=role):
                     self.user.role = role
                     self.user.save()
@@ -136,7 +136,7 @@ class LoanTests(TestCase):
         self.assertEqual((self.piece.state, self.piece.title), ("loaned", "Corrected"))
 
     def test_service_enforces_role_and_period(self):
-        self.user.role = User.Role.ADMINISTRADOR_GENERAL
+        self.user.role = User.Role.GUARDA
         with self.assertRaises(PermissionDenied):
             loan_piece(user=self.user, piece_id=self.piece.pk, **self.payload)
         with self.assertRaises(PermissionDenied):

@@ -42,7 +42,7 @@ class DecommissionTests(TestCase):
 
     def test_other_roles_denied(self):
         for role in User.Role.values:
-            if role == "museologo":
+            if role not in [User.Role.GUARDA, User.Role.COORDINADOR]:
                 continue
             self.user.role = role
             self.user.save()
@@ -89,7 +89,7 @@ class DecommissionTests(TestCase):
     def test_reactivation_denies_other_roles_and_unknown_piece(self):
         decommission_piece(user=self.user, piece_id=self.piece.pk, reason="Damage", confirmed=True)
         for role in User.Role.values:
-            if role == "museologo":
+            if role not in [User.Role.GUARDA, User.Role.COORDINADOR]:
                 continue
             self.user.role = role
             self.user.save()
@@ -113,6 +113,6 @@ class DecommissionTests(TestCase):
     def test_reactivation_service_enforces_role(self):
         from rest_framework.exceptions import PermissionDenied
         from .services import reactivate_piece
-        self.user.role = "administrador_general"
+        self.user.role = "guarda"
         with self.assertRaises(PermissionDenied):
             reactivate_piece(user=self.user, piece_id=self.piece.pk)

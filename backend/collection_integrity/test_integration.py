@@ -139,3 +139,47 @@ class IntegratedCollectionTests(TestCase):
         self.assertEqual(self.client.patch(url, {'location': ''}, format='json').status_code, 200)
         self.assertEqual(self.client.patch(url, {'state': 'displayed'}, format='json').status_code, 400)
         self.assertEqual(self.client.patch(url, {'location': 'x' * 201}, format='json').status_code, 400)
+
+
+    def test_museologist_and_both_admin_roles_can_manage_collection_lifecycle(self):
+        for role in [User.Role.MUSEOLOGO, User.Role.ADMINISTRADOR_GENERAL, User.Role.ADMINISTRADOR_SISTEMA]:
+            with self.subTest(role=role):
+                self.user.role = role
+                self.user.save()
+                piece = self.piece('Administración de colección')
+                base = f'/api/pieces/{piece.pk}/'
+                for state in ['stolen', 'lost']:
+                    response = self.client.post(base + 'missing/', {'state': state, 'event_date': str(timezone.localdate()), 'confirmed': True}, format='json')
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.json()['state'], state)
+                    self.assertEqual(self.client.post(base + 'recover/', {}, format='json').status_code, 200)
+                response = self.client.post(base + 'loan/', {'recipient': 'Museo B', 'start_date': '2026-01-01', 'end_date': '2026-01-02'}, format='json')
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(self.client.post(base + 'return/', {}, format='json').status_code, 200)
+                self.assertEqual(self.client.post(base + 'decommission/', {'reason': 'Revisión', 'confirmed': True}, format='json').status_code, 200)
+                self.assertEqual(self.client.post(base + 'reactivate/', {}, format='json').status_code, 200)
+                self.assertEqual(self.client.get('/api/collection/report/').status_code, 200)
+                piece.refresh_from_db()
+                self.assertEqual((piece.state, piece.decommissioned), ('stored', False))
+                entries = AuditEntry.objects.filter(entity='piece', entity_id=str(piece.pk))
+                self.assertEqual(entries.count(), 8)
+                self.assertEqual(set(entries.values_list('role', flat=True)), {role})
+
+    def test_inactive_accounts_cannot_use_collection_services(self):
+        from rest_framework.exceptions import PermissionDenied
+        from .services import recover_piece, reactivate_piece
+        self.user.role = User.Role.ADMINISTRADOR_SISTEMA
+        self.user.is_active = False
+        piece = self.piece('Cuenta inactiva')
+        operations = [
+            lambda: mark_missing(user=self.user, piece_id=piece.pk, state='stolen', event_date=str(timezone.localdate()), confirmed=True),
+            lambda: loan_piece(user=self.user, piece_id=piece.pk, recipient='Museo B', start_date='2026-01-01', end_date='2026-01-02'),
+            lambda: return_piece(user=self.user, piece_id=piece.pk),
+            lambda: decommission_piece(user=self.user, piece_id=piece.pk, reason='Revisión', confirmed=True),
+            lambda: recover_piece(user=self.user, piece_id=piece.pk),
+            lambda: reactivate_piece(user=self.user, piece_id=piece.pk),
+        ]
+        for operation in operations:
+            with self.assertRaises(PermissionDenied):
+                operation()
+        self.assertFalse(AuditEntry.objects.filter(entity='piece').exists())

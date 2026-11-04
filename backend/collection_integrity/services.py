@@ -5,7 +5,7 @@ from audit.services import record, snapshot
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError, PermissionDenied
-from api.models import User
+from api.permissions import permisos_para
 
 from .models import Photo, Piece
 
@@ -99,13 +99,13 @@ def edit_piece(*, user, piece_id, title, photos=None):
     )
 
 
-def require_museologist(user):
-    if not user.is_active or user.role != User.Role.MUSEOLOGO:
-        raise PermissionDenied("museologist_only")
+def require_collection_manager(user):
+    if "piezas.actualizar" not in permisos_para(user):
+        raise PermissionDenied("collection_management_required")
 
 
 def decommission_piece(*, user, piece_id, reason, confirmed):
-    require_museologist(user)
+    require_collection_manager(user)
     if not confirmed or not reason.strip():
         raise ValidationError({"detail": "confirmation_and_reason_required"})
     return _change(
@@ -119,7 +119,7 @@ def decommission_piece(*, user, piece_id, reason, confirmed):
 def loan_piece(*, user, piece_id, recipient, start_date, end_date):
     from .serializers import LoanSerializer
 
-    require_museologist(user)
+    require_collection_manager(user)
     serializer = LoanSerializer(data={"recipient": recipient, "start_date": start_date, "end_date": end_date})
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
@@ -133,7 +133,7 @@ def loan_piece(*, user, piece_id, recipient, start_date, end_date):
 
 
 def return_piece(*, user, piece_id):
-    require_museologist(user)
+    require_collection_manager(user)
     return _change(
         user=user, piece_id=piece_id, operation="return",
         values={"state": "stored", "location": "", "loan_to": "", "loan_start": None, "loan_end": None},
@@ -176,7 +176,7 @@ def attach_photo(*, user, piece_id, values):
 def mark_missing(*, user, piece_id, state, event_date, observations="", confirmed=False):
     from .serializers import MissingPieceSerializer
 
-    require_museologist(user)
+    require_collection_manager(user)
     serializer = MissingPieceSerializer(
         data={"state": state, "event_date": event_date,
               "observations": observations, "confirmed": confirmed},
@@ -191,7 +191,7 @@ def mark_missing(*, user, piece_id, state, event_date, observations="", confirme
 
 
 def recover_piece(*, user, piece_id):
-    require_museologist(user)
+    require_collection_manager(user)
     return _change(
         user=user, piece_id=piece_id, operation="recover",
         values={"state": "stored", "location": "", "event_date": None,
@@ -200,7 +200,7 @@ def recover_piece(*, user, piece_id):
 
 
 def reactivate_piece(*, user, piece_id):
-    require_museologist(user)
+    require_collection_manager(user)
     return _change(
         user=user, piece_id=piece_id, operation="reactivate",
         values={"state": "stored", "location": "", "decommissioned": False,

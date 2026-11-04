@@ -85,9 +85,9 @@ class MissingPieceTests(TestCase):
         self.assertTrue(self.piece.decommissioned)
         self.assertFalse(AuditEntry.objects.filter(entity="piece").exists())
 
-    def test_all_other_roles_denied_including_administrators(self):
+    def test_roles_without_collection_permissions_denied(self):
         for role in User.Role.values:
-            if role == User.Role.MUSEOLOGO:
+            if role not in [User.Role.GUARDA, User.Role.COORDINADOR]:
                 continue
             with self.subTest(role=role):
                 self.user.role = role
@@ -124,7 +124,7 @@ class MissingPieceTests(TestCase):
                 self.assertEqual(self.client.get(f"/api/pieces/?state={previous}").json(), [])
 
     def test_service_enforces_role_and_future_date(self):
-        self.user.role = User.Role.ADMINISTRADOR_GENERAL
+        self.user.role = User.Role.GUARDA
         with self.assertRaises(PermissionDenied):
             mark_missing(user=self.user, piece_id=self.piece.pk, **self.payload)
         self.user.role = User.Role.MUSEOLOGO
@@ -162,7 +162,7 @@ class MissingPieceTests(TestCase):
     def test_recovery_denies_other_roles_and_unknown_piece(self):
         Piece.objects.filter(pk=self.piece.pk).update(state="stolen", location="")
         for role in User.Role.values:
-            if role == User.Role.MUSEOLOGO:
+            if role not in [User.Role.GUARDA, User.Role.COORDINADOR]:
                 continue
             self.user.role = role
             self.user.save()
@@ -184,6 +184,6 @@ class MissingPieceTests(TestCase):
 
     def test_recovery_service_enforces_role(self):
         from .services import recover_piece
-        self.user.role = User.Role.ADMINISTRADOR_GENERAL
+        self.user.role = User.Role.GUARDA
         with self.assertRaises(PermissionDenied):
             recover_piece(user=self.user, piece_id=self.piece.pk)

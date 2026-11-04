@@ -123,9 +123,9 @@ class CollectionReportTests(TestCase):
         with self.assertRaises(ValidationError):
             collection_report_data(collection="x" * 201)
 
-    def test_only_museologist_can_generate_report(self):
+    def test_roles_without_report_permission_denied(self):
         for role in User.Role.values:
-            if role != User.Role.MUSEOLOGO:
+            if role in [User.Role.GUARDA, User.Role.COORDINADOR]:
                 with self.subTest(role=role):
                     self.user.role = role
                     self.user.save()

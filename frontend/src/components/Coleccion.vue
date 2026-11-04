@@ -5,6 +5,7 @@ import { solicitar, enviar } from "../api.js"
 import CollectionReport from "./CollectionReport.vue"
 import messages from "./collectionMessages.js"
 const props = defineProps({ usuario: Object })
+const canManageCollection = computed(() => props.usuario?.permissions?.includes("piezas.actualizar"))
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
 const { t, te, locale } = useI18n({ messages, useScope: "local" })
 const fields = [
@@ -70,7 +71,7 @@ async function open(id, editing = false) {
   photoResults.value = []
   try {
     await detail(id)
-    if (editing && (!selected.value.decommissioned || props.usuario?.role === "museologo")) edit()
+    if (editing && (!selected.value.decommissioned || canManageCollection.value)) edit()
   } catch {
     failure.value = true
   } finally {
@@ -371,7 +372,7 @@ onMounted(load)
           <p v-if="!busy && !failure" class="piece-count">{{ t(filter ? "filteredCount" : "pieceCount", { count: pieces.length }) }}</p>
         </div>
         <div class="list-actions">
-          <button v-if="props.usuario?.role === 'museologo'" :disabled="busy" @click="openReport">{{ t('report') }}</button>
+          <button v-if="props.usuario?.permissions?.includes('colecciones.generar_reportes')" :disabled="busy" @click="openReport">{{ t('report') }}</button>
           <button class="refresh-list" :disabled="busy" :aria-label="t('refresh')" :title="t('refresh')" @click="load">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3a7 7 0 0 0 11.5-1" /></svg>
           </button>
@@ -414,7 +415,7 @@ onMounted(load)
               <td><span class="piece-state" :class="piece.state">{{ t(piece.state) }}</span></td>
               <td>{{ piece.location || t("noLocation") }}</td>
               <td class="row-actions">
-                <button v-if="!piece.decommissioned || props.usuario?.role === 'museologo'" class="edit-piece" :disabled="busy" :aria-label="t('editPiece', { title: piece.title })" :title="t('edit')" @click="open(piece.id, true)">
+                <button v-if="!piece.decommissioned || canManageCollection" class="edit-piece" :disabled="busy" :aria-label="t('editPiece', { title: piece.title })" :title="t('edit')" @click="open(piece.id, true)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M13.5 5.5 18.5 10.5M4 20l4.5-1 12-12a2.1 2.1 0 0 0-3-3l-12 12L4 20Z" />
                     <path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7" />
@@ -515,7 +516,7 @@ onMounted(load)
             <p v-if="errors.location" id="location-error" class="error">
               {{ fieldError("location") }}
             </p></template>
-          <template v-if="mode === 'edit' && props.usuario?.role === 'museologo'">
+          <template v-if="mode === 'edit' && canManageCollection">
             <div class="actions state-actions">
               <button v-if="selected.state !== 'loaned'" type="button" :disabled="!!loanBlockReason" :title="loanBlockReason ? t(loanBlockReason) : undefined" @click="beginLoan">{{ t('registerLoan') }}</button>
               <button v-if="!loanBlockReason && selected.state === 'loaned'" type="button" @click="saveLoan(true)">{{ t('returnLoan') }}</button>

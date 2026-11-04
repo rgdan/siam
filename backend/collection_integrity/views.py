@@ -8,8 +8,6 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework.exceptions import PermissionDenied
-from api.models import User
 
 from .models import Photo, Piece
 from .serializers import (
@@ -19,7 +17,7 @@ from .serializers import (
     UploadSerializer,
     LoanSerializer,
 )
-from .services import _finish, attach_photo, register_piece, loan_piece, return_piece, require_museologist
+from .services import _finish, attach_photo, register_piece, loan_piece, return_piece, require_collection_manager
 from .reports import collection_report_data
 
 logger = logging.getLogger(__name__)
@@ -28,8 +26,6 @@ logger = logging.getLogger(__name__)
 @api_view(["GET"])
 @requiere_permiso("colecciones.generar_reportes")
 def collection_report(request):
-    if request.user.role != User.Role.MUSEOLOGO:
-        raise PermissionDenied("museologist_only")
     return Response(collection_report_data(**{
         key: request.query_params[key]
         for key in ["state", "object_type", "collection"] if key in request.query_params
@@ -164,9 +160,9 @@ def reorder_photos(request, piece_id):
 @api_view(["POST"])
 @requiere_permiso("piezas.dar_baja")
 def decommission(request, piece_id):
-    from .services import decommission_piece, require_museologist
+    from .services import decommission_piece, require_collection_manager
     from .serializers import DecommissionSerializer
-    require_museologist(request.user)
+    require_collection_manager(request.user)
     get_object_or_404(Piece, pk=piece_id)
     serializer = DecommissionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -177,9 +173,9 @@ def decommission(request, piece_id):
 @api_view(["POST"])
 @requiere_permiso("piezas.marcar_robo_extravio")
 def missing(request, piece_id):
-    from .services import mark_missing, require_museologist
+    from .services import mark_missing, require_collection_manager
     from .serializers import MissingPieceSerializer
-    require_museologist(request.user)
+    require_collection_manager(request.user)
     get_object_or_404(Piece, pk=piece_id)
     serializer = MissingPieceSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -190,7 +186,7 @@ def missing(request, piece_id):
 @api_view(["POST"])
 @requiere_permiso("piezas.registrar_prestamo")
 def loan(request, piece_id):
-    require_museologist(request.user)
+    require_collection_manager(request.user)
     get_object_or_404(Piece, pk=piece_id)
     serializer = LoanSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -201,7 +197,7 @@ def loan(request, piece_id):
 @api_view(["POST"])
 @requiere_permiso("piezas.registrar_prestamo")
 def return_loan(request, piece_id):
-    require_museologist(request.user)
+    require_collection_manager(request.user)
     get_object_or_404(Piece, pk=piece_id)
     piece = return_piece(user=request.user, piece_id=piece_id)
     return Response(PieceSerializer(piece).data)
@@ -211,7 +207,7 @@ def return_loan(request, piece_id):
 @requiere_permiso("piezas.marcar_robo_extravio")
 def recover(request, piece_id):
     from .services import recover_piece
-    require_museologist(request.user)
+    require_collection_manager(request.user)
     get_object_or_404(Piece, pk=piece_id)
     piece = recover_piece(user=request.user, piece_id=piece_id)
     return Response(PieceSerializer(piece).data)
@@ -221,7 +217,7 @@ def recover(request, piece_id):
 @requiere_permiso("piezas.dar_baja")
 def reactivate(request, piece_id):
     from .services import reactivate_piece
-    require_museologist(request.user)
+    require_collection_manager(request.user)
     get_object_or_404(Piece, pk=piece_id)
     piece = reactivate_piece(user=request.user, piece_id=piece_id)
     return Response(PieceSerializer(piece).data)
