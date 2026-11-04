@@ -57,6 +57,8 @@ def _change(*, user, piece_id, operation, values, photos=None):
             raise ValidationError({"detail": "not_loaned"})
         if operation == "state" and (piece.state not in ["stored", "displayed"] or values["state"] not in ["stored", "displayed"]):
             raise ValidationError({"detail": "unavailable_piece"})
+        if operation == "recover" and piece.state not in ["stolen", "lost"]:
+            raise ValidationError({"detail": "not_missing"})
         old = snapshot(piece)
         old["photos"] = list(piece.photos.values_list("pk", flat=True))
         for key, value in values.items():
@@ -183,4 +185,13 @@ def mark_missing(*, user, piece_id, state, event_date, observations="", confirme
         user=user, piece_id=piece_id, operation="missing",
         values={"state": data["state"], "event_date": data["event_date"],
                 "event_observations": data["observations"], "location": ""},
+    )
+
+
+def recover_piece(*, user, piece_id):
+    require_museologist(user)
+    return _change(
+        user=user, piece_id=piece_id, operation="recover",
+        values={"state": "stored", "location": "", "event_date": None,
+                "event_observations": "", "loan_to": "", "loan_start": None, "loan_end": None},
     )

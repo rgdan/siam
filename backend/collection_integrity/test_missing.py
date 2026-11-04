@@ -130,3 +130,60 @@ class MissingPieceTests(TestCase):
         self.user.role = User.Role.MUSEOLOGO
         with self.assertRaises(ValidationError):
             mark_missing(user=self.user, piece_id=self.piece.pk, **(self.payload | {"event_date": str(timezone.localdate() + timedelta(days=1))}))
+
+
+    def test_recovery_restores_storage_preserves_piece_and_records_audit(self):
+        for state in ["stolen", "lost"]:
+            with self.subTest(state=state):
+                self.assertEqual(self.client.post(self.url, self.payload | {"state": state}, format="json").status_code, 200)
+                response = self.client.post(f"/api/pieces/{self.piece.pk}/recover/", {}, format="json")
+                self.assertEqual(response.status_code, 200)
+                self.piece.refresh_from_db()
+                self.assertEqual((self.piece.state, self.piece.location, self.piece.title), ("stored", "", "Original"))
+                self.assertIsNone(self.piece.event_date)
+                self.assertEqual(self.piece.event_observations, "")
+                self.assertEqual(self.piece.photos.get().content, b"original")
+                entry = AuditEntry.objects.filter(entity="piece", entity_id=str(self.piece.pk)).latest("timestamp")
+                self.assertEqual(entry.changes["state"], {"old": state, "new": "stored"})
+                self.assertEqual(entry.user, self.user)
+                self.assertTrue(AuditEntry.objects.filter(entity="piece", changes__state__new=state).exists())
+
+    def test_recovery_rejects_other_states_and_decommissioned_pieces(self):
+        for state in ["stored", "displayed", "loaned", "decommissioned"]:
+            with self.subTest(state=state):
+                Piece.objects.filter(pk=self.piece.pk).update(state=state, location="Room 1" if state == "displayed" else "")
+                self.assertEqual(self.client.post(f"/api/pieces/{self.piece.pk}/recover/", {}, format="json").status_code, 400)
+                self.piece.refresh_from_db()
+                self.assertEqual(self.piece.state, state)
+        Piece.objects.filter(pk=self.piece.pk).update(state="stolen", location="", decommissioned=True)
+        self.assertEqual(self.client.post(f"/api/pieces/{self.piece.pk}/recover/", {}, format="json").status_code, 400)
+        self.assertFalse(AuditEntry.objects.filter(entity="piece").exists())
+
+    def test_recovery_denies_other_roles_and_unknown_piece(self):
+        Piece.objects.filter(pk=self.piece.pk).update(state="stolen", location="")
+        for role in User.Role.values:
+            if role == User.Role.MUSEOLOGO:
+                continue
+            self.user.role = role
+            self.user.save()
+            self.assertEqual(self.client.post(f"/api/pieces/{self.piece.pk}/recover/", {}, format="json").status_code, 403)
+        self.user.role = User.Role.MUSEOLOGO
+        self.user.save()
+        self.assertEqual(self.client.post("/api/pieces/999999/recover/", {}, format="json").status_code, 404)
+        self.piece.refresh_from_db()
+        self.assertEqual(self.piece.state, "stolen")
+
+    def test_recovery_audit_failure_rolls_back(self):
+        self.client.post(self.url, self.payload, format="json")
+        with patch("collection_integrity.services.record", side_effect=RuntimeError("Audit unavailable")):
+            with self.assertRaises(RuntimeError):
+                self.client.post(f"/api/pieces/{self.piece.pk}/recover/", {}, format="json")
+        self.piece.refresh_from_db()
+        self.assertEqual(self.piece.state, "stolen")
+        self.assertEqual(self.piece.event_date, timezone.localdate())
+
+    def test_recovery_service_enforces_role(self):
+        from .services import recover_piece
+        self.user.role = User.Role.ADMINISTRADOR_GENERAL
+        with self.assertRaises(PermissionDenied):
+            recover_piece(user=self.user, piece_id=self.piece.pk)

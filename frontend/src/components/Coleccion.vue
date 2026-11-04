@@ -266,23 +266,15 @@ async function saveLoan(returning = false) {
   try {
     await json(await enviar(`pieces/${selected.value.id}/${returning ? 'return' : 'loan'}/`, returning ? {} : loanForm.value))
     loanDialog.value.close()
-    await detail(selected.value.id)
+    selected.value = await json(await solicitar(`pieces/${selected.value.id}/`))
+    form.value.state = selected.value.state
+    form.value.location = selected.value.location
     notice.value = returning ? "loanReturned" : "loanSaved"
   } catch { failure.value = true }
   finally { busy.value = false }
 }
 function loanDate(value) {
   return value ? new Date(`${value}T12:00:00`).toLocaleDateString(locale.value) : t('notRecorded')
-}
-function historyValue(field, value) {
-  if (value === null || value === undefined || value === "") return t('notRecorded')
-  if (field === 'state' && te(value)) return t(value)
-  if (field === 'decommissioned_at') return new Date(value).toLocaleString(locale.value)
-  if (['loan_start', 'loan_end', 'event_date'].includes(field)) return loanDate(value)
-  if (field === 'decommissioned_by' && String(value) === String(selected.value?.decommissioned_by))
-    return selected.value.decommissioned_user || String(value)
-  if (typeof value === 'boolean') return t(value ? 'yes' : 'no')
-  return typeof value === 'object' ? JSON.stringify(value) : String(value)
 }
 const missingDialog = ref(null), missingForm = ref({})
 function today() {
@@ -308,8 +300,31 @@ async function saveMissing() {
   try {
     await json(await enviar(`pieces/${selected.value.id}/missing/`, missingForm.value))
     missingDialog.value.close()
-    await detail(selected.value.id)
+    selected.value = await json(await solicitar(`pieces/${selected.value.id}/`))
+    form.value.state = selected.value.state
+    form.value.location = selected.value.location
     notice.value = "saved"
+  } catch { failure.value = true }
+  finally { busy.value = false }
+}
+const recoveryDialog = ref(null)
+function beginRecovery() {
+  errors.value = {}
+  failure.value = false
+  recoveryDialog.value.showModal()
+}
+async function recoverPiece() {
+  if (busy.value) return
+  busy.value = true
+  failure.value = false
+  notice.value = ""
+  try {
+    await json(await enviar(`pieces/${selected.value.id}/recover/`))
+    recoveryDialog.value.close()
+    selected.value = await json(await solicitar(`pieces/${selected.value.id}/`))
+    form.value.state = selected.value.state
+    form.value.location = selected.value.location
+    notice.value = "pieceRecovered"
   } catch { failure.value = true }
   finally { busy.value = false }
 }
@@ -478,11 +493,12 @@ onMounted(load)
         </fieldset>
         </section>
         <aside class="editor-sidebar">
-        <section v-if="mode === 'edit' && ['stored', 'displayed'].includes(selected.state)" class="record-panel">
+        <section v-if="mode === 'edit'" class="record-panel state-editor">
         <fieldset :disabled="busy">
           <legend>{{ t("stateAndLocation") }}</legend>
           <label for="piece-state">{{ t("state") }}</label>
-          <select id="piece-state" v-model="form.state">
+          <select id="piece-state" v-model="form.state" :disabled="!['stored', 'displayed'].includes(selected.state)">
+            <option v-if="!['stored', 'displayed'].includes(selected.state)" :value="selected.state">{{ t(selected.state) }}</option>
             <option value="stored">{{ t("stored") }}</option>
             <option value="displayed">{{ t("displayed") }}</option></select
           ><template v-if="form.state === 'displayed'"
@@ -498,6 +514,16 @@ onMounted(load)
             <p v-if="errors.location" id="location-error" class="error">
               {{ fieldError("location") }}
             </p></template>
+          <template v-if="props.usuario?.role === 'museologo'">
+            <div class="actions state-actions">
+              <button v-if="selected.state !== 'loaned'" type="button" :disabled="!!loanBlockReason" :title="loanBlockReason ? t(loanBlockReason) : undefined" @click="beginLoan">{{ t('registerLoan') }}</button>
+              <button v-if="!loanBlockReason && selected.state === 'loaned'" type="button" @click="saveLoan(true)">{{ t('returnLoan') }}</button>
+              <button v-if="!selected.decommissioned && !['stolen', 'lost'].includes(selected.state)" type="button" @click="beginMissing">{{ t('markMissing') }}</button>
+              <button v-if="!selected.decommissioned && ['stolen', 'lost'].includes(selected.state)" type="button" @click="beginRecovery">{{ t('recoverPiece') }}</button>
+              <button v-if="!selected.decommissioned" type="button" @click="beginDecommission">{{ t('decommission') }}</button>
+            </div>
+            <p v-if="failure && !loanDialog?.open" class="error" role="alert">{{ loanFailure() }}</p>
+          </template>
         </fieldset>
         </section>
         <section v-if="mode === 'edit'" class="record-panel photo-editor">
@@ -598,25 +624,13 @@ onMounted(load)
             <div class="identifier-fact"><dt>{{ t('identifier') }}</dt><dd class="record-identifier">{{ selected.identifier }}</dd></div>
           </dl>
         </section>
-        <section class="piece-documentation">
-          <h3>{{ t('loanDetails') }}</h3>
-          <template v-if="props.usuario?.role === 'museologo'">
-            <p v-if="loanBlockReason" role="status">{{ t(loanBlockReason) }}</p>
-            <div v-else class="actions">
-              <button v-if="['stored', 'displayed'].includes(selected.state)" :disabled="busy" @click="beginLoan">{{ t('registerLoan') }}</button>
-              <button v-if="selected.state === 'loaned'" :disabled="busy" @click="saveLoan(true)">{{ t('returnLoan') }}</button>
-            </div>
-            <p v-if="failure && !loanDialog?.open" class="error" role="alert">{{ loanFailure() }}</p>
-          </template>
+        <section v-if="selected.state === 'loaned' || selected.decommissioned || selected.event_date" class="piece-documentation">
+          <h3 v-if="selected.state === 'loaned'">{{ t('loanDetails') }}</h3>
           <dl v-if="selected.state === 'loaned'" class="documentation-grid">
             <div><dt>{{ t('loan_to') }}</dt><dd>{{ selected.loan_to }}</dd></div>
             <div><dt>{{ t('loan_start') }}</dt><dd>{{ loanDate(selected.loan_start) }}</dd></div>
             <div><dt>{{ t('loan_end') }}</dt><dd>{{ loanDate(selected.loan_end) }}</dd></div>
           </dl>
-          <div v-if="props.usuario?.role === 'museologo' && !selected.decommissioned" class="actions">
-            <button :disabled="busy" @click="beginMissing">{{ t('markMissing') }}</button>
-            <button :disabled="busy" @click="beginDecommission">{{ t('decommission') }}</button>
-          </div>
           <dl v-if="selected.decommissioned">
             <dt>{{ t('decommissionReason') }}</dt><dd>{{ selected.decommission_reason || t('notRecorded') }}</dd>
             <dt>{{ t('recordedAt') }}</dt><dd>{{ selected.decommissioned_at ? new Date(selected.decommissioned_at).toLocaleString(locale) : t('notRecorded') }}</dd>
@@ -626,16 +640,6 @@ onMounted(load)
             <dt>{{ t('event_date') }}</dt><dd>{{ eventDate(selected.event_date) }}</dd>
             <dt>{{ t('event_observations') }}</dt><dd>{{ selected.event_observations || t('notRecorded') }}</dd>
           </dl>
-          <h3>{{ t('history') }}</h3>
-          <ol class="history-list">
-            <li v-for="entry in selected.history" :key="entry.id">
-              <p>{{ new Date(entry.timestamp).toLocaleString(locale) }} · {{ entry.user || t('notRecorded') }} · {{ te(entry.action) ? t(entry.action) : entry.action }}</p>
-              <dl><div v-for="(change, field) in entry.changes" :key="field">
-                <dt>{{ field === 'title' ? t('pieceTitle') : te(field) ? t(field) : field }}</dt>
-                <dd>{{ historyValue(field, change.old) }} → {{ historyValue(field, change.new) }}</dd>
-              </div></dl>
-            </li>
-          </ol>
         </section>
       </article>
     </template>
@@ -681,6 +685,15 @@ onMounted(load)
         <p v-if="failure" role="alert" class="error">{{ t('error') }}</p>
         <div class="actions"><button type="button" :disabled="busy" @click="missingDialog.close()">{{ t('cancel') }}</button><button :disabled="busy">{{ t('confirm') }}</button></div>
       </form>
+    </dialog>
+    <dialog ref="recoveryDialog" class="delete-photo-dialog" aria-labelledby="recovery-heading" @cancel="busy && $event.preventDefault()">
+      <h3 id="recovery-heading">{{ t('recoverPiece') }}</h3>
+      <p>{{ t('recoveryConfirm') }}</p>
+      <p v-if="failure" role="alert" class="error">{{ loanFailure() }}</p>
+      <div class="actions">
+        <button type="button" :disabled="busy" autofocus @click="recoveryDialog.close()">{{ t('cancel') }}</button>
+        <button type="button" :disabled="busy" @click="recoverPiece">{{ t('confirm') }}</button>
+      </div>
     </dialog>
     <dialog ref="lifecycleDialog" class="delete-photo-dialog" aria-labelledby="lifecycle-heading" @cancel="busy && $event.preventDefault()">
       <form @submit.prevent="decommission">
@@ -751,7 +764,7 @@ button {
 }
 button:disabled {
   opacity: 0.6;
-  cursor: wait;
+  cursor: not-allowed;
 }
 label {
   display: block;
@@ -811,7 +824,6 @@ fieldset {
 .piece-state.displayed { background: #effcf3; color: #17652f; }
 .piece-state.stored { background: var(--color-footer); color: var(--color-secundario); }
 .piece-state.loaned { color: var(--color-enlace); border: 1px solid currentColor; }
-.history-list { padding-inline-start: 24px; }
 .collection-table .row-actions { padding: 4px 8px; }
 .edit-piece { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; padding: 10px; border: 0; background: transparent; color: var(--color-secundario); }
 .edit-piece svg { width: 18px; height: 18px; }
@@ -900,6 +912,7 @@ dd {
 .photo-editor input[type="file"] { padding: 12px; border-style: dashed; font-size: 12px; }
 .photo-editor input::file-selector-button { min-height: 36px; border: 0; border-radius: 4px; margin-right: 8px; padding: 8px; background: var(--color-footer); color: var(--color-texto); font: inherit; cursor: pointer; }
 .photo-editor .photo-note { font-size: 12px; }
+.state-actions { flex-direction: column; padding-top: 16px; border-top: 1px solid var(--color-divisor); }
 .editor-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-divisor); }
 .editor-footer > p { color: var(--color-secundario); font-size: 12px; }
 .editor-footer .actions { margin: 0; }
