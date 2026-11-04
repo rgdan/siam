@@ -103,3 +103,39 @@ class IntegratedCollectionTests(TestCase):
         self.assertEqual((piece.state, piece.location, piece.decommissioned), ('displayed', 'Sala 1', False))
         self.assertEqual(collection_report_data()['by_state'], before['by_state'])
         self.assertFalse(AuditEntry.objects.filter(entity='piece').exists())
+
+
+    def test_storage_location_is_saved_audited_and_preserved_on_other_edits(self):
+        piece = self.piece('Ubicación de almacén')
+        url = f'/api/pieces/{piece.pk}/'
+        response = self.client.patch(url, {'location': 'Bodega A, estante 3'}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['location'], 'Bodega A, estante 3')
+        self.assertEqual(self.client.patch(url, {'title': 'Nuevo título'}, format='json').status_code, 200)
+        piece.refresh_from_db()
+        self.assertEqual((piece.state, piece.location), ('stored', 'Bodega A, estante 3'))
+        self.assertTrue(AuditEntry.objects.filter(entity='piece', entity_id=str(piece.pk), changes__location__new='Bodega A, estante 3').exists())
+        response = self.client.patch(url, {'state': 'displayed'}, format='json')
+        self.assertEqual(response.status_code, 200)
+        response = self.client.patch(url, {'state': 'stored'}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['location'], 'Bodega A, estante 3')
+        self.assertEqual(self.client.get(url).json()['location'], 'Bodega A, estante 3')
+
+    def test_storage_creation_and_state_helper_accept_physical_location(self):
+        payload = {key: 'Dato' for key in ['title', 'object_type', 'materials_techniques', 'inscriptions_marks', 'distinguishing_features', 'subject', 'date_period', 'author_maker']}
+        payload.update(measurement_value='10', measurement_unit='cm', location='Bodega B')
+        response = self.client.post('/api/pieces/', payload, format='json')
+        self.assertEqual(response.status_code, 201)
+        piece = Piece.objects.get(pk=response.json()['id'])
+        self.assertEqual((piece.state, piece.location), ('stored', 'Bodega B'))
+        change_piece_state(user=self.user, piece_id=piece.pk, state='stored', location='Bodega C')
+        piece.refresh_from_db()
+        self.assertEqual(piece.location, 'Bodega C')
+
+    def test_storage_location_remains_optional_and_display_location_required(self):
+        piece = self.piece('Sin ubicación registrada')
+        url = f'/api/pieces/{piece.pk}/'
+        self.assertEqual(self.client.patch(url, {'location': ''}, format='json').status_code, 200)
+        self.assertEqual(self.client.patch(url, {'state': 'displayed'}, format='json').status_code, 400)
+        self.assertEqual(self.client.patch(url, {'location': 'x' * 201}, format='json').status_code, 400)

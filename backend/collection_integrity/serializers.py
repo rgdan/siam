@@ -68,8 +68,6 @@ class PieceSerializer(serializers.ModelSerializer):
                 errors["state"] = "unavailable_piece"
         if state == "displayed" and not location.strip():
             errors["location"] = "required"
-        if state == "stored":
-            attrs["location"] = ""
         if errors:
             raise serializers.ValidationError(errors)
         return attrs

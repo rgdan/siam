@@ -145,7 +145,7 @@ def change_piece_state(*, user, piece_id, state, location=""):
         user=user,
         piece_id=piece_id,
         operation="state",
-        values={"state": state, "location": location if state == "displayed" else ""},
+        values={"state": state, "location": location},
     )
 
 

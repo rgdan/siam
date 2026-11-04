@@ -97,7 +97,7 @@ function edit(create = false) {
           selected.value[f],
         ]),
       )
-  if (create) form.value.measurement_unit = "cm"
+  if (create) Object.assign(form.value, { measurement_unit: "cm", state: "stored", location: "" })
 }
 function validate() {
   errors.value = {}
@@ -494,28 +494,28 @@ onMounted(load)
         </fieldset>
         </section>
         <aside class="editor-sidebar">
-        <section v-if="mode === 'edit'" class="record-panel state-editor">
+        <section class="record-panel state-editor">
         <fieldset :disabled="busy">
           <legend>{{ t("stateAndLocation") }}</legend>
           <label for="piece-state">{{ t("state") }}</label>
-          <select id="piece-state" v-model="form.state" :disabled="selected.decommissioned || !['stored', 'displayed'].includes(selected.state)">
-            <option v-if="!['stored', 'displayed'].includes(selected.state)" :value="selected.state">{{ t(selected.state) }}</option>
+          <select id="piece-state" v-model="form.state" :disabled="mode === 'new' || selected.decommissioned || !['stored', 'displayed'].includes(selected.state)">
+            <option v-if="mode === 'edit' && !['stored', 'displayed'].includes(selected.state)" :value="selected.state">{{ t(selected.state) }}</option>
             <option value="stored">{{ t("stored") }}</option>
-            <option value="displayed">{{ t("displayed") }}</option></select
-          ><template v-if="form.state === 'displayed'"
-            ><label for="location">{{ t("location") }} *</label
+            <option v-if="mode === 'edit'" value="displayed">{{ t("displayed") }}</option></select
+          ><template v-if="['stored', 'displayed'].includes(form.state) && (mode === 'new' || !selected.decommissioned)"
+            ><label for="location">{{ t("location") }}{{ form.state === 'displayed' ? ' *' : '' }}</label
             ><input
               id="location"
               v-model="form.location"
               maxlength="200"
-              required
+              :required="form.state === 'displayed'"
               :aria-invalid="!!errors.location"
               aria-describedby="location-error"
             />
             <p v-if="errors.location" id="location-error" class="error">
               {{ fieldError("location") }}
             </p></template>
-          <template v-if="props.usuario?.role === 'museologo'">
+          <template v-if="mode === 'edit' && props.usuario?.role === 'museologo'">
             <div class="actions state-actions">
               <button v-if="selected.state !== 'loaned'" type="button" :disabled="!!loanBlockReason" :title="loanBlockReason ? t(loanBlockReason) : undefined" @click="beginLoan">{{ t('registerLoan') }}</button>
               <button v-if="!loanBlockReason && selected.state === 'loaned'" type="button" @click="saveLoan(true)">{{ t('returnLoan') }}</button>

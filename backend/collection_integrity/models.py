@@ -49,7 +49,8 @@ class Piece(models.Model):
                 name="piece_valid_state",
             ),
             models.CheckConstraint(
-                condition=models.Q(state__in=["stored", "decommissioned", "stolen", "lost", "loaned"], location="")
+                condition=models.Q(state="stored")
+                | models.Q(state__in=["decommissioned", "stolen", "lost", "loaned"], location="")
                 | (models.Q(state="displayed") & ~models.Q(location="")),
                 name="piece_current_location",
             ),
