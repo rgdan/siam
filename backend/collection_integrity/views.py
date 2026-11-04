@@ -215,3 +215,13 @@ def recover(request, piece_id):
     get_object_or_404(Piece, pk=piece_id)
     piece = recover_piece(user=request.user, piece_id=piece_id)
     return Response(PieceSerializer(piece).data)
+
+
+@api_view(["POST"])
+@requiere_permiso("piezas.dar_baja")
+def reactivate(request, piece_id):
+    from .services import reactivate_piece
+    require_museologist(request.user)
+    get_object_or_404(Piece, pk=piece_id)
+    piece = reactivate_piece(user=request.user, piece_id=piece_id)
+    return Response(PieceSerializer(piece).data)

@@ -57,3 +57,62 @@ class DecommissionTests(TestCase):
         self.assertFalse(self.piece.decommissioned)
         self.assertEqual(self.piece.location, "Room 1")
         self.assertFalse(AuditEntry.objects.filter(entity="piece").exists())
+
+
+    def test_reactivation_restores_storage_and_preserves_history_and_photos(self):
+        self.client.post(self.url, {"reason": "Damage", "confirmed": True}, format="json")
+        response = self.client.post(f"/api/pieces/{self.piece.pk}/reactivate/", {}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.piece.refresh_from_db()
+        self.assertEqual((self.piece.state, self.piece.location, self.piece.decommissioned), ("stored", "", False))
+        self.assertEqual(self.piece.title, "Test")
+        self.assertEqual(self.piece.photos.get().content, b"original")
+        self.assertIsNone(self.piece.decommissioned_at)
+        self.assertIsNone(self.piece.decommissioned_by)
+        self.assertEqual(self.piece.decommission_reason, "")
+        entries = AuditEntry.objects.filter(entity="piece", entity_id=str(self.piece.pk))
+        self.assertEqual(entries.count(), 2)
+        latest = entries.latest("timestamp")
+        self.assertEqual(latest.changes["state"], {"old": "decommissioned", "new": "stored"})
+        self.assertEqual(latest.changes["decommissioned"], {"old": True, "new": False})
+        self.assertTrue(entries.filter(action_type="decommission", changes__decommission_reason__new="Damage").exists())
+        self.assertEqual(self.client.patch(f"/api/pieces/{self.piece.pk}/", {"title": "Editable again"}, format="json").status_code, 200)
+        self.assertEqual(self.client.post(f"/api/pieces/{self.piece.pk}/reactivate/", {}, format="json").status_code, 400)
+
+    def test_reactivation_rejects_active_pieces(self):
+        response = self.client.post(f"/api/pieces/{self.piece.pk}/reactivate/", {}, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.piece.refresh_from_db()
+        self.assertEqual(self.piece.state, "displayed")
+        self.assertFalse(AuditEntry.objects.filter(entity="piece").exists())
+
+    def test_reactivation_denies_other_roles_and_unknown_piece(self):
+        decommission_piece(user=self.user, piece_id=self.piece.pk, reason="Damage", confirmed=True)
+        for role in User.Role.values:
+            if role == "museologo":
+                continue
+            self.user.role = role
+            self.user.save()
+            self.assertEqual(self.client.post(f"/api/pieces/{self.piece.pk}/reactivate/", {}, format="json").status_code, 403)
+        self.piece.refresh_from_db()
+        self.assertTrue(self.piece.decommissioned)
+        self.user.role = "museologo"
+        self.user.save()
+        self.assertEqual(self.client.post("/api/pieces/999999/reactivate/", {}, format="json").status_code, 404)
+
+    def test_reactivation_audit_failure_rolls_back(self):
+        decommission_piece(user=self.user, piece_id=self.piece.pk, reason="Damage", confirmed=True)
+        with patch("collection_integrity.services.record", side_effect=RuntimeError("audit failed")):
+            with self.assertRaises(RuntimeError):
+                self.client.post(f"/api/pieces/{self.piece.pk}/reactivate/", {}, format="json")
+        self.piece.refresh_from_db()
+        self.assertTrue(self.piece.decommissioned)
+        self.assertEqual(self.piece.state, "decommissioned")
+        self.assertEqual(self.piece.decommission_reason, "Damage")
+
+    def test_reactivation_service_enforces_role(self):
+        from rest_framework.exceptions import PermissionDenied
+        from .services import reactivate_piece
+        self.user.role = "administrador_general"
+        with self.assertRaises(PermissionDenied):
+            reactivate_piece(user=self.user, piece_id=self.piece.pk)

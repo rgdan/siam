@@ -49,8 +49,10 @@ def _change(*, user, piece_id, operation, values, photos=None):
         piece = Piece.objects.select_for_update().get(pk=piece_id)
         if operation in ["loan", "return"] and piece.decommissioned:
             raise ValidationError({"detail": "cannot_loan_decommissioned"})
-        if piece.decommissioned:
+        if piece.decommissioned and operation != "reactivate":
             raise ValidationError({"detail": "inactive_piece"})
+        if operation == "reactivate" and not piece.decommissioned:
+            raise ValidationError({"detail": "not_decommissioned"})
         if operation == "loan" and piece.state not in ["stored", "displayed"]:
             raise ValidationError({"detail": "cannot_loan_" + piece.state})
         if operation == "return" and piece.state != "loaned":
@@ -194,4 +196,15 @@ def recover_piece(*, user, piece_id):
         user=user, piece_id=piece_id, operation="recover",
         values={"state": "stored", "location": "", "event_date": None,
                 "event_observations": "", "loan_to": "", "loan_start": None, "loan_end": None},
+    )
+
+
+def reactivate_piece(*, user, piece_id):
+    require_museologist(user)
+    return _change(
+        user=user, piece_id=piece_id, operation="reactivate",
+        values={"state": "stored", "location": "", "decommissioned": False,
+                "decommissioned_at": None, "decommission_reason": "", "decommissioned_by": None,
+                "event_date": None, "event_observations": "",
+                "loan_to": "", "loan_start": None, "loan_end": None},
     )

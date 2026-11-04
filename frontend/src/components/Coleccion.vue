@@ -70,7 +70,7 @@ async function open(id, editing = false) {
   photoResults.value = []
   try {
     await detail(id)
-    if (editing && !selected.value.decommissioned) edit()
+    if (editing && (!selected.value.decommissioned || props.usuario?.role === "museologo")) edit()
   } catch {
     failure.value = true
   } finally {
@@ -112,7 +112,7 @@ function validate() {
   return !Object.keys(errors.value).length
 }
 async function save() {
-  if (busy.value || !validate()) return
+  if (busy.value || (mode.value === "edit" && selected.value.decommissioned) || !validate()) return
   errors.value = {}
   failure.value = false
   busy.value = true
@@ -319,12 +319,13 @@ async function recoverPiece() {
   failure.value = false
   notice.value = ""
   try {
-    await json(await enviar(`pieces/${selected.value.id}/recover/`))
+    const reactivating = selected.value.decommissioned
+    await json(await enviar(`pieces/${selected.value.id}/${reactivating ? 'reactivate' : 'recover'}/`))
     recoveryDialog.value.close()
     selected.value = await json(await solicitar(`pieces/${selected.value.id}/`))
     form.value.state = selected.value.state
     form.value.location = selected.value.location
-    notice.value = "pieceRecovered"
+    notice.value = reactivating ? "pieceReactivated" : "pieceRecovered"
   } catch { failure.value = true }
   finally { busy.value = false }
 }
@@ -413,7 +414,7 @@ onMounted(load)
               <td><span class="piece-state" :class="piece.state">{{ t(piece.state) }}</span></td>
               <td>{{ piece.location || t("noLocation") }}</td>
               <td class="row-actions">
-                <button v-if="!piece.decommissioned" class="edit-piece" :disabled="busy" :aria-label="t('editPiece', { title: piece.title })" :title="t('edit')" @click="open(piece.id, true)">
+                <button v-if="!piece.decommissioned || props.usuario?.role === 'museologo'" class="edit-piece" :disabled="busy" :aria-label="t('editPiece', { title: piece.title })" :title="t('edit')" @click="open(piece.id, true)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M13.5 5.5 18.5 10.5M4 20l4.5-1 12-12a2.1 2.1 0 0 0-3-3l-12 12L4 20Z" />
                     <path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7" />
@@ -437,7 +438,7 @@ onMounted(load)
       <form class="piece-editor" novalidate @submit.prevent="save()">
         <div class="editor-layout">
         <section class="record-panel">
-        <fieldset :disabled="busy" class="fields">
+        <fieldset :disabled="busy || (mode === 'edit' && selected.decommissioned)" class="fields">
           <legend>{{ t("catalogDetails") }}</legend>
           <div v-for="field in fields" :key="field" :class="{ 'wide-field': !['title', 'object_type', 'author_maker', 'date_period'].includes(field) }">
             <label :for="field">{{ label(field) }}{{ field === 'collection' ? '' : ' *' }}</label
@@ -497,7 +498,7 @@ onMounted(load)
         <fieldset :disabled="busy">
           <legend>{{ t("stateAndLocation") }}</legend>
           <label for="piece-state">{{ t("state") }}</label>
-          <select id="piece-state" v-model="form.state" :disabled="!['stored', 'displayed'].includes(selected.state)">
+          <select id="piece-state" v-model="form.state" :disabled="selected.decommissioned || !['stored', 'displayed'].includes(selected.state)">
             <option v-if="!['stored', 'displayed'].includes(selected.state)" :value="selected.state">{{ t(selected.state) }}</option>
             <option value="stored">{{ t("stored") }}</option>
             <option value="displayed">{{ t("displayed") }}</option></select
@@ -520,13 +521,14 @@ onMounted(load)
               <button v-if="!loanBlockReason && selected.state === 'loaned'" type="button" @click="saveLoan(true)">{{ t('returnLoan') }}</button>
               <button v-if="!selected.decommissioned && !['stolen', 'lost'].includes(selected.state)" type="button" @click="beginMissing">{{ t('markMissing') }}</button>
               <button v-if="!selected.decommissioned && ['stolen', 'lost'].includes(selected.state)" type="button" @click="beginRecovery">{{ t('recoverPiece') }}</button>
+              <button v-if="selected.decommissioned" type="button" @click="beginRecovery">{{ t('reactivatePiece') }}</button>
               <button v-if="!selected.decommissioned" type="button" @click="beginDecommission">{{ t('decommission') }}</button>
             </div>
             <p v-if="failure && !loanDialog?.open" class="error" role="alert">{{ loanFailure() }}</p>
           </template>
         </fieldset>
         </section>
-        <section v-if="mode === 'edit'" class="record-panel photo-editor">
+        <section v-if="mode === 'edit' && !selected.decommissioned" class="record-panel photo-editor">
       <h3>{{ t("photos") }}</h3>
       <p v-if="selected.photos.length" class="photo-note">{{ t('photoOrderHelp') }}</p>
       <p v-if="!selected.photos.length">{{ t("noPhotos") }}</p>
@@ -577,7 +579,7 @@ onMounted(load)
           <p>{{ t("requiredFields") }}</p>
           <div class="actions">
             <button type="button" :disabled="busy" @click="cancelEdit">{{ t("cancel") }}</button>
-            <button class="primary-action" :disabled="busy">{{ t("save") }}</button>
+            <button class="primary-action" :disabled="busy || (mode === 'edit' && selected.decommissioned)">{{ t("save") }}</button>
           </div>
         </footer>
       </form>
@@ -687,8 +689,8 @@ onMounted(load)
       </form>
     </dialog>
     <dialog ref="recoveryDialog" class="delete-photo-dialog" aria-labelledby="recovery-heading" @cancel="busy && $event.preventDefault()">
-      <h3 id="recovery-heading">{{ t('recoverPiece') }}</h3>
-      <p>{{ t('recoveryConfirm') }}</p>
+      <h3 id="recovery-heading">{{ t(selected?.decommissioned ? 'reactivatePiece' : 'recoverPiece') }}</h3>
+      <p>{{ t(selected?.decommissioned ? 'reactivationConfirm' : 'recoveryConfirm') }}</p>
       <p v-if="failure" role="alert" class="error">{{ loanFailure() }}</p>
       <div class="actions">
         <button type="button" :disabled="busy" autofocus @click="recoveryDialog.close()">{{ t('cancel') }}</button>
