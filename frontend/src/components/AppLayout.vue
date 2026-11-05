@@ -93,15 +93,6 @@ function seleccionarTema(evento) {
           </a>
 
           <a
-            v-if="usuario"
-            href="/interno"
-            :aria-current="props.rutaActual === '/interno' ? 'page' : undefined"
-            @click="cerrarMenu"
-          >
-            {{ t("auth.internalArea") }}
-          </a>
-
-          <a
             v-if="usuario?.permissions?.includes('eventos.crear')"
             href="/interno/eventos/registrar"
             :aria-current="props.rutaActual === '/interno/eventos/registrar' ? 'page' : undefined"

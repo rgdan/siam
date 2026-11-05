@@ -91,14 +91,12 @@ async function cargarSesion() {
 
   if (!esRutaPublica()) {
     if (!usuario.value) navegar("/login")
-    else if (rutaActual.value === "/login") navegar("/interno")
+    else if (["/login", "/interno"].includes(rutaActual.value)) navegar("/eventos")
   }
 }
 
 // El menú ayuda a navegar; la API vuelve a comprobar los permisos.
 function puedeVerRuta() {
-  if (rutaActual.value === "/interno") return true
-
   // SIAM-17 requiere el rol exacto de coordinador.
   if (rutaActual.value === "/interno/reportes/asistencia") {
     return (
@@ -261,40 +259,21 @@ onUnmounted(() => {
         'pagina-administracion': permisosPorRuta[rutaActual] && usuario
       }"
     >
-      <template v-if="rutaActual === '/interno'">
-        <h1>SIAM</h1>
-        <p>{{ t("common.systemName") }}</p>
-      </template>
-
       <!-- Comprobación de sesión -->
       <p v-if="comprobando" role="status">
         {{ t("auth.checking") }}
       </p>
 
       <!-- Área interna -->
-      <section
-        v-else-if="usuario"
-        :aria-labelledby="
-          rutaActual === '/interno' ? 'titulo-interno' : undefined
-        "
-      >
-        <template v-if="rutaActual === '/interno'">
-          <h2 id="titulo-interno">
-            {{ t("auth.internalArea") }}
-          </h2>
-          <p>
-            {{ t("auth.loggedInAs", { name: usuario.full_name }) }}
-          </p>
-        </template>
-
+      <section v-else-if="usuario">
         <section
           v-if="accesoDenegado || !puedeVerRuta()"
           role="alert"
         >
           <h2>{{ t("users.noAccess") }}</h2>
           <p>{{ t("users.noAccessDescription") }}</p>
-          <a href="/interno">
-            {{ t("auth.internalArea") }}
+          <a href="/eventos">
+            {{ t("common.events") }}
           </a>
         </section>
 
