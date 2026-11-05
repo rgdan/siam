@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title description">
+  <title id="title">SIAM</title>
+  <desc id="description">Museum Information and Analytics System. Navy banner with ivory lettering and a geometric museum illustration in red and ivory.</desc>
+  <rect width="1200" height="360" rx="16" fill="#00243e"/>
+  <path d="M64 54h48" stroke="#ed4b3b" stroke-width="5"/>
+  <text x="64" y="170" fill="#faf5eb" font-family="Georgia, 'Times New Roman', serif" font-size="112" letter-spacing="6">SIAM</text>
+  <text x="68" y="224" fill="#faf5eb" font-family="Arial, sans-serif" font-size="24">Sistema de Información y Analítica Museal</text>
+  <text x="68" y="258" fill="#b8c9d6" font-family="Arial, sans-serif" font-size="20">Museum Information and Analytics System</text>
+  <text x="68" y="313" fill="#b8c9d6" font-family="Arial, sans-serif" font-size="14">MUSEO HISTÓRICO CULTURAL JUAN SANTAMARÍA</text>
+  <g transform="translate(820 65)" fill="none" stroke="#faf5eb" stroke-width="2">
+    <path d="m0 76 142-64 142 64Z"/>
+    <path d="M12 88h260M12 238h260M0 251h284"/>
+    <path d="M32 101v122m30-122v122m160-122v122m30-122v122"/>
+    <path d="M105 225v-78a37 37 0 0 1 74 0v78" stroke="#ed4b3b" stroke-width="4"/>
+    <circle cx="142" cy="54" r="10" stroke="#ed4b3b" stroke-width="3"/>
+  </g>
+</svg>

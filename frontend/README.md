@@ -12,7 +12,7 @@ npm run dev
 ```
 
 Abra http://127.0.0.1:5173/ para consultar la información pública.
-Ingrese por `/login` para abrir `/interno`. Necesita el backend activo y una cuenta creada.
+Ingrese por `/login` para abrir el calendario de eventos. Necesita el backend activo y una cuenta creada.
 Como administrador de sistema, abra **Usuarios** para crear, editar, restablecer contraseñas o eliminar cuentas.
 
 Para generar una cuenta de prueba por rol, ejecute `python crear_usuarios_demo.py` desde `backend/`,
