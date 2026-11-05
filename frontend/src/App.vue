@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n"
 import Coleccion from "./components/Coleccion.vue"
 import AppLayout from "./components/AppLayout.vue"
 import MuseoPublico from "./components/MuseoPublico.vue"
+import PoliticaPrivacidad from "./components/PoliticaPrivacidad.vue"
 import EventosPublicos from "./components/EventosPublicos.vue"
 import EventosInternos from "./components/EventosInternos.vue"
 import ReporteAsistencia from "./components/ReporteAsistencia.vue"
@@ -34,7 +35,7 @@ function navegar(ruta) {
 }
 
 // SIAM-13: la consulta de eventos públicos no requiere iniciar sesión.
-const rutasPublicas = ["/", "/informacion", "/horarios", "/eventos"]
+const rutasPublicas = ["/", "/informacion", "/horarios", "/eventos", "/privacidad"]
 
 const permisosPorRuta = {
   "/interno/coleccion": "piezas.crear",
@@ -230,7 +231,9 @@ onUnmounted(() => {
     :enviando="enviando"
     @cerrar-sesion="cerrarSesion"
   >
-    <template v-if="rutaActual === '/eventos'">
+    <PoliticaPrivacidad v-if="rutaActual === '/privacidad'" />
+
+    <template v-else-if="rutaActual === '/eventos'">
       <p v-if="comprobando" role="status">
         {{ t("auth.checking") }}
       </p>

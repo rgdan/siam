@@ -85,6 +85,14 @@ function seleccionarTema(evento) {
           </a>
 
           <a
+            href="/privacidad"
+            :aria-current="props.rutaActual === '/privacidad' ? 'page' : undefined"
+            @click="cerrarMenu"
+          >
+            {{ locale === "en" ? "Privacy policy" : "Política de privacidad" }}
+          </a>
+
+          <a
             v-if="usuario"
             href="/interno"
             :aria-current="props.rutaActual === '/interno' ? 'page' : undefined"
