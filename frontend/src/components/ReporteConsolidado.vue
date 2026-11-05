@@ -1,5 +1,6 @@
+
 <script setup>
-import { onMounted, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { solicitar } from "../api.js"
 
@@ -12,6 +13,9 @@ const reporte = ref(null)
 const cargando = ref(false)
 const error = ref("")
 const filtroAplicado = ref(false)
+
+const descargando = ref("")
+const errorExportacion = ref("")
 
 const textos = {
   es: {
@@ -67,7 +71,21 @@ const textos = {
     nota:
       "La asistencia esperada y real considera únicamente eventos finalizados con asistencia registrada. Los eventos sin registro no participan en esos totales.",
     noCumplimiento: "Sin registro",
+
+    exportar: "Exportar reporte consolidado",
+    descargarPdf: "Descargar PDF",
+    descargarExcel: "Descargar Excel",
+    descargando: "Generando archivo...",
+    errorDescarga: "No se pudo descargar el archivo. Intentá nuevamente.",
+    sinDatosExportar: "No hay información disponible para exportar.",
+
+    exportarAsistencia: "Exportar reporte de asistencia",
+    pdfAsistencia: "Descargar PDF de asistencia",
+    excelAsistencia: "Descargar Excel de asistencia",
+    sinAsistencia:
+      "No hay eventos finalizados en este período para exportar.",
   },
+
   en: {
     titulo: "Consolidated reports",
     descripcion: "General overview of museum visitors, events and collections.",
@@ -121,6 +139,19 @@ const textos = {
     nota:
       "Expected and actual attendance includes only finished events with recorded attendance. Events without attendance records are excluded from these totals.",
     noCumplimiento: "Not recorded",
+
+    exportar: "Export consolidated report",
+    descargarPdf: "Download PDF",
+    descargarExcel: "Download Excel",
+    descargando: "Generating file...",
+    errorDescarga: "The file could not be downloaded. Please try again.",
+    sinDatosExportar: "No information is available for export.",
+
+    exportarAsistencia: "Export attendance report",
+    pdfAsistencia: "Download attendance PDF",
+    excelAsistencia: "Download attendance Excel",
+    sinAsistencia:
+      "There are no completed events in this period to export.",
   },
 }
 
@@ -165,8 +196,104 @@ function fechaGeneracion(valor) {
   ).format(new Date(valor))
 }
 
+// Indica si existe información para exportar el reporte general.
+const hayDatos = computed(() => {
+  if (!reporte.value) return false
+
+  return (
+    reporte.value.visitantes.total > 0 ||
+    reporte.value.eventos.total > 0 ||
+    reporte.value.colecciones.total > 0
+  )
+})
+
+// Indica si existen eventos finalizados para exportar asistencia.
+const hayDatosAsistencia = computed(() => {
+  return (
+    (reporte.value?.eventos?.asistencia?.eventos_finalizados ?? 0) > 0
+  )
+})
+
+// Utiliza las fechas del último reporte generado.
+function parametrosReporte() {
+  const parametros = new URLSearchParams()
+
+  const inicio = reporte.value?.filtros?.fecha_inicio
+  const fin = reporte.value?.filtros?.fecha_fin
+
+  if (inicio) parametros.set("fecha_inicio", inicio)
+  if (fin) parametros.set("fecha_fin", fin)
+
+  return parametros.toString()
+}
+
+// SIAM-29: descarga PDF o Excel del reporte solicitado.
+async function descargarReporte(tipo, formato) {
+  if (cargando.value || descargando.value || !reporte.value) return
+
+  if (!["consolidated", "attendance"].includes(tipo)) return
+  if (!["pdf", "xlsx"].includes(formato)) return
+
+  if (tipo === "consolidated" && !hayDatos.value) return
+  if (tipo === "attendance" && !hayDatosAsistencia.value) return
+
+  descargando.value = `${tipo}-${formato}`
+  errorExportacion.value = ""
+
+  try {
+    const parametros = parametrosReporte()
+
+    const ruta =
+      `reports/export/${tipo}/${formato}/` +
+      (parametros ? `?${parametros}` : "")
+
+    const respuesta = await solicitar(ruta)
+
+    if (respuesta.status === 401) {
+      reporte.value = null
+      emit("sesion-expirada")
+      return
+    }
+
+    if (respuesta.status === 403) {
+      reporte.value = null
+      emit("sin-acceso")
+      return
+    }
+
+    if (!respuesta.ok) {
+      throw new Error("No se pudo generar el archivo")
+    }
+
+    const archivo = await respuesta.blob()
+
+    if (!archivo.size) {
+      throw new Error("El archivo está vacío")
+    }
+
+    const urlTemporal = URL.createObjectURL(archivo)
+    const enlace = document.createElement("a")
+
+    enlace.href = urlTemporal
+    enlace.download =
+      `SIAM_${tipo}_${new Date().toISOString().slice(0, 10)}.${formato}`
+
+    document.body.appendChild(enlace)
+    enlace.click()
+    enlace.remove()
+
+    setTimeout(() => {
+      URL.revokeObjectURL(urlTemporal)
+    }, 1000)
+  } catch {
+    errorExportacion.value = "error"
+  } finally {
+    descargando.value = ""
+  }
+}
+
 async function generarReporte() {
-  if (cargando.value) return
+  if (cargando.value || descargando.value) return
 
   if (
     fechaInicio.value &&
@@ -179,6 +306,7 @@ async function generarReporte() {
 
   cargando.value = true
   error.value = ""
+  errorExportacion.value = ""
 
   try {
     const parametros = new URLSearchParams()
@@ -194,7 +322,11 @@ async function generarReporte() {
     }
 
     const consulta = parametros.toString()
-    const ruta = `reports/consolidated/${consulta ? `?${consulta}` : ""}`
+
+    const ruta =
+      `reports/consolidated/` +
+      (consulta ? `?${consulta}` : "")
+
     const respuesta = await solicitar(ruta)
 
     if (respuesta.status === 401) {
@@ -260,7 +392,7 @@ onMounted(generarReporte)
             id="consolidado-fecha-inicio"
             v-model="fechaInicio"
             type="date"
-            :disabled="cargando"
+            :disabled="cargando || Boolean(descargando)"
           />
         </div>
 
@@ -272,18 +404,21 @@ onMounted(generarReporte)
             id="consolidado-fecha-fin"
             v-model="fechaFin"
             type="date"
-            :disabled="cargando"
+            :disabled="cargando || Boolean(descargando)"
           />
         </div>
 
-        <button type="submit" :disabled="cargando">
+        <button
+          type="submit"
+          :disabled="cargando || Boolean(descargando)"
+        >
           {{ traducir("generar") }}
         </button>
 
         <button
           type="button"
           class="boton-secundario"
-          :disabled="cargando"
+          :disabled="cargando || Boolean(descargando)"
           @click="restablecerFiltros"
         >
           {{ traducir("limpiar") }}
@@ -296,9 +431,11 @@ onMounted(generarReporte)
     </p>
 
     <p v-if="error" class="mensaje-error" role="alert">
-      {{ error === "fechas"
-        ? traducir("fechasInvalidas")
-        : traducir("error") }}
+      {{
+        error === "fechas"
+          ? traducir("fechasInvalidas")
+          : traducir("error")
+      }}
     </p>
 
     <template v-if="reporte">
@@ -316,11 +453,49 @@ onMounted(generarReporte)
         </p>
       </div>
 
-      <!-- SIAM-27: resumen de visitantes -->
+      <!-- SIAM-29: exportación del reporte consolidado -->
+      <section class="panel-exportacion">
+        <h2>{{ traducir("exportar") }}</h2>
+
+        <div class="botones-exportacion">
+          <button
+            type="button"
+            :disabled="!hayDatos || cargando || Boolean(descargando)"
+            @click="descargarReporte('consolidated', 'pdf')"
+          >
+            {{
+              descargando === "consolidated-pdf"
+                ? traducir("descargando")
+                : traducir("descargarPdf")
+            }}
+          </button>
+
+          <button
+            type="button"
+            :disabled="!hayDatos || cargando || Boolean(descargando)"
+            @click="descargarReporte('consolidated', 'xlsx')"
+          >
+            {{
+              descargando === "consolidated-xlsx"
+                ? traducir("descargando")
+                : traducir("descargarExcel")
+            }}
+          </button>
+        </div>
+
+        <p v-if="!hayDatos" class="ayuda-exportacion">
+          {{ traducir("sinDatosExportar") }}
+        </p>
+      </section>
+
+      <!-- Visitantes -->
       <section class="seccion-reporte">
         <h2>{{ traducir("visitantes") }}</h2>
 
-        <p v-if="reporte.visitantes.total === 0" class="mensaje-vacio">
+        <p
+          v-if="reporte.visitantes.total === 0"
+          class="mensaje-vacio"
+        >
           {{ traducir("sinDatos") }}
         </p>
 
@@ -378,11 +553,14 @@ onMounted(generarReporte)
         </template>
       </section>
 
-      <!-- SIAM-27: resumen de eventos -->
+      <!-- Eventos -->
       <section class="seccion-reporte">
         <h2>{{ traducir("eventos") }}</h2>
 
-        <p v-if="reporte.eventos.total === 0" class="mensaje-vacio">
+        <p
+          v-if="reporte.eventos.total === 0"
+          class="mensaje-vacio"
+        >
           {{ traducir("sinDatos") }}
         </p>
 
@@ -392,17 +570,14 @@ onMounted(generarReporte)
               <h3>{{ traducir("totalEventos") }}</h3>
               <p>{{ numero(reporte.eventos.total) }}</p>
             </article>
-
             <article class="tarjeta">
               <h3>{{ traducir("publicos") }}</h3>
               <p>{{ numero(reporte.eventos.publicos) }}</p>
             </article>
-
             <article class="tarjeta">
               <h3>{{ traducir("privados") }}</h3>
               <p>{{ numero(reporte.eventos.privados) }}</p>
             </article>
-
             <article class="tarjeta">
               <h3>{{ traducir("cancelados") }}</h3>
               <p>{{ numero(reporte.eventos.cancelados) }}</p>
@@ -418,27 +593,22 @@ onMounted(generarReporte)
               <h3>{{ traducir("finalizados") }}</h3>
               <p>{{ numero(reporte.eventos.asistencia.eventos_finalizados) }}</p>
             </article>
-
             <article class="tarjeta">
               <h3>{{ traducir("conRegistro") }}</h3>
               <p>{{ numero(reporte.eventos.asistencia.eventos_con_registro) }}</p>
             </article>
-
             <article class="tarjeta">
               <h3>{{ traducir("sinRegistro") }}</h3>
               <p>{{ numero(reporte.eventos.asistencia.eventos_sin_registro) }}</p>
             </article>
-
             <article class="tarjeta">
               <h3>{{ traducir("esperados") }}</h3>
               <p>{{ numero(reporte.eventos.asistencia.asistentes_esperados) }}</p>
             </article>
-
             <article class="tarjeta">
               <h3>{{ traducir("reales") }}</h3>
               <p>{{ numero(reporte.eventos.asistencia.asistentes_reales) }}</p>
             </article>
-
             <article class="tarjeta">
               <h3>{{ traducir("cumplimiento") }}</h3>
               <p class="valor-porcentaje">
@@ -447,15 +617,55 @@ onMounted(generarReporte)
             </article>
           </div>
 
-          <p class="nota-reporte">{{ traducir("nota") }}</p>
+          <p class="nota-reporte">
+            {{ traducir("nota") }}
+          </p>
+
+          <!-- SIAM-29: exportación de asistencia -->
+          <section class="panel-exportacion exportacion-asistencia">
+            <h3>{{ traducir("exportarAsistencia") }}</h3>
+
+            <div class="botones-exportacion">
+              <button
+                type="button"
+                :disabled="!hayDatosAsistencia || cargando || Boolean(descargando)"
+                @click="descargarReporte('attendance', 'pdf')"
+              >
+                {{
+                  descargando === "attendance-pdf"
+                    ? traducir("descargando")
+                    : traducir("pdfAsistencia")
+                }}
+              </button>
+
+              <button
+                type="button"
+                :disabled="!hayDatosAsistencia || cargando || Boolean(descargando)"
+                @click="descargarReporte('attendance', 'xlsx')"
+              >
+                {{
+                  descargando === "attendance-xlsx"
+                    ? traducir("descargando")
+                    : traducir("excelAsistencia")
+                }}
+              </button>
+            </div>
+
+            <p v-if="!hayDatosAsistencia" class="ayuda-exportacion">
+              {{ traducir("sinAsistencia") }}
+            </p>
+          </section>
         </template>
       </section>
 
-      <!-- SIAM-27: resumen de colecciones -->
+      <!-- Colecciones -->
       <section class="seccion-reporte">
         <h2>{{ traducir("colecciones") }}</h2>
 
-        <p v-if="reporte.colecciones.total === 0" class="mensaje-vacio">
+        <p
+          v-if="reporte.colecciones.total === 0"
+          class="mensaje-vacio"
+        >
           {{ traducir("sinDatos") }}
         </p>
 
@@ -465,7 +675,6 @@ onMounted(generarReporte)
               <h3>{{ traducir("totalPiezas") }}</h3>
               <p>{{ numero(reporte.colecciones.total) }}</p>
             </article>
-
             <article class="tarjeta">
               <h3>{{ traducir("activas") }}</h3>
               <p>{{ numero(reporte.colecciones.active) }}</p>
@@ -515,6 +724,10 @@ onMounted(generarReporte)
         </template>
       </section>
     </template>
+
+    <p v-if="errorExportacion" class="mensaje-error" role="alert">
+      {{ traducir("errorDescarga") }}
+    </p>
   </div>
 </template>
 
@@ -536,14 +749,17 @@ onMounted(generarReporte)
 }
 
 .panel-filtros,
-.seccion-reporte {
+.seccion-reporte,
+.panel-exportacion {
   border: 1px solid var(--color-borde);
   border-radius: 9px;
   padding: 20px;
   background: var(--color-control);
 }
 
-.panel-filtros h2 {
+.panel-filtros h2,
+.panel-exportacion h2,
+.panel-exportacion h3 {
   margin: 0 0 16px;
   font-size: 17px;
 }
@@ -568,7 +784,8 @@ onMounted(generarReporte)
 }
 
 .campo input,
-.fila-filtros button {
+.fila-filtros button,
+.botones-exportacion button {
   box-sizing: border-box;
   min-height: 44px;
   padding: 10px 12px;
@@ -582,10 +799,10 @@ onMounted(generarReporte)
   min-width: 0;
   background: var(--color-control);
   color: var(--color-texto);
-  color-scheme: normal;
 }
 
-.fila-filtros button {
+.fila-filtros button,
+.botones-exportacion button {
   background: var(--color-header);
   color: #ffffff;
   cursor: pointer;
@@ -596,9 +813,10 @@ onMounted(generarReporte)
   color: var(--color-texto);
 }
 
-.fila-filtros button:disabled {
-  opacity: 0.6;
-  cursor: wait;
+.fila-filtros button:disabled,
+.botones-exportacion button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .informacion-periodo {
@@ -609,6 +827,25 @@ onMounted(generarReporte)
 
 .informacion-periodo p {
   margin: 5px 0;
+}
+
+.panel-exportacion {
+  margin-bottom: 20px;
+}
+
+.botones-exportacion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.botones-exportacion button {
+  flex: 1 1 160px;
+}
+
+.ayuda-exportacion {
+  margin: 12px 0 0;
+  font-size: 13px;
 }
 
 .seccion-reporte {
@@ -622,7 +859,10 @@ onMounted(generarReporte)
 
 .tarjetas {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, 190px), 1fr)
+  );
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -659,7 +899,10 @@ onMounted(generarReporte)
 
 .grupos {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, 240px), 1fr)
+  );
   gap: 14px;
 }
 
@@ -716,9 +959,14 @@ onMounted(generarReporte)
   line-height: 1.6;
 }
 
+.exportacion-asistencia {
+  margin: 20px 0 0;
+}
+
 @media (max-width: 600px) {
   .panel-filtros,
-  .seccion-reporte {
+  .seccion-reporte,
+  .panel-exportacion {
     padding: 14px;
   }
 
@@ -727,8 +975,14 @@ onMounted(generarReporte)
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .fila-filtros button {
+  .fila-filtros button,
+  .botones-exportacion button {
     width: 100%;
+  }
+
+  .botones-exportacion {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .tarjetas,
