@@ -8,7 +8,6 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from rest_framework import serializers
 from rest_framework.decorators import api_view
-from rest_framework.exceptions import PermissionDenied
 
 from collection_integrity.reports import collection_report_data
 from openpyxl import Workbook
@@ -30,7 +29,7 @@ from .consolidated_reports import (
     datos_visitantes,
     obtener_fechas,
 )
-from .models import Evento, User
+from .models import Evento
 from .permissions import requiere_permiso
 from .reports import validar_fecha_reporte
 
@@ -435,12 +434,6 @@ def generar_pdf(datos, usuario):
 @api_view(["GET"])
 @requiere_permiso("reportes.exportar")
 def export_report(request, tipo, formato):
-    # SIAM-29: exportación reservada al administrador general.
-    if request.user.role != User.Role.ADMINISTRADOR_GENERAL:
-        raise PermissionDenied(
-            "Solo el administrador general puede exportar reportes."
-        )
-
     if formato not in ("pdf", "xlsx"):
         raise serializers.ValidationError({
             "formato": "Formato no válido."

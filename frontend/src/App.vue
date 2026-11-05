@@ -108,16 +108,6 @@ function puedeVerRuta() {
     )
   }
 
-  // SIAM-27: pantalla exclusiva del administrador general.
-  if (rutaActual.value === "/interno/reportes/consolidados") {
-    return (
-      usuario.value?.role === "administrador_general" &&
-      usuario.value?.permissions?.includes(
-        "reportes.ver_consolidados"
-      ) === true
-    )
-  }
-
   return usuario.value?.permissions?.includes(
     permisosPorRuta[rutaActual.value]
   ) === true

@@ -115,12 +115,8 @@ function seleccionarTema(evento) {
             {{ locale === "en" ? "Attendance report" : "Reporte de asistencia" }}
           </a>
 
-          <!-- SIAM-27: reportes del administrador general -->
           <a
-            v-if="
-              usuario?.role === 'administrador_general' &&
-              usuario?.permissions?.includes('reportes.ver_consolidados')
-            "
+            v-if="usuario?.permissions?.includes('reportes.ver_consolidados')"
             href="/interno/reportes/consolidados"
             :aria-current="props.rutaActual === '/interno/reportes/consolidados' ? 'page' : undefined"
             @click="cerrarMenu"
