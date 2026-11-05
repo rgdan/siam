@@ -26,7 +26,7 @@ La respuesta JSON contiene:
 
 Todos los conteos y opciones salen de una sola consulta agrupada, sin caché ni escrituras. Una baja se reconoce tanto por la bandera histórica `decommissioned=True` como por el estado `decommissioned`; tiene prioridad sobre el estado anterior para evitar contar la pieza como activa.
 
-La integración incluye los estados y acciones de SIAM-21/25/26 junto con el reporte SIAM-24. La secuencia de migraciones es `0005_photo_order` → `0006_remove_piece_piece_valid_state_and_more` → `0007_local_collection_integration`, que evita las hojas incompatibles de las ramas individuales. Las categorías sin piezas aparecen con cero. El campo de colección es opcional; las piezas existentes mantienen sus datos y se agrupan como «Sin colección asignada».
+La migración `0001_initial` crea directamente el esquema integrado de SIAM-21/24/25/26. Las categorías sin piezas aparecen con cero. El campo de colección es opcional; las piezas sin colección se agrupan como «Sin colección asignada».
 
 Si `total` es cero, la interfaz muestra «No hay piezas para los filtros seleccionados» (y su traducción al inglés). El reporte consolidado debe consumir estos valores sin recalcular las categorías para que ambos reportes coincidan.
 

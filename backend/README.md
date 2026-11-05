@@ -21,6 +21,10 @@ Use una clave estable para conservar las sesiones entre reinicios; no la suba al
 
 Para salir del entorno virtual, detenga el servidor con `Ctrl+C` y ejecute `deactivate`.
 
+## Reinicio del historial de migraciones
+
+Cada aplicación tiene una única migración `0001_initial` con el esquema actual. Las bases de datos creadas con el historial anterior no son compatibles. Para reiniciar el entorno local, detenga el backend, elimine `backend/db.sqlite3` y sus archivos `-wal` y `-shm` si existen, y ejecute de nuevo `python manage.py migrate` y `python crear_usuarios_demo.py` desde `backend/`. Este proceso elimina todos los datos locales.
+
 ## Cuentas de prueba
 
 Después de aplicar las migraciones, desde `backend/`, con `.venv` activo y `DJANGO_SECRET_KEY` definido:

@@ -47,6 +47,8 @@ python manage.py runserver 127.0.0.1:8000
 
 Reutilice `DJANGO_SECRET_KEY` para conservar las sesiones entre reinicios. No incluya la clave en el repositorio.
 
+El historial de migraciones se reinició. Si tiene una base de datos de una versión anterior, debe recrearla; consulte el [procedimiento de reinicio](backend/README.md#reinicio-del-historial-de-migraciones). Se perderán los datos locales.
+
 **Frontend**
 
 ```bash
