@@ -1,4 +1,3 @@
-
 <script setup>
 import { onMounted, onUnmounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
@@ -7,6 +6,8 @@ import AppLayout from "./components/AppLayout.vue"
 import MuseoPublico from "./components/MuseoPublico.vue"
 import EventosPublicos from "./components/EventosPublicos.vue"
 import EventosInternos from "./components/EventosInternos.vue"
+import ReporteAsistencia from "./components/ReporteAsistencia.vue"
+import ReporteConsolidado from "./components/ReporteConsolidado.vue"
 import Usuarios from "./components/Usuarios.vue"
 import Bitacora from "./components/Bitacora.vue"
 import RegistrarIngreso from "./components/RegistrarIngreso.vue"
@@ -34,6 +35,7 @@ function navegar(ruta) {
 
 // SIAM-13: la consulta de eventos públicos no requiere iniciar sesión.
 const rutasPublicas = ["/", "/informacion", "/horarios", "/eventos"]
+
 const permisosPorRuta = {
   "/interno/coleccion": "piezas.crear",
   "/interno/usuarios": "usuarios.consultar",
@@ -41,6 +43,12 @@ const permisosPorRuta = {
   "/interno/ingresos": "visitantes.registrar",
   "/interno/incidencias": "incidencias.registrar",
   "/interno/eventos/registrar": "eventos.crear",
+
+  // SIAM-17: reporte comparativo de asistencia.
+  "/interno/reportes/asistencia": "eventos.generar_reportes",
+
+  // SIAM-27: reportes consolidados.
+  "/interno/reportes/consolidados": "reportes.ver_consolidados",
 }
 
 function esRutaPublica() {
@@ -86,14 +94,36 @@ async function cargarSesion() {
   }
 }
 
-// El menú ayuda a navegar; la API vuelve a comprobar los permisos en cada solicitud.
+// El menú ayuda a navegar; la API vuelve a comprobar los permisos.
 function puedeVerRuta() {
   if (rutaActual.value === "/interno") return true
 
-  return usuario.value?.permissions?.includes(permisosPorRuta[rutaActual.value]) === true
+  // SIAM-17 requiere el rol exacto de coordinador.
+  if (rutaActual.value === "/interno/reportes/asistencia") {
+    return (
+      usuario.value?.role === "coordinador" &&
+      usuario.value?.permissions?.includes(
+        "eventos.generar_reportes"
+      ) === true
+    )
+  }
+
+  // SIAM-27: pantalla exclusiva del administrador general.
+  if (rutaActual.value === "/interno/reportes/consolidados") {
+    return (
+      usuario.value?.role === "administrador_general" &&
+      usuario.value?.permissions?.includes(
+        "reportes.ver_consolidados"
+      ) === true
+    )
+  }
+
+  return usuario.value?.permissions?.includes(
+    permisosPorRuta[rutaActual.value]
+  ) === true
 }
 
-// Retira la sección si Django rechaza un permiso que cambió durante la sesión.
+// Retira la sección si Django rechaza un permiso.
 function denegarAcceso() {
   accesoDenegado.value = true
   cargarSesion().catch(sesionExpirada)
@@ -165,6 +195,7 @@ async function comprobarSesion() {
   }
 
   comprobando.value = true
+
   if (esRutaPublica()) {
     try {
       await cargarSesion()
@@ -173,6 +204,7 @@ async function comprobarSesion() {
     } finally {
       comprobando.value = false
     }
+
     return
   }
 
@@ -188,7 +220,7 @@ async function comprobarSesion() {
   }
 }
 
-// También protege la navegación con Atrás y Adelante del navegador.
+// También protege la navegación con Atrás y Adelante.
 watch(rutaActual, comprobarSesion)
 
 onMounted(() => {
@@ -209,12 +241,16 @@ onUnmounted(() => {
     @cerrar-sesion="cerrarSesion"
   >
     <template v-if="rutaActual === '/eventos'">
-      <p v-if="comprobando" role="status">{{ t("auth.checking") }}</p>
+      <p v-if="comprobando" role="status">
+        {{ t("auth.checking") }}
+      </p>
+
       <EventosInternos
         v-else-if="usuario?.permissions?.includes('eventos.ver_privados')"
         @sesion-expirada="sesionExpirada"
         @sin-acceso="denegarAcceso"
       />
+
       <EventosPublicos v-else />
     </template>
 
@@ -225,7 +261,13 @@ onUnmounted(() => {
     />
 
     <!-- Autenticación y área interna -->
-    <div v-else class="pagina-autenticacion" :class="{ 'pagina-administracion': permisosPorRuta[rutaActual] && usuario }">
+    <div
+      v-else
+      class="pagina-autenticacion"
+      :class="{
+        'pagina-administracion': permisosPorRuta[rutaActual] && usuario
+      }"
+    >
       <template v-if="rutaActual === '/interno'">
         <h1>SIAM</h1>
         <p>{{ t("common.systemName") }}</p>
@@ -239,19 +281,37 @@ onUnmounted(() => {
       <!-- Área interna -->
       <section
         v-else-if="usuario"
-        :aria-labelledby="rutaActual === '/interno' ? 'titulo-interno' : undefined"
+        :aria-labelledby="
+          rutaActual === '/interno' ? 'titulo-interno' : undefined
+        "
       >
         <template v-if="rutaActual === '/interno'">
-          <h2 id="titulo-interno">{{ t("auth.internalArea") }}</h2>
-          <p>{{ t("auth.loggedInAs", { name: usuario.full_name }) }}</p>
+          <h2 id="titulo-interno">
+            {{ t("auth.internalArea") }}
+          </h2>
+          <p>
+            {{ t("auth.loggedInAs", { name: usuario.full_name }) }}
+          </p>
         </template>
 
-        <section v-if="accesoDenegado || !puedeVerRuta()" role="alert">
+        <section
+          v-if="accesoDenegado || !puedeVerRuta()"
+          role="alert"
+        >
           <h2>{{ t("users.noAccess") }}</h2>
           <p>{{ t("users.noAccessDescription") }}</p>
-          <a href="/interno">{{ t("auth.internalArea") }}</a>
+          <a href="/interno">
+            {{ t("auth.internalArea") }}
+          </a>
         </section>
-        <Coleccion :usuario="usuario" v-else-if="rutaActual === '/interno/coleccion'" @sesion-expirada="sesionExpirada" @sin-acceso="denegarAcceso" />
+
+        <Coleccion
+          v-else-if="rutaActual === '/interno/coleccion'"
+          :usuario="usuario"
+          @sesion-expirada="sesionExpirada"
+          @sin-acceso="denegarAcceso"
+        />
+
         <Usuarios
           v-else-if="rutaActual === '/interno/usuarios'"
           :usuario-actual="usuario"
@@ -284,7 +344,23 @@ onUnmounted(() => {
           @sin-acceso="denegarAcceso"
         />
 
-        <p v-else>{{ t("users.chooseSection") }}</p>
+        <!-- SIAM-17: reporte comparativo de asistencia -->
+        <ReporteAsistencia
+          v-else-if="rutaActual === '/interno/reportes/asistencia'"
+          @sesion-expirada="sesionExpirada"
+          @sin-acceso="denegarAcceso"
+        />
+
+        <!-- SIAM-27: reportes consolidados -->
+        <ReporteConsolidado
+          v-else-if="rutaActual === '/interno/reportes/consolidados'"
+          @sesion-expirada="sesionExpirada"
+          @sin-acceso="denegarAcceso"
+        />
+
+        <p v-else>
+          {{ t("users.chooseSection") }}
+        </p>
       </section>
 
       <!-- Formulario de inicio de sesión -->
@@ -338,7 +414,9 @@ onUnmounted(() => {
       </p>
     </div>
 
-    <p v-if="error" role="alert" class="error">{{ t(error) }}</p>
+    <p v-if="error" role="alert" class="error">
+      {{ t(error) }}
+    </p>
   </AppLayout>
 </template>
 
@@ -367,6 +445,18 @@ onUnmounted(() => {
   margin: 0;
 }
 
+/* SIAM-17: permitir más espacio para la tabla */
+.pagina-administracion:has(.reporte-asistencia) {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+/* SIAM-27: espacio para los reportes consolidados */
+.pagina-administracion:has(.reporte-consolidado) {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
 h1 {
   color: var(--color-enlace);
 }
@@ -377,7 +467,6 @@ a {
   min-height: 44px;
 }
 
-/* Formulario */
 form {
   display: grid;
   gap: 12px;
