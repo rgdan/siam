@@ -17,7 +17,6 @@ const { t, locale } = useI18n({ useScope: "global" })
 const menuAbierto = ref(false)
 const botonMenu = ref(null)
 
-// El menú móvil se cierra al elegir un destino o pulsar Escape.
 function cerrarMenu() {
   menuAbierto.value = false
   botonMenu.value?.focus()
@@ -61,7 +60,15 @@ function seleccionarTema(evento) {
         :class="{ abierto: menuAbierto }"
       >
         <nav :aria-label="t('common.navigation')">
-          <a v-if="usuario?.permissions?.includes('piezas.crear')" href="/interno/coleccion" :aria-current="props.rutaActual === '/interno/coleccion' ? 'page' : undefined" @click="cerrarMenu">{{ locale === 'es' ? 'Colecci\u00f3n' : 'Collection' }}</a>
+          <a
+            v-if="usuario?.permissions?.includes('piezas.crear')"
+            href="/interno/coleccion"
+            :aria-current="props.rutaActual === '/interno/coleccion' ? 'page' : undefined"
+            @click="cerrarMenu"
+          >
+            {{ locale === "en" ? "Collection" : "Colección" }}
+          </a>
+
           <a
             href="/"
             :aria-current="['/', '/informacion', '/horarios'].includes(props.rutaActual) ? 'page' : undefined"
@@ -94,6 +101,19 @@ function seleccionarTema(evento) {
             @click="cerrarMenu"
           >
             {{ t("events.registerTitle") }}
+          </a>
+
+          <!-- SIAM-17: reporte exclusivo del Coordinador -->
+          <a
+            v-if="
+              usuario?.role === 'coordinador' &&
+              usuario?.permissions?.includes('eventos.generar_reportes')
+            "
+            href="/interno/reportes/asistencia"
+            :aria-current="props.rutaActual === '/interno/reportes/asistencia' ? 'page' : undefined"
+            @click="cerrarMenu"
+          >
+            {{ locale === "en" ? "Attendance report" : "Reporte de asistencia" }}
           </a>
 
           <a
@@ -136,7 +156,11 @@ function seleccionarTema(evento) {
         <div class="preferencias">
           <div class="campo-preferencia">
             <label for="idioma">{{ t("common.language") }}</label>
-            <select id="idioma" :value="locale" @change="seleccionarIdioma">
+            <select
+              id="idioma"
+              :value="locale"
+              @change="seleccionarIdioma"
+            >
               <option value="es">Español</option>
               <option value="en">English</option>
             </select>
@@ -144,7 +168,11 @@ function seleccionarTema(evento) {
 
           <div class="campo-preferencia">
             <label for="tema">{{ t("common.theme") }}</label>
-            <select id="tema" :value="tema" @change="seleccionarTema">
+            <select
+              id="tema"
+              :value="tema"
+              @change="seleccionarTema"
+            >
               <option value="claro">{{ t("common.lightMode") }}</option>
               <option value="oscuro">{{ t("common.darkMode") }}</option>
             </select>
