@@ -1,6 +1,7 @@
 
 from api import views
 from api import reports as report_views
+from api import consolidated_reports as consolidated_views
 from audit.views import AuditList
 from django.urls import path
 from incidents.views import register_incident
@@ -61,6 +62,12 @@ urlpatterns = [
         "api/reports/attendance/",
         report_views.attendance_report,
         name="attendance-report",
+    ),
+    # SIAM-27: reportes consolidados del museo.
+    path(
+        "api/reports/consolidated/",
+        consolidated_views.consolidated_report,
+        name="consolidated-report",
     ),
 ]
 
