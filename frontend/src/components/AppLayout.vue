@@ -1,4 +1,3 @@
-
 <script setup>
 import { ref } from "vue"
 import { useI18n } from "vue-i18n"
@@ -103,7 +102,7 @@ function seleccionarTema(evento) {
             {{ t("events.registerTitle") }}
           </a>
 
-          <!-- SIAM-17: reporte exclusivo del Coordinador -->
+          <!-- SIAM-17: reporte exclusivo del coordinador -->
           <a
             v-if="
               usuario?.role === 'coordinador' &&
@@ -114,6 +113,19 @@ function seleccionarTema(evento) {
             @click="cerrarMenu"
           >
             {{ locale === "en" ? "Attendance report" : "Reporte de asistencia" }}
+          </a>
+
+          <!-- SIAM-27: reportes del administrador general -->
+          <a
+            v-if="
+              usuario?.role === 'administrador_general' &&
+              usuario?.permissions?.includes('reportes.ver_consolidados')
+            "
+            href="/interno/reportes/consolidados"
+            :aria-current="props.rutaActual === '/interno/reportes/consolidados' ? 'page' : undefined"
+            @click="cerrarMenu"
+          >
+            {{ locale === "en" ? "Consolidated reports" : "Reportes consolidados" }}
           </a>
 
           <a

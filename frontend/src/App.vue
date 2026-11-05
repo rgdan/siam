@@ -1,4 +1,3 @@
-
 <script setup>
 import { onMounted, onUnmounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
@@ -8,6 +7,7 @@ import MuseoPublico from "./components/MuseoPublico.vue"
 import EventosPublicos from "./components/EventosPublicos.vue"
 import EventosInternos from "./components/EventosInternos.vue"
 import ReporteAsistencia from "./components/ReporteAsistencia.vue"
+import ReporteConsolidado from "./components/ReporteConsolidado.vue"
 import Usuarios from "./components/Usuarios.vue"
 import Bitacora from "./components/Bitacora.vue"
 import RegistrarIngreso from "./components/RegistrarIngreso.vue"
@@ -46,6 +46,9 @@ const permisosPorRuta = {
 
   // SIAM-17: reporte comparativo de asistencia.
   "/interno/reportes/asistencia": "eventos.generar_reportes",
+
+  // SIAM-27: reportes consolidados.
+  "/interno/reportes/consolidados": "reportes.ver_consolidados",
 }
 
 function esRutaPublica() {
@@ -95,13 +98,22 @@ async function cargarSesion() {
 function puedeVerRuta() {
   if (rutaActual.value === "/interno") return true
 
-  // SIAM-17 requiere el rol exacto de Coordinador,
-  // porque los administradores heredan el permiso.
+  // SIAM-17 requiere el rol exacto de coordinador.
   if (rutaActual.value === "/interno/reportes/asistencia") {
     return (
       usuario.value?.role === "coordinador" &&
       usuario.value?.permissions?.includes(
         "eventos.generar_reportes"
+      ) === true
+    )
+  }
+
+  // SIAM-27: pantalla exclusiva del administrador general.
+  if (rutaActual.value === "/interno/reportes/consolidados") {
+    return (
+      usuario.value?.role === "administrador_general" &&
+      usuario.value?.permissions?.includes(
+        "reportes.ver_consolidados"
       ) === true
     )
   }
@@ -339,6 +351,13 @@ onUnmounted(() => {
           @sin-acceso="denegarAcceso"
         />
 
+        <!-- SIAM-27: reportes consolidados -->
+        <ReporteConsolidado
+          v-else-if="rutaActual === '/interno/reportes/consolidados'"
+          @sesion-expirada="sesionExpirada"
+          @sin-acceso="denegarAcceso"
+        />
+
         <p v-else>
           {{ t("users.chooseSection") }}
         </p>
@@ -428,6 +447,12 @@ onUnmounted(() => {
 
 /* SIAM-17: permitir más espacio para la tabla */
 .pagina-administracion:has(.reporte-asistencia) {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+/* SIAM-27: espacio para los reportes consolidados */
+.pagina-administracion:has(.reporte-consolidado) {
   max-width: 1180px;
   margin: 0 auto;
 }
