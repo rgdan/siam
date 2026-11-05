@@ -1,5 +1,6 @@
 
 from api import views
+from api import reports as report_views
 from audit.views import AuditList
 from django.urls import path
 from incidents.views import register_incident
@@ -20,7 +21,6 @@ urlpatterns = [
     path("api/pieces/<int:piece_id>/", collection_views.piece_detail, name="piece-detail"),
     path("api/pieces/<int:piece_id>/photos/", collection_views.upload_photos, name="piece-photos"),
     path("api/pieces/<int:piece_id>/photos/order/", collection_views.reorder_photos, name="piece-photo-order"),
-    path("api/pieces/<int:piece_id>/photos/<int:photo_id>/", collection_views.delete_photo, name="piece-photo-delete"),
     path("api/incidents/", register_incident, name="incident-register"),
     path("api/visitor-entries/", register_entry, name="visitor-entry-register"),
     path("api/audit/", AuditList.as_view(), name="audit-list"),
@@ -38,11 +38,30 @@ urlpatterns = [
     path("api/events/internal/", views.internal_events, name="internal-events"),
 
     # SIAM-15: modificación y cancelación de eventos.
-    path("api/events/<int:event_id>/", views.event_detail, name="event-detail"),
-    path("api/events/<int:event_id>/cancel/", views.cancel_event, name="event-cancel"),
+    path(
+        "api/events/<int:event_id>/",
+        views.event_detail,
+        name="event-detail",
+    ),
+    path(
+        "api/events/<int:event_id>/cancel/",
+        views.cancel_event,
+        name="event-cancel",
+    ),
 
     # SIAM-16: registro de asistencia real.
-    path("api/events/<int:event_id>/attendance/", views.event_attendance, name="event-attendance"),
+    path(
+        "api/events/<int:event_id>/attendance/",
+        views.event_attendance,
+        name="event-attendance",
+    ),
+
+    # SIAM-17: reporte de asistencia esperada vs. real.
+    path(
+        "api/reports/attendance/",
+        report_views.attendance_report,
+        name="attendance-report",
+    ),
 ]
 
 handler400 = views.bad_request
