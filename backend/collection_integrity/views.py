@@ -1,6 +1,9 @@
 import logging
 
 from api.permissions import requiere_permiso
+from api import schema as docs
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
+from .reports import CollectionReportFilters
 from audit.models import AuditEntry
 from audit.services import record, snapshot
 from django.db import transaction
@@ -16,6 +19,8 @@ from .serializers import (
     PieceSerializer,
     UploadSerializer,
     LoanSerializer,
+    DecommissionSerializer,
+    MissingPieceSerializer,
 )
 from .services import _finish, attach_photo, register_piece, loan_piece, return_piece, require_collection_manager
 from .reports import collection_report_data
@@ -23,6 +28,9 @@ from .reports import collection_report_data
 logger = logging.getLogger(__name__)
 
 
+@extend_schema(tags=["Collections"], summary="Summarize current collection inventory",
+               description="Permission: colecciones.generar_reportes. Exact-match filters; missing groups stolen and lost. Empty collection/object_type selects unassigned records.",
+               parameters=[CollectionReportFilters], responses={200: docs.CollectionReportSerializer, **docs.ERRORS})
 @api_view(["GET"])
 @requiere_permiso("colecciones.generar_reportes")
 def collection_report(request):
@@ -32,6 +40,13 @@ def collection_report(request):
     }))
 
 
+@extend_schema(tags=["Collections"], methods=["GET"], summary="List collection pieces",
+               description="Permission: piezas.crear. Unpaginated inventory; optional exact state filter.",
+               parameters=[OpenApiParameter("state", str, description="Exact lifecycle state.")],
+               responses={200: PieceSerializer(many=True), **docs.ERRORS})
+@extend_schema(tags=["Collections"], methods=["POST"], summary="Register a collection piece", request=PieceSerializer,
+               description="Permission: piezas.crear. New pieces start in stored state. Identifier and lifecycle fields are server-owned.",
+               responses={201: PieceSerializer, **docs.ERRORS})
 @api_view(["GET", "POST"])
 @requiere_permiso("piezas.crear")
 def pieces(request):
@@ -49,6 +64,11 @@ def pieces(request):
     return Response(PieceSerializer(piece).data, status=201)
 
 
+@extend_schema(tags=["Collections"], methods=["GET"], summary="Get a piece, its photos and history",
+               description="Permission: piezas.actualizar.", responses={200: docs.PieceDetailSerializer, **docs.ERRORS})
+@extend_schema(tags=["Collections"], methods=["PATCH"], summary="Update a collection piece", request=PieceSerializer,
+               description="Permission: piezas.actualizar. Decommissioned pieces cannot be edited. Exhibition requires a location. Use lifecycle endpoints for loans, theft/loss and decommissioning.",
+               responses={200: docs.PieceDetailSerializer, **docs.ERRORS})
 @api_view(["GET", "PATCH"])
 @requiere_permiso("piezas.actualizar")
 def piece_detail(request, piece_id):
@@ -73,6 +93,10 @@ def piece_detail(request, piece_id):
         return Response(data)
 
 
+@extend_schema(tags=["Collections"], summary="Attach photos to a piece",
+               description="Permission: piezas.adjuntar_fotos. Send JSON with 1–20 base64 images, without a data-URI prefix. JPEG, PNG or WebP, maximum 5 MiB decoded per image. Results report success/failure per image; a 200 response can contain partial failures.",
+               request=inline_serializer("PhotoUpload", {"photos": UploadSerializer(many=True)}),
+               responses={200: docs.PHOTO_RESULTS, **docs.ERRORS})
 @api_view(["POST"])
 @requiere_permiso("piezas.adjuntar_fotos")
 def upload_photos(request, piece_id):
@@ -127,6 +151,9 @@ def delete_photo(request, piece_id, photo_id):
     return Response({"deleted": photo_id})
 
 
+@extend_schema(tags=["Collections"], summary="Reorder piece photos", request=PhotoOrderSerializer,
+               description="Permission: piezas.actualizar. Provide every current photo ID exactly once.",
+               responses={200: docs.PHOTO_ORDER, **docs.ERRORS})
 @api_view(["PATCH"])
 @requiere_permiso("piezas.actualizar")
 def reorder_photos(request, piece_id):
@@ -157,11 +184,12 @@ def reorder_photos(request, piece_id):
     return Response({"photos": photo_ids})
 
 
+@extend_schema(tags=["Collections"], summary="Decommission a piece", request=DecommissionSerializer,
+               description="Permission: piezas.dar_baja. Requires a reason and confirmed=true.", responses={200: PieceSerializer, **docs.ERRORS})
 @api_view(["POST"])
 @requiere_permiso("piezas.dar_baja")
 def decommission(request, piece_id):
     from .services import decommission_piece, require_collection_manager
-    from .serializers import DecommissionSerializer
     require_collection_manager(request.user)
     get_object_or_404(Piece, pk=piece_id)
     serializer = DecommissionSerializer(data=request.data)
@@ -170,11 +198,12 @@ def decommission(request, piece_id):
     return Response(PieceSerializer(piece).data)
 
 
+@extend_schema(tags=["Collections"], summary="Record theft or loss", request=MissingPieceSerializer,
+               description="Permission: piezas.marcar_robo_extravio. Requires confirmed=true and a non-future event_date.", responses={200: PieceSerializer, **docs.ERRORS})
 @api_view(["POST"])
 @requiere_permiso("piezas.marcar_robo_extravio")
 def missing(request, piece_id):
     from .services import mark_missing, require_collection_manager
-    from .serializers import MissingPieceSerializer
     require_collection_manager(request.user)
     get_object_or_404(Piece, pk=piece_id)
     serializer = MissingPieceSerializer(data=request.data)
@@ -183,6 +212,8 @@ def missing(request, piece_id):
     return Response(PieceSerializer(piece).data)
 
 
+@extend_schema(tags=["Collections"], summary="Register a loan", request=LoanSerializer,
+               description="Permission: piezas.registrar_prestamo. End date must be on or after start date.", responses={200: PieceSerializer, **docs.ERRORS})
 @api_view(["POST"])
 @requiere_permiso("piezas.registrar_prestamo")
 def loan(request, piece_id):
@@ -194,6 +225,8 @@ def loan(request, piece_id):
     return Response(PieceSerializer(piece).data)
 
 
+@extend_schema(tags=["Collections"], summary="Register a loan return", request=None,
+               description="Permission: piezas.registrar_prestamo. Returns the piece to storage.", responses={200: PieceSerializer, **docs.ERRORS})
 @api_view(["POST"])
 @requiere_permiso("piezas.registrar_prestamo")
 def return_loan(request, piece_id):
@@ -203,6 +236,8 @@ def return_loan(request, piece_id):
     return Response(PieceSerializer(piece).data)
 
 
+@extend_schema(tags=["Collections"], summary="Recover a stolen or lost piece", request=None,
+               description="Permission: piezas.marcar_robo_extravio. Returns the piece to storage.", responses={200: PieceSerializer, **docs.ERRORS})
 @api_view(["POST"])
 @requiere_permiso("piezas.marcar_robo_extravio")
 def recover(request, piece_id):
@@ -213,6 +248,8 @@ def recover(request, piece_id):
     return Response(PieceSerializer(piece).data)
 
 
+@extend_schema(tags=["Collections"], summary="Reactivate a decommissioned piece", request=None,
+               description="Permission: piezas.dar_baja. Returns the piece to storage.", responses={200: PieceSerializer, **docs.ERRORS})
 @api_view(["POST"])
 @requiere_permiso("piezas.dar_baja")
 def reactivate(request, piece_id):

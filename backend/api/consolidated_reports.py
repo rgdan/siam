@@ -8,9 +8,12 @@ from django.views.decorators.cache import never_cache
 from rest_framework import serializers
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
+from . import schema as docs
 
 from collection_integrity.reports import collection_report_data
 from visitors.models import VisitorEntry
+from incidents.reports import incident_report_data
 
 from .models import Evento
 from .permissions import requiere_permiso
@@ -189,6 +192,9 @@ def datos_eventos(fecha_inicio, fecha_fin):
 
 
 @never_cache
+@extend_schema(tags=["Reports"], summary="Get consolidated museum figures",
+               description="Permission: reportes.ver_consolidados (general/system administrators). Defaults to the current month when both dates are omitted. One date leaves the other bound open. Collection totals always reflect current inventory. Incident totals include every matching record, independent of history pagination.",
+               parameters=docs.DATE_FILTERS, responses={200: docs.ConsolidatedReportSerializer, **docs.ERRORS})
 @api_view(["GET"])
 @requiere_permiso("reportes.ver_consolidados")
 def consolidated_report(request):
@@ -213,6 +219,7 @@ def consolidated_report(request):
         },
         "visitantes": visitantes,
         "eventos": eventos,
+        "incidencias": incident_report_data(fecha_inicio, fecha_fin),
         "colecciones": {
             **colecciones,
             "mensaje": (

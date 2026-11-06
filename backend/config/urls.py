@@ -5,6 +5,7 @@ from api import consolidated_reports as consolidated_views
 from api import export_reports as export_views
 from audit.views import AuditList
 from django.urls import path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from incidents.views import register_incident
 from system_configuration import views as configuration_views
 from visitors.views import register_entry
@@ -13,6 +14,8 @@ from collection_integrity import views as collection_views
 
 
 urlpatterns = [
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path(
         "api/pieces/<int:piece_id>/reactivate/",
         collection_views.reactivate,

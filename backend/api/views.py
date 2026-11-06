@@ -14,6 +14,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied, NotAuthenticated
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
+
+from . import schema as docs
 
 from .authentication import SessionAuthentication
 from .models import Evento
@@ -32,6 +35,7 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(trim_whitespace=False, write_only=True)
 
 
+@extend_schema(tags=["System"], summary="Check API availability", auth=[], responses={200: docs.HEALTH})
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def health(request):
@@ -39,6 +43,7 @@ def health(request):
 
 
 @never_cache
+@extend_schema(tags=["Authentication"], summary="Get a CSRF token and cookie", auth=[], responses={200: docs.CSRF})
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def csrf(request):
@@ -46,6 +51,9 @@ def csrf(request):
 
 
 @never_cache
+@extend_schema(tags=["Authentication"], summary="Sign in", auth=[], request=LoginSerializer,
+               description="Requires the CSRF cookie and matching X-CSRFToken header, even before login. Rotates CSRF and creates sessionid.",
+               responses={200: docs.LOGIN_RESULT, **docs.ERRORS})
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def sign_in(request):
@@ -85,6 +93,8 @@ def sign_in(request):
 
 
 @never_cache
+@extend_schema(tags=["Authentication"], summary="Get the current account and permissions",
+               responses={200: docs.SessionUserSerializer, **docs.ERRORS})
 @api_view(["GET"])
 def me(request):
     user = request.user
@@ -99,6 +109,7 @@ def me(request):
 
 
 @never_cache
+@extend_schema(tags=["Authentication"], summary="Sign out", request=None, responses={200: docs.DETAIL, **docs.ERRORS})
 @api_view(["POST"])
 def sign_out(request):
     logout(request)
@@ -106,6 +117,11 @@ def sign_out(request):
 
 
 @never_cache
+@extend_schema(tags=["Users"], methods=["GET"], summary="List staff accounts",
+               description="Permission: usuarios.consultar (system administrator).", responses={200: UserSerializer(many=True), **docs.ERRORS})
+@extend_schema(tags=["Users"], methods=["POST"], summary="Create a staff account", request=UserSerializer,
+               description="Permission: usuarios.crear. Passwords require at least 8 characters, including letters and digits.",
+               responses={201: UserSerializer, **docs.ERRORS})
 @api_view(["GET", "POST"])
 @requiere_permiso({
     "GET": "usuarios.consultar",
@@ -136,6 +152,12 @@ def users(request):
 
 
 @never_cache
+@extend_schema(tags=["Users"], methods=["PATCH"], summary="Update a staff account", request=UserUpdateSerializer,
+               description="Permission: usuarios.actualizar; changing role also requires usuarios.asignar_rol. Cannot deactivate yourself or remove the last active system administrator.",
+               responses={200: UserSerializer, **docs.ERRORS})
+@extend_schema(tags=["Users"], methods=["DELETE"], summary="Delete or deactivate a staff account", request=docs.CONFIRM,
+               description="Permission: usuarios.eliminar. Send confirm=true. Accounts with related records are deactivated instead of deleted.",
+               responses={200: docs.DELETE_USER, **docs.ERRORS})
 @api_view(["PATCH", "DELETE"])
 @requiere_permiso({
     "PATCH": "usuarios.actualizar",
@@ -276,6 +298,11 @@ def user_detail(request, user_id):
 
 # SIAM-12 y SIAM-13: registro de eventos y consulta pública.
 @never_cache
+@extend_schema(tags=["Events"], methods=["GET"], summary="List scheduled public events", auth=[],
+               responses={200: docs.PublicEventSerializer(many=True)})
+@extend_schema(tags=["Events"], methods=["POST"], summary="Create an event", auth=[{"cookieAuth": []}], request=EventoSerializer,
+               description="Permission: eventos.crear. New events must have a future date and expected attendance of at least one.",
+               responses={201: EventoSerializer, **docs.ERRORS})
 @api_view(["GET", "POST"])
 @permission_classes([AllowAny])
 def events(request):
@@ -313,6 +340,9 @@ def events(request):
 
 # SIAM-14 y SIAM-16: eventos internos y sus datos de asistencia.
 @never_cache
+@extend_schema(tags=["Events"], summary="List scheduled public and private events",
+               description="Permission: eventos.ver_privados (all staff roles). Includes expected and actual attendance.",
+               responses={200: docs.InternalEventSerializer(many=True), **docs.ERRORS})
 @api_view(["GET"])
 @requiere_permiso("eventos.ver_privados")
 def internal_events(request):
@@ -350,6 +380,11 @@ def verificar_permiso_evento(request, permiso):
 
 # SIAM-15: consulta individual y modificación de eventos.
 @never_cache
+@extend_schema(tags=["Events"], methods=["GET"], summary="Get an event",
+               description="Permission: eventos.actualizar.", responses={200: EventoSerializer, **docs.ERRORS})
+@extend_schema(tags=["Events"], methods=["PATCH"], summary="Update an event", request=EventoUpdateSerializer,
+               description="Permission: eventos.actualizar. Only scheduled future events can be edited; a replacement date must also be in the future.",
+               responses={200: EventoSerializer, **docs.ERRORS})
 @api_view(["GET", "PATCH"])
 def event_detail(request, event_id):
     verificar_permiso_evento(
@@ -412,6 +447,9 @@ def event_detail(request, event_id):
 
 # SIAM-15: cancelación confirmada sin eliminar el registro.
 @never_cache
+@extend_schema(tags=["Events"], summary="Cancel an event", request=docs.CONFIRM,
+               description="Permission: eventos.cancelar. Send confirm=true; only future scheduled events can be cancelled.",
+               responses={200: docs.EVENT_RESULT, **docs.ERRORS})
 @api_view(["POST"])
 def cancel_event(request, event_id):
     verificar_permiso_evento(
@@ -465,6 +503,9 @@ def cancel_event(request, event_id):
 
 # SIAM-16: registro o corrección de asistencia real.
 @never_cache
+@extend_schema(tags=["Events"], summary="Record or correct attendance", request=EventoAsistenciaSerializer,
+               description="Permission: eventos.registrar_asistencia. Event must have occurred and cannot be cancelled. Send a non-negative JSON integer.",
+               responses={200: docs.EVENT_RESULT, **docs.ERRORS})
 @api_view(["PATCH"])
 def event_attendance(request, event_id):
     verificar_permiso_evento(

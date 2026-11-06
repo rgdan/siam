@@ -13,6 +13,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "corsheaders",
     "rest_framework",
+    "drf_spectacular",
     "api",
     "audit",
     "collection_integrity",
@@ -38,11 +39,15 @@ SESSION_COOKIE_HTTPONLY = True
 CSRF_FAILURE_VIEW = "api.views.csrf_failure"
 
 ROOT_URLCONF = "config.urls"
+TEMPLATES = [{
+    "BACKEND": "django.template.backends.django.DjangoTemplates",
+    "APP_DIRS": True,
+}]
 
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": os.environ.get("DJANGO_DB_PATH", BASE_DIR / "db.sqlite3"),
 
         "OPTIONS": {"transaction_mode": "IMMEDIATE"},
     }
@@ -55,10 +60,49 @@ USE_I18N = True
 USE_TZ = True
 
 REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_AUTHENTICATION_CLASSES": ["api.authentication.SessionAuthentication"],
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "SIAM API",
+    "DESCRIPTION": (
+        "Museum Information and Analytics System · Museo Histórico Cultural Juan Santamaría.\n\n"
+        "JSON API with session-cookie authentication and role permissions. "
+        "Dates use America/Costa_Rica; date filters are inclusive.\n\n"
+        "To test locally: execute GET /api/auth/csrf/, then POST /api/auth/login/. "
+        "The browser stores the session cookie; Swagger sends the current CSRF cookie "
+        "as X-CSRFToken for writes. Do not enter a cookie in the Authorize dialog. "
+        "GET /api/auth/me/ returns the account and its permissions. "
+        "Login rotates the CSRF token. Errors are JSON detail messages or field errors."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SERVE_AUTHENTICATION": [],
+    "COMPONENT_SPLIT_REQUEST": True,
+    "ENUM_NAME_OVERRIDES": {
+        "PieceStateEnum": "api.schema.PIECE_STATES",
+        "MissingStateEnum": ["stolen", "lost"],
+        "CollectionReportStateEnum": "collection_integrity.reports.REPORT_STATES",
+    },
+    "SWAGGER_UI_DIST": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.1",
+    "SWAGGER_UI_FAVICON_HREF": None,
+    "SWAGGER_UI_SETTINGS": """{
+        deepLinking: true,
+        docExpansion: 'none',
+        displayRequestDuration: true,
+        validatorUrl: null,
+        requestInterceptor: (request) => {
+            if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+                const token = document.cookie.split('; ').find(c => c.startsWith('csrftoken='));
+                if (token) request.headers['X-CSRFToken'] = decodeURIComponent(token.slice(10));
+            }
+            return request;
+        }
+    }""",
 }
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 145 * 1024 * 1024

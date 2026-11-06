@@ -1,28 +1,19 @@
 # Frontend de SIAM
 
-Vue + Vite. Requiere Node.js 22.18 o posterior.
+Interfaz en Vue y Vite.
 
-Desde la raíz del repositorio:
+## Docker
 
-```bash
-cd frontend
-npm install
-cp .env.example .env
-npm run dev
-```
+La [guía de Docker](../README.md#docker) inicia el frontend y el backend juntos, sin instalar Node.js ni Python en el equipo. Abra **http://127.0.0.1:5173/**. La conexión con la API ya está configurada; no necesita crear `frontend/.env`.
 
-Abra http://127.0.0.1:5173/ para consultar la información pública.
-Ingrese por `/login` para abrir `/interno`. Necesita el backend activo y una cuenta creada.
-Como administrador de sistema, abra **Usuarios** para crear, editar, restablecer contraseñas o eliminar cuentas.
+Para trabajar sin contenedores, consulte la [guía de desarrollo local](../docs/development.md).
 
-Para generar una cuenta de prueba por rol, ejecute `python crear_usuarios_demo.py` desde `backend/`,
-con su entorno virtual activo y `DJANGO_SECRET_KEY` definido ([instrucciones y correos](../backend/README.md#cuentas-de-prueba)).
-Ingrese con `administrador_sistema@demo.siam.test` y `Demo12345` para administrar usuarios.
-Estas cuentas son solo para desarrollo local; el script no modifica cuentas existentes.
+## Acceso
 
-La dirección de la API está en `.env`, en `VITE_API_BASE_URL`, y debe terminar
-en `/`. Reinicie Vite si la cambia.
+| Ruta | Uso |
+| :--- | :--- |
+| `/` | Información pública del museo |
+| `/login` | Inicio de sesión del personal; abre el calendario |
+| `/interno/usuarios` | Administración de cuentas, para el administrador de sistema |
 
-Para generar la versión de producción: `npm run build`.
-
-Use el mismo host para ambos servidores: `127.0.0.1` o `localhost`, sin mezclarlos.
+Para probar los roles y el escenario del **23–29 de noviembre de 2026**, consulte la [carga de datos y cuentas de demostración](../backend/README.md#datos-de-demostración). Son solo para desarrollo local.

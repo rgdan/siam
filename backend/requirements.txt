@@ -1,6 +1,7 @@
 Django>=5.2.10,<5.3
 djangorestframework>=3.17.2,<3.18
 django-cors-headers>=4.9,<5
+drf-spectacular>=0.29,<0.30
 
 Pillow>=11.3,<13
 reportlab>=4.2,<5

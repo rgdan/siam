@@ -85,12 +85,11 @@ function seleccionarTema(evento) {
           </a>
 
           <a
-            v-if="usuario"
-            href="/interno"
-            :aria-current="props.rutaActual === '/interno' ? 'page' : undefined"
+            href="/privacidad"
+            :aria-current="props.rutaActual === '/privacidad' ? 'page' : undefined"
             @click="cerrarMenu"
           >
-            {{ t("auth.internalArea") }}
+            {{ locale === "en" ? "Privacy policy" : "Política de privacidad" }}
           </a>
 
           <a
@@ -139,7 +138,7 @@ function seleccionarTema(evento) {
             :aria-current="props.rutaActual === '/interno/incidencias' ? 'page' : undefined"
             @click="cerrarMenu"
           >
-            {{ t("incidents.title") }}
+            {{ t("incidents.listTitle") }}
           </a>
 
           <a

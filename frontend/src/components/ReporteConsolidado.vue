@@ -5,7 +5,7 @@ import { useI18n } from "vue-i18n"
 import { solicitar } from "../api.js"
 
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-const { locale } = useI18n({ useScope: "global" })
+const { locale, t } = useI18n({ useScope: "global" })
 
 const fechaInicio = ref("")
 const fechaFin = ref("")
@@ -20,7 +20,9 @@ const errorExportacion = ref("")
 const textos = {
   es: {
     titulo: "Reportes consolidados",
-    descripcion: "Resumen general de visitantes, eventos y colecciones del museo.",
+    descripcion: "Resumen general de visitantes, eventos, colecciones e incidencias del museo.",
+    totalIncidencias: "Total de incidencias",
+    porCategoria: "Por categoría",
     filtros: "Período del reporte",
     inicio: "Fecha inicial",
     fin: "Fecha final",
@@ -88,7 +90,9 @@ const textos = {
 
   en: {
     titulo: "Consolidated reports",
-    descripcion: "General overview of museum visitors, events and collections.",
+    descripcion: "General overview of museum visitors, events, collections and incidents.",
+    totalIncidencias: "Total incidents",
+    porCategoria: "By category",
     filtros: "Report period",
     inicio: "Start date",
     fin: "End date",
@@ -203,7 +207,8 @@ const hayDatos = computed(() => {
   return (
     reporte.value.visitantes.total > 0 ||
     reporte.value.eventos.total > 0 ||
-    reporte.value.colecciones.total > 0
+    reporte.value.colecciones.total > 0 ||
+    reporte.value.incidencias.total > 0
   )
 })
 
@@ -716,6 +721,29 @@ onMounted(generarReporte)
                   :key="coleccion"
                 >
                   <dt>{{ nombreCategoria(coleccion) }}</dt>
+                  <dd>{{ numero(cantidad) }}</dd>
+                </div>
+              </dl>
+            </article>
+          </div>
+        </template>
+      </section>
+      <section class="seccion-reporte">
+        <h2>{{ t("incidents.listTitle") }}</h2>
+        <p v-if="reporte.incidencias.total === 0" class="mensaje-vacio">{{ traducir("sinDatos") }}</p>
+        <template v-else>
+          <div class="tarjetas">
+            <article class="tarjeta tarjeta-destacada">
+              <h3>{{ traducir("totalIncidencias") }}</h3>
+              <p>{{ numero(reporte.incidencias.total) }}</p>
+            </article>
+          </div>
+          <div class="grupos">
+            <article class="grupo-estadisticas">
+              <h3>{{ traducir("porCategoria") }}</h3>
+              <dl>
+                <div v-for="(cantidad, categoria) in reporte.incidencias.por_categoria" :key="categoria">
+                  <dt>{{ t(`incidents.categories.${categoria}`) }}</dt>
                   <dd>{{ numero(cantidad) }}</dd>
                 </div>
               </dl>

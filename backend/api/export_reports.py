@@ -8,8 +8,14 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from rest_framework import serializers
 from rest_framework.decorators import api_view
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from . import schema as docs
 
 from collection_integrity.reports import collection_report_data
+from collection_integrity.reports import CollectionReportFilters
+from incidents.models import Incident
+from incidents.reports import incident_report_data
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -51,6 +57,7 @@ def datos_para_exportar(request, tipo):
         visitantes = datos_visitantes(inicio, fin)
         eventos = datos_eventos(inicio, fin)
         colecciones = collection_report_data()
+        incidencias = incident_report_data(inicio, fin)
 
         filtros = {
             "Fecha inicial": inicio.isoformat() if inicio else "Todas",
@@ -111,10 +118,17 @@ def datos_para_exportar(request, tipo):
             list(colecciones["by_collection"].items()),
         )
 
+        agregar_resumen(secciones, "Incidencias", [
+            ("Total de incidencias", incidencias["total"]),
+            *[(label, incidencias["por_categoria"][category])
+              for category, label in Incident.Category.choices],
+        ])
+
         hay_datos = (
             visitantes["total"] > 0
             or eventos["total"] > 0
             or colecciones["total"] > 0
+            or incidencias["total"] > 0
         )
 
         return {
@@ -430,6 +444,14 @@ def generar_pdf(datos, usuario):
     return archivo.getvalue()
 
 
+@extend_schema(tags=["Reports"], summary="Download a report as PDF or Excel",
+               description="Permission: reportes.exportar. Returns a file attachment; empty datasets return 400. Consolidated dates default to the current month. Attendance dates are optional and include all finished events when omitted.",
+               parameters=[*docs.DATE_FILTERS, CollectionReportFilters,
+                           OpenApiParameter("tipo", str, OpenApiParameter.PATH, enum=["consolidated", "attendance", "collection"]),
+                           OpenApiParameter("formato", str, OpenApiParameter.PATH, enum=["pdf", "xlsx"])],
+               responses={(200, "application/pdf"): OpenApiTypes.BINARY,
+                          (200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): OpenApiTypes.BINARY,
+                          **docs.ERRORS})
 @never_cache
 @api_view(["GET"])
 @requiere_permiso("reportes.exportar")
