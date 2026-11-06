@@ -63,4 +63,4 @@ Las cuentas existentes conservan sus datos y contraseñas.
 
 `GET http://127.0.0.1:8000/api/health/` devuelve `200 OK` con `{"estado":"ok"}` si el servidor responde.
 
-La [referencia de la API](../docs/api.es.md) incluye [Swagger UI local](http://127.0.0.1:8000/api/docs/), el esquema OpenAPI y el flujo de autenticación. Las anotaciones de las vistas y los serializadores generan la documentación; GitHub Actions la valida y publica en Pages desde `main`.
+La [referencia de la API](https://rgdan.github.io/siam/) documenta los endpoints, campos y respuestas. La [guía de la API](../docs/api.es.md) explica la autenticación para cualquier cliente HTTP. GitHub Actions genera, valida y publica la referencia en Pages desde `main`.

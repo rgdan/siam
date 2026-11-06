@@ -19,8 +19,6 @@ python manage.py runserver 127.0.0.1:8000
 
 Reutilice `DJANGO_SECRET_KEY` para conservar las sesiones entre reinicios. No incluya la clave en el repositorio.
 
-El historial de migraciones se reinició. Si tiene una base de datos de una versión anterior, debe recrearla; consulte el [procedimiento de reinicio](development.md#reinicio-del-historial-de-migraciones). Se perderán los datos locales.
-
 **Frontend**
 
 ```bash
@@ -33,26 +31,6 @@ npm run dev
 Abra **[127.0.0.1:5173](http://127.0.0.1:5173/)**. El personal ingresa por **[/login](http://127.0.0.1:5173/login)** y accede directamente al calendario de eventos.
 
 Use `127.0.0.1` en ambos servidores. `VITE_API_BASE_URL` debe apuntar a `http://127.0.0.1:8000/api/`, incluida la barra final. Reinicie Vite si cambia esta variable.
-
-## Reinicio del historial de migraciones
-
-<details>
-<summary>Recrear una base de datos de una versión anterior</summary>
-
-Cada aplicación tiene una única migración `0001_initial`. Las bases creadas con el historial anterior deben recrearse.
-
-**Este proceso elimina todos los datos locales.**
-
-1. Detenga el backend.
-2. Elimine `backend/db.sqlite3` y sus archivos `-wal` y `-shm`, si existen.
-3. Desde `backend/`, con `.venv` y `DJANGO_SECRET_KEY` activos, ejecute:
-
-```bash
-python manage.py migrate
-python cargar_datos_demo.py
-```
-
-</details>
 
 ## Conexión con la API
 

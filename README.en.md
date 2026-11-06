@@ -2,20 +2,20 @@
 
 ![SIAM · Sistema de Información y Analítica Museal · Museum Information and Analytics System](docs/assets/siam-banner.svg)
 
-**Museo Histórico Cultural Juan Santamaría · Alajuela, Costa Rica**
+**Case study: Museo Histórico Cultural Juan Santamaría · Alajuela, Costa Rica**
 
-[Español](README.md) · [English](README.en.md) · [Frontend](frontend/README.md) · [Backend](backend/README.md) · [API](docs/api.md)
+[Español](README.md) · [English](README.en.md) · [Frontend](frontend/README.md) · [Backend](backend/README.md) · [API](docs/api.es.md)
 
 **Vue 3** &nbsp; / &nbsp; **Vite** &nbsp; / &nbsp; **Django REST Framework** &nbsp; / &nbsp; **SQLite**
 
-Academic project in development<br>
+Hypothetical system · Academic project in development<br>
 Software Requirements · Tecnológico de Costa Rica
 
 </div>
 
 ---
 
-**SIAM** manages visitors, events, and collections for the Museo Histórico Cultural Juan Santamaría, with public information and role-based administrative access.
+**SIAM** is a hypothetical system for managing visitors, events, and collections, developed as an academic project using the Museo Histórico Cultural Juan Santamaría as a case study. It is not an official museum system or an institutional initiative. It includes public information and role-based administrative access.
 
 | Module | Functionality |
 | :--- | :--- |
@@ -71,7 +71,7 @@ For development without containers, see the [local development guide](docs/devel
 
 ## API documentation
 
-With SIAM running, open [Swagger UI](http://127.0.0.1:8000/api/docs/) to browse and test endpoints. The [API guide](docs/api.md) covers authentication, permissions and automatic GitHub Pages publishing. The [published reference](https://rgdan.github.io/siam/) becomes available after the first deployment from `main`.
+Browse the [API reference](https://rgdan.github.io/siam/) for endpoints, fields and responses. The [API guide (Spanish)](docs/api.es.md) explains session authentication and role permissions for using any HTTP client.
 
 ## Test accounts
 

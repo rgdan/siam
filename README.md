@@ -2,20 +2,20 @@
 
 ![SIAM · Sistema de Información y Analítica Museal · Museum Information and Analytics System](docs/assets/siam-banner.svg)
 
-**Museo Histórico Cultural Juan Santamaría · Alajuela, Costa Rica**
+**Caso de estudio: Museo Histórico Cultural Juan Santamaría · Alajuela, Costa Rica**
 
 [Español](README.md) · [English](README.en.md) · [Frontend](frontend/README.md) · [Backend](backend/README.md) · [API](docs/api.es.md)
 
 **Vue 3** &nbsp; / &nbsp; **Vite** &nbsp; / &nbsp; **Django REST Framework** &nbsp; / &nbsp; **SQLite**
 
-Proyecto académico en desarrollo<br>
+Sistema hipotético · Proyecto académico en desarrollo<br>
 Requerimientos del Software · Tecnológico de Costa Rica
 
 </div>
 
 ---
 
-**SIAM** es un sistema de gestión de visitantes, eventos y colecciones del Museo Histórico Cultural Juan Santamaría, con información pública y acceso administrativo por roles.
+**SIAM** es un sistema hipotético de gestión de visitantes, eventos y colecciones, desarrollado como proyecto académico tomando al Museo Histórico Cultural Juan Santamaría como caso de estudio. No es un sistema oficial del museo ni representa una iniciativa institucional. Incluye información pública y acceso administrativo por roles.
 
 | Módulo | Funcionalidad |
 | :--- | :--- |
@@ -71,7 +71,7 @@ Para desarrollar sin contenedores, consulte la [guía de desarrollo local](docs/
 
 ## Documentación de la API
 
-Con el sistema iniciado, abra [Swagger UI](http://127.0.0.1:8000/api/docs/) para consultar y probar los endpoints. La [guía de la API](docs/api.es.md) explica la autenticación, los permisos y la publicación automática en GitHub Pages. La [referencia publicada](https://rgdan.github.io/siam/) estará disponible después del primer despliegue desde `main`.
+Consulte la [referencia de la API](https://rgdan.github.io/siam/) para conocer los endpoints, campos y respuestas. La [guía de la API](docs/api.es.md) explica la autenticación por sesión y los permisos para consumirla desde cualquier cliente HTTP.
 
 ## Cuentas de prueba
 

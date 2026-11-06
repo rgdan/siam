@@ -1,27 +1,31 @@
 # API de SIAM
 
-[Español](api.es.md) · [English](api.md) · [Proyecto](../README.md)
+[Proyecto](../README.md)
 
-La referencia se genera desde las vistas y serializadores de Django con drf-spectacular (OpenAPI 3). Swagger UI organiza los endpoints por módulo y documenta solicitudes, respuestas, filtros, autenticación y permisos.
+La API recibe solicitudes HTTP y devuelve respuestas JSON. Puede consumirla desde el frontend, curl, Postman o cualquier cliente HTTP. Swagger UI es una herramienta opcional para consultar la documentación y probar solicitudes.
+
+El esquema OpenAPI describe los endpoints, sus campos, filtros y respuestas en un formato que otras herramientas pueden leer. drf-spectacular lo genera desde las vistas y serializadores de Django. Swagger usa ese archivo para mostrar la referencia; el esquema no modifica la base de datos ni sustituye la API.
 
 | Referencia | Dirección |
 | :--- | :--- |
 | Swagger UI local | [127.0.0.1:8000/api/docs/](http://127.0.0.1:8000/api/docs/) |
 | Esquema OpenAPI local | [127.0.0.1:8000/api/schema/](http://127.0.0.1:8000/api/schema/) |
-| Referencia publicada, después del despliegue | [rgdan.github.io/siam](https://rgdan.github.io/siam/) |
+| Referencia publicada | [rgdan.github.io/siam](https://rgdan.github.io/siam/) |
 
 Inicie el sistema con la [guía de Docker](../README.md#docker). Para aplicar las nuevas dependencias, ejecute `docker compose up --build -d`.
 
 ## Autenticación
 
-SIAM usa cookies de sesión. Abra **Swagger UI local** en el mismo host que la API:
+SIAM usa cookies de sesión y protección CSRF. El flujo es el mismo para cualquier cliente HTTP:
 
 1. Ejecute `GET /api/auth/csrf/` para obtener la cookie y el token CSRF.
 2. Ejecute `POST /api/auth/login/` con `email` y `password`. Puede usar una [cuenta de prueba](../README.md#cuentas-de-prueba).
 3. Ejecute `GET /api/auth/me/` para consultar la cuenta y sus permisos.
 4. Pruebe un endpoint permitido por su rol y cierre la sesión con `POST /api/auth/logout/`.
 
-El navegador administra `sessionid`. Swagger lee la cookie `csrftoken` actual y envía `X-CSRFToken` en las escrituras, incluido el inicio de sesión. El token cambia al iniciar sesión. El diálogo Authorize no establece cookies; use el flujo anterior. Otros clientes deben conservar las cookies y enviar el token actualizado.
+El cliente debe conservar las cookies `sessionid` y `csrftoken`, y enviar el token CSRF actual en el encabezado `X-CSRFToken` de las escrituras, incluido el inicio de sesión. El token cambia al iniciar sesión, por lo que debe usar el nuevo valor para las solicitudes siguientes. El navegador administra las cookies automáticamente; curl y Postman deben configurarse para conservarlas.
+
+Si usa Swagger UI local, su configuración lee la cookie CSRF y agrega el encabezado. El diálogo Authorize no establece cookies de sesión; autentíquese mediante `/api/auth/login/`.
 
 La consulta de eventos públicos, configuración pública, salud del servicio y token CSRF no requiere sesión. Crear un evento en `/api/events/` sí requiere autenticación y permiso. La descripción de cada operación indica el permiso; `/api/auth/me/` devuelve los de la cuenta actual.
 
@@ -39,7 +43,7 @@ El [workflow de documentación](../.github/workflows/api-docs.yml) valida el esq
 
 En **Settings → Pages → Build and deployment**, seleccione **GitHub Actions** como fuente. Incorpore el workflow a `main` y consulte **Actions → API documentation** para obtener la dirección publicada. Usa `GITHUB_TOKEN`, sin tokens personales ni secretos de producción.
 
-La página publicada es de consulta. GitHub Pages aloja el HTML y el esquema; los recursos de Swagger se cargan desde una versión fija de jsDelivr. El backend y la base de datos permanecen en su equipo. Para ejecutar solicitudes, use Swagger UI local.
+La página publicada es de consulta. GitHub Pages aloja el HTML y el esquema; los recursos de Swagger se cargan desde una versión fija de jsDelivr. El backend y la base de datos permanecen en su equipo. Para ejecutar solicitudes, use cualquier cliente HTTP contra su API en ejecución; Swagger UI local también permite hacerlo.
 
 ## Actualizar la referencia
 

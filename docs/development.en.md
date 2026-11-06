@@ -19,8 +19,6 @@ python manage.py runserver 127.0.0.1:8000
 
 Reuse `DJANGO_SECRET_KEY` to preserve sessions across restarts. Keep the key out of the repository.
 
-The migration history has been reset. Databases from earlier versions must be recreated; see the [reset procedure (Spanish)](development.md#reinicio-del-historial-de-migraciones). This deletes local data.
-
 **Frontend**
 
 ```bash
