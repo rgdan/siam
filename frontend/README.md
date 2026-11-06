@@ -1,6 +1,8 @@
 # Frontend de SIAM
 
-Vue + Vite. Requiere Node.js 22.18 o posterior.
+Interfaz en Vue y Vite. Requiere **Node.js 22.18 o posterior**.
+
+## Inicio local
 
 Desde la raíz del repositorio:
 
@@ -11,18 +13,32 @@ cp .env.example .env
 npm run dev
 ```
 
-Abra http://127.0.0.1:5173/ para consultar la información pública.
-Ingrese por `/login` para abrir el calendario de eventos. Necesita el backend activo y una cuenta creada.
-Como administrador de sistema, abra **Usuarios** para crear, editar, restablecer contraseñas o eliminar cuentas.
+Abra **http://127.0.0.1:5173/**. Para usar las funciones del personal, inicie también el [backend](../backend/README.md#inicio-local).
 
-Para cargar las cuentas y el escenario de demostración del 23–29 de noviembre de 2026, ejecute `python cargar_datos_demo.py` desde `backend/`,
-con su entorno virtual activo y `DJANGO_SECRET_KEY` definido ([instrucciones y correos](../backend/README.md#datos-de-demostración)).
-Ingrese con `administrador_sistema@demo.siam.test` y `Demo12345` para administrar usuarios.
-Estas cuentas son solo para desarrollo local; el script no modifica cuentas existentes.
+## Acceso
 
-La dirección de la API está en `.env`, en `VITE_API_BASE_URL`, y debe terminar
-en `/`. Reinicie Vite si la cambia.
+| Ruta | Uso |
+| :--- | :--- |
+| `/` | Información pública del museo |
+| `/login` | Inicio de sesión del personal; abre el calendario |
+| `/interno/usuarios` | Administración de cuentas, para el administrador de sistema |
 
-Para generar la versión de producción: `npm run build`.
+Para probar los roles y el escenario del **23–29 de noviembre de 2026**, consulte la [carga de datos y cuentas de demostración](../backend/README.md#datos-de-demostración). Son solo para desarrollo local.
 
-Use el mismo host para ambos servidores: `127.0.0.1` o `localhost`, sin mezclarlos.
+## Conexión con la API
+
+El archivo `.env` contiene:
+
+```dotenv
+VITE_API_BASE_URL=http://127.0.0.1:8000/api/
+```
+
+Conserve la barra final y reinicie Vite si cambia el valor. Use el mismo host en ambos servidores: `127.0.0.1` o `localhost`.
+
+## Compilación
+
+```bash
+npm run build
+```
+
+Genera los archivos de producción en `dist/`.

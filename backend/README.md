@@ -1,43 +1,73 @@
 # Backend de SIAM
 
-API REST en Django. Responde JSON y funciona sin el frontend.
+API REST en Django y SQLite. Requiere **Python 3.10 o posterior**.
 
-## Instalar y ejecutar
+## Inicio local
 
-Requiere Python 3.10 o posterior. Desde la raíz del repositorio, en Bash:
+**1. Instalar.** Desde la raíz del repositorio, en Bash:
 
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
+```
+
+**2. Preparar la base de datos.**
+
+```bash
 export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex())')"
 python manage.py migrate
+```
+
+**3. Iniciar la API.**
+
+```bash
 python manage.py runserver 127.0.0.1:8000
 ```
 
-En una terminal nueva, active `.venv` y vuelva a definir `DJANGO_SECRET_KEY`.
-Use una clave estable para conservar las sesiones entre reinicios; no la suba al repositorio.
+La API queda disponible en **http://127.0.0.1:8000/api/**.
 
-Para salir del entorno virtual, detenga el servidor con `Ctrl+C` y ejecute `deactivate`.
+En una terminal nueva, active `.venv` y defina `DJANGO_SECRET_KEY` de nuevo. Reutilice la misma clave para conservar las sesiones; no la suba al repositorio.
 
-## Reinicio del historial de migraciones
-
-Cada aplicación tiene una única migración `0001_initial` con el esquema actual. Las bases de datos creadas con el historial anterior no son compatibles. Para reiniciar el entorno local, detenga el backend, elimine `backend/db.sqlite3` y sus archivos `-wal` y `-shm` si existen, y ejecute de nuevo `python manage.py migrate` y `python cargar_datos_demo.py` desde `backend/`. Este proceso elimina todos los datos locales.
+Para detenerlo: `Ctrl+C`. Para salir del entorno virtual: `deactivate`.
 
 ## Datos de demostración
 
-Después de aplicar las migraciones, desde `backend/`, con `.venv` activo y `DJANGO_SECRET_KEY` definido:
+Desde `backend/`, con el entorno virtual y la clave activos:
 
 ```bash
 python cargar_datos_demo.py
 ```
 
-El script carga cinco cuentas, nueve piezas de distintas colecciones con dos imágenes de ejemplo cada una, quince eventos públicos y privados (incluido uno cancelado), 134 ingresos, cinco incidencias, los parámetros de configuración y sus registros de auditoría. Las piezas cubren almacenamiento, exhibición, préstamo, baja, robo y extravío. Todos los datos son sintéticos; las imágenes son ilustraciones de muestra.
+Carga el escenario del **23–29 de noviembre de 2026** y las cuentas de prueba. Puede repetirse sin duplicar ni sobrescribir los registros existentes. Si falla, se revierte toda la carga.
 
-El escenario se concentra en la semana del **23 al 29 de noviembre de 2026**, en la zona horaria de Costa Rica. Incluye eventos el 20 y 30 de noviembre y cuatro eventos del 3–4 de noviembre para mostrar reportes de asistencia desde ahora. La asistencia solo se precarga en eventos cuya fecha ya pasó al ejecutar el script; los futuros quedan pendientes para registrarla desde la interfaz. Los registros de visitantes e incidencias representan el escenario de esa semana, aunque se carguen antes.
+**Solo para desarrollo local.** Todos los datos e imágenes son sintéticos.
 
-Todas las cuentas usan la contraseña `Demo12345`. Ingrese por `/login` en el frontend.
+<details>
+<summary>Contenido del escenario</summary>
+
+| Datos | Contenido |
+| :--- | :--- |
+| Cuentas | 5, una por rol |
+| Colecciones | 9 piezas y 18 imágenes de muestra |
+| Eventos | 15 públicos y privados, incluido uno cancelado |
+| Visitantes | 134 ingresos |
+| Incidencias | 5, una por categoría |
+| Configuración | Parámetros del museo y registros de auditoría |
+
+Las piezas cubren almacenamiento, exhibición, préstamo, baja, robo y extravío.
+
+Las fechas usan la zona horaria de Costa Rica. Además de la semana principal, hay eventos el 20 y 30 de noviembre y cuatro del 3–4 de noviembre para los reportes de asistencia.
+
+La asistencia se precarga solo en eventos pasados al ejecutar el script. Los futuros quedan pendientes para registrarla desde la interfaz. Los ingresos e incidencias representan la semana de demostración, aunque se carguen antes.
+
+</details>
+
+<details>
+<summary>Cuentas y contraseña</summary>
+
+Contraseña para todas las cuentas nuevas: **`Demo12345`**. Ingrese por `/login` en el frontend.
 
 | Rol | Correo |
 |---|---|
@@ -47,12 +77,30 @@ Todas las cuentas usan la contraseña `Demo12345`. Ingrese por `/login` en el fr
 | Administrador general | `administrador_general@demo.siam.test` |
 | Administrador de sistema | `administrador_sistema@demo.siam.test` |
 
-Puede repetir el script: conserva los registros existentes, sus cambios y contraseñas, sin duplicar los datos ya cargados. Tampoco reemplaza la configuración existente. La carga se ejecuta en una transacción: si falla, no deja datos parciales. Utilícelo solo en desarrollo local, nunca en producción.
+Las cuentas existentes conservan sus datos y contraseñas.
+
+</details>
+
+## Reinicio del historial de migraciones
+
+<details>
+<summary>Recrear una base de datos de una versión anterior</summary>
+
+Cada aplicación tiene una única migración `0001_initial`. Las bases creadas con el historial anterior deben recrearse.
+
+**Este proceso elimina todos los datos locales.**
+
+1. Detenga el backend.
+2. Elimine `backend/db.sqlite3` y sus archivos `-wal` y `-shm`, si existen.
+3. Desde `backend/`, con `.venv` y `DJANGO_SECRET_KEY` activos, ejecute:
+
+```bash
+python manage.py migrate
+python cargar_datos_demo.py
+```
+
+</details>
 
 ## Endpoint
 
-En Postman: `GET http://127.0.0.1:8000/api/health/`.
-
-Respuesta: `200 OK` con `{"estado":"ok"}`. Solo comprueba que el servidor responde.
-
-
+`GET http://127.0.0.1:8000/api/health/` devuelve `200 OK` con `{"estado":"ok"}` si el servidor responde.
