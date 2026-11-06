@@ -144,6 +144,11 @@ const mensajes = {
     },
 
     incidents: {
+      listTitle: "Incidencias", report: "Reportar incidencia", count: "Incidencias registradas: {count}",
+      sortByDate: "Ordenar por fecha", newestFirst: "Más recientes primero", oldestFirst: "Más antiguas primero",
+      pagination: "Páginas de incidencias", previous: "Anterior", next: "Siguiente", page: "Página {page}",
+      loading: "Cargando incidencias...", empty: "No hay incidencias registradas. Puede reportar una nueva incidencia con el botón superior.",
+      loadError: "No se pudieron cargar las incidencias.", reload: "Reintentar carga", backToList: "Volver a incidencias",
       title: "Registrar incidencia", description: "Descripción", category: "Categoría",
       select: "Seleccione una categoría", minimum: "La descripción debe tener al menos 10 caracteres.",
       categoryRequired: "Seleccione una categoría para registrar la incidencia.",
@@ -362,6 +367,11 @@ const mensajes = {
     },
 
     incidents: {
+      listTitle: "Incidents", report: "Report incident", count: "Recorded incidents: {count}",
+      sortByDate: "Sort by date", newestFirst: "Newest first", oldestFirst: "Oldest first",
+      pagination: "Incident pages", previous: "Previous", next: "Next", page: "Page {page}",
+      loading: "Loading incidents...", empty: "No incidents have been recorded. Use the button above to report one.",
+      loadError: "Could not load incidents.", reload: "Retry loading", backToList: "Back to incidents",
       title: "Register incident", description: "Description", category: "Category",
       select: "Select a category", minimum: "The description must contain at least 10 characters.",
       categoryRequired: "Select a category to register the incident.",

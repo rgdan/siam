@@ -62,6 +62,7 @@ class DemoDataTests(TestCase):
             self.assertEqual(report.status_code, 200)
             self.assertEqual(report.json()["visitantes"]["total"], 134)
             self.assertEqual(report.json()["colecciones"]["total"], 9)
+            self.assertEqual(report.json()["incidencias"]["total"], 5)
             for kind in ("consolidated", "attendance"):
                 for extension in ("pdf", "xlsx"):
                     with self.subTest(kind=kind, extension=extension):

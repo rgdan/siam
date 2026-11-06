@@ -10,6 +10,8 @@ from rest_framework import serializers
 from rest_framework.decorators import api_view
 
 from collection_integrity.reports import collection_report_data
+from incidents.models import Incident
+from incidents.reports import incident_report_data
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -51,6 +53,7 @@ def datos_para_exportar(request, tipo):
         visitantes = datos_visitantes(inicio, fin)
         eventos = datos_eventos(inicio, fin)
         colecciones = collection_report_data()
+        incidencias = incident_report_data(inicio, fin)
 
         filtros = {
             "Fecha inicial": inicio.isoformat() if inicio else "Todas",
@@ -111,10 +114,17 @@ def datos_para_exportar(request, tipo):
             list(colecciones["by_collection"].items()),
         )
 
+        agregar_resumen(secciones, "Incidencias", [
+            ("Total de incidencias", incidencias["total"]),
+            *[(label, incidencias["por_categoria"][category])
+              for category, label in Incident.Category.choices],
+        ])
+
         hay_datos = (
             visitantes["total"] > 0
             or eventos["total"] > 0
             or colecciones["total"] > 0
+            or incidencias["total"] > 0
         )
 
         return {

@@ -138,7 +138,7 @@ function seleccionarTema(evento) {
             :aria-current="props.rutaActual === '/interno/incidencias' ? 'page' : undefined"
             @click="cerrarMenu"
           >
-            {{ t("incidents.title") }}
+            {{ t("incidents.listTitle") }}
           </a>
 
           <a

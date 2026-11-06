@@ -1,9 +1,9 @@
 <script setup>
-import { nextTick, ref } from "vue"
+import { nextTick, onMounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { enviar } from "../api.js"
 
-const emit = defineEmits(["sesion-expirada", "sin-acceso"])
+const emit = defineEmits(["sesion-expirada", "sin-acceso", "guardada", "cancelar"])
 const { t } = useI18n({ useScope: "global" })
 const categorias = ["objeto_extraviado", "dano_infraestructura", "comportamiento_indebido", "emergencia_medica", "otro"]
 const incidencia = ref({ description: "", category: "" })
@@ -49,6 +49,7 @@ async function guardar() {
     else if (respuesta.status === 201) {
       incidencia.value = { description: "", category: "" }
       mensaje.value = "incidents.saved"
+      emit("guardada")
     } else throw new Error()
   } catch {
     error.value = "incidents.connectionError"
@@ -58,6 +59,8 @@ async function guardar() {
     descripcion.value?.focus()
   }
 }
+
+onMounted(() => descripcion.value?.focus())
 </script>
 
 <template>
@@ -87,7 +90,10 @@ async function guardar() {
           <option disabled value="">{{ t("incidents.select") }}</option>
           <option v-for="opcion in categorias" :key="opcion" :value="opcion">{{ t(`incidents.categories.${opcion}`) }}</option>
         </select>
-        <button type="submit">{{ t(error ? "incidents.retry" : "incidents.title") }}</button>
+        <div class="acciones">
+          <button type="submit">{{ t(error ? "incidents.retry" : "incidents.title") }}</button>
+          <button type="button" @click="emit('cancelar')">{{ t("incidents.backToList") }}</button>
+        </div>
       </fieldset>
     </form>
 

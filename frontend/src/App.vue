@@ -12,7 +12,7 @@ import ReporteConsolidado from "./components/ReporteConsolidado.vue"
 import Usuarios from "./components/Usuarios.vue"
 import Bitacora from "./components/Bitacora.vue"
 import RegistrarIngreso from "./components/RegistrarIngreso.vue"
-import RegistrarIncidencia from "./components/RegistrarIncidencia.vue"
+import Incidencias from "./components/Incidencias.vue"
 import RegistrarEvento from "./components/RegistrarEvento.vue"
 import { solicitar, enviar } from "./api.js"
 
@@ -304,7 +304,7 @@ onUnmounted(() => {
           @sin-acceso="denegarAcceso"
         />
 
-        <RegistrarIncidencia
+        <Incidencias
           v-else-if="rutaActual === '/interno/incidencias'"
           @sesion-expirada="sesionExpirada"
           @sin-acceso="denegarAcceso"

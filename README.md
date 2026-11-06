@@ -22,8 +22,9 @@ Requerimientos del Software · Tecnológico de Costa Rica
 | **Información pública** | Consultar la información del museo, horarios, eventos y política de privacidad. |
 | **Visitantes** | Registrar ingresos por grupo de edad, nacionalidad y sexo, sin solicitar nombres ni cédulas de visitantes. |
 | **Eventos** | Consultar el calendario, gestionar actividades y registrar la asistencia real. |
+| **Incidencias** | Consultar el historial paginado, ordenar por fecha y registrar nuevas incidencias. |
 | **Colecciones** | Gestionar piezas, fotografías, ubicaciones, préstamos, bajas y registros de robo o extravío. |
-| **Reportes** | Consultar reportes de asistencia y consolidados; exportar en PDF y Excel según los permisos. |
+| **Reportes** | Consultar asistencia y reportes consolidados con incidencias por categoría; exportar en PDF y Excel según los permisos. |
 | **Administración** | Gestionar cuentas, roles, configuración del museo y bitácora de actividad. |
 
 La interfaz incluye **español e inglés**, **tema claro y oscuro** y navegación adaptable a dispositivos móviles. El acceso interno se controla mediante sesiones y permisos por rol: guarda, coordinador, museólogo, administrador general y administrador de sistema.

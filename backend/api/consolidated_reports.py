@@ -11,6 +11,7 @@ from rest_framework.response import Response
 
 from collection_integrity.reports import collection_report_data
 from visitors.models import VisitorEntry
+from incidents.reports import incident_report_data
 
 from .models import Evento
 from .permissions import requiere_permiso
@@ -213,6 +214,7 @@ def consolidated_report(request):
         },
         "visitantes": visitantes,
         "eventos": eventos,
+        "incidencias": incident_report_data(fecha_inicio, fecha_fin),
         "colecciones": {
             **colecciones,
             "mensaje": (

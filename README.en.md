@@ -22,8 +22,9 @@ Software Requirements · Tecnológico de Costa Rica
 | **Public information** | Find museum information, opening hours, events, and the privacy policy. |
 | **Visitors** | Record entries by age group, nationality category, and sex, without requesting visitors' names or identity numbers. |
 | **Events** | Browse the calendar, manage activities, and record actual attendance. |
+| **Incidents** | Browse paginated history, sort by date, and report new incidents. |
 | **Collections** | Manage pieces, photos, locations, loans, decommissions, and theft or loss records. |
-| **Reports** | View attendance and consolidated reports; export PDF and Excel files according to permissions. |
+| **Reports** | View attendance and consolidated reports with incidents by category; export PDF and Excel files according to permissions. |
 | **Administration** | Manage accounts, roles, museum configuration, and the activity audit log. |
 
 The interface supports **Spanish and English**, **light and dark themes**, and layouts that adapt to mobile devices. Internal access uses sessions and role permissions: guard, coordinator, museologist, general administrator, and system administrator.
