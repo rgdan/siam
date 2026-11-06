@@ -1,4 +1,6 @@
 import logging
+from drf_spectacular.utils import OpenApiResponse, extend_schema
+from api import schema as docs
 
 from api.permissions import requiere_permiso
 from audit.services import audited_create
@@ -12,6 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 @never_cache
+@extend_schema(tags=["Visitors"], summary="Record an anonymous visitor entry", request=VisitorEntrySerializer,
+               description="Permission: visitantes.registrar. Records demographic categories only; no visitor name or identity number. Staff account and timestamp are server-owned.",
+               responses={201: VisitorEntrySerializer, 503: OpenApiResponse(description="Entry could not be saved; nothing was committed."), **docs.ERRORS})
 @api_view(["POST"])
 @requiere_permiso("visitantes.registrar")
 def register_entry(request):

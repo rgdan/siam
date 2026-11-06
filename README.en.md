@@ -4,7 +4,7 @@
 
 **Museo Histórico Cultural Juan Santamaría · Alajuela, Costa Rica**
 
-[Español](README.md) · [English](README.en.md) · [Frontend](frontend/README.md) · [Backend](backend/README.md)
+[Español](README.md) · [English](README.en.md) · [Frontend](frontend/README.md) · [Backend](backend/README.md) · [API](docs/api.md)
 
 **Vue 3** &nbsp; / &nbsp; **Vite** &nbsp; / &nbsp; **Django REST Framework** &nbsp; / &nbsp; **SQLite**
 
@@ -68,6 +68,10 @@ SQLite uses its own volume, separate from `backend/db.sqlite3`. Stopping or recr
 This setup is for local development and demonstrations; it uses Django's and Vite's development servers.
 
 For development without containers, see the [local development guide](docs/development.en.md).
+
+## API documentation
+
+With SIAM running, open [Swagger UI](http://127.0.0.1:8000/api/docs/) to browse and test endpoints. The [API guide](docs/api.md) covers authentication, permissions and automatic GitHub Pages publishing. The [published reference](https://rgdan.github.io/siam/) becomes available after the first deployment from `main`.
 
 ## Test accounts
 

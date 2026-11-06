@@ -8,8 +8,12 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from rest_framework import serializers
 from rest_framework.decorators import api_view
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from . import schema as docs
 
 from collection_integrity.reports import collection_report_data
+from collection_integrity.reports import CollectionReportFilters
 from incidents.models import Incident
 from incidents.reports import incident_report_data
 from openpyxl import Workbook
@@ -440,6 +444,14 @@ def generar_pdf(datos, usuario):
     return archivo.getvalue()
 
 
+@extend_schema(tags=["Reports"], summary="Download a report as PDF or Excel",
+               description="Permission: reportes.exportar. Returns a file attachment; empty datasets return 400. Consolidated dates default to the current month. Attendance dates are optional and include all finished events when omitted.",
+               parameters=[*docs.DATE_FILTERS, CollectionReportFilters,
+                           OpenApiParameter("tipo", str, OpenApiParameter.PATH, enum=["consolidated", "attendance", "collection"]),
+                           OpenApiParameter("formato", str, OpenApiParameter.PATH, enum=["pdf", "xlsx"])],
+               responses={(200, "application/pdf"): OpenApiTypes.BINARY,
+                          (200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): OpenApiTypes.BINARY,
+                          **docs.ERRORS})
 @never_cache
 @api_view(["GET"])
 @requiere_permiso("reportes.exportar")

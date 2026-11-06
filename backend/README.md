@@ -62,3 +62,5 @@ Las cuentas existentes conservan sus datos y contraseñas.
 ## Endpoint
 
 `GET http://127.0.0.1:8000/api/health/` devuelve `200 OK` con `{"estado":"ok"}` si el servidor responde.
+
+La [referencia de la API](../docs/api.es.md) incluye [Swagger UI local](http://127.0.0.1:8000/api/docs/), el esquema OpenAPI y el flujo de autenticación. Las anotaciones de las vistas y los serializadores generan la documentación; GitHub Actions la valida y publica en Pages desde `main`.

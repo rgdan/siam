@@ -1,4 +1,6 @@
 from api.permissions import permiso_requerido
+from api.schema import ERRORS
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import serializers
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
@@ -52,6 +54,11 @@ class AuditPagination(PageNumberPagination):
     page_size = 50
 
 
+@extend_schema_view(get=extend_schema(
+    tags=["Audit"], summary="Browse the activity log",
+    description="Permission: bitacora.consultar (system administrator). Read-only, 50 entries per page. Date filters are inclusive in Costa Rica time.",
+    parameters=[AuditFilters], responses={200: AuditSerializer(many=True), **ERRORS},
+))
 class AuditList(ListAPIView):
     permission_classes = [SystemAdminOnly]
     serializer_class = AuditSerializer

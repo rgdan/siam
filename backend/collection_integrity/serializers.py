@@ -84,7 +84,7 @@ class PhotoSerializer(serializers.ModelSerializer):
         model = Photo
         fields = ["id", "name", "data"]
 
-    def get_data(self, photo):
+    def get_data(self, photo) -> str:
         return (
             "data:"
             + photo.mime_type

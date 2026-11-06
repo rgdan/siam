@@ -1,4 +1,7 @@
 import logging
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from drf_spectacular.types import OpenApiTypes
+from api import schema as docs
 
 from api.permissions import requiere_permiso
 from audit.services import audited_create
@@ -18,6 +21,13 @@ class IncidentPagination(PageNumberPagination):
 
 
 @never_cache
+@extend_schema(tags=["Incidents"], methods=["GET"], summary="Browse incident history",
+               description="Permission: incidencias.registrar. Fixed pages of 20, ordered by timestamp then ID. Newest first by default.",
+               parameters=[IncidentListFilters, OpenApiParameter("page", OpenApiTypes.INT, description="Page number, starting at 1.")],
+               responses={200: docs.INCIDENT_PAGE, **docs.ERRORS})
+@extend_schema(tags=["Incidents"], methods=["POST"], summary="Report an incident", request=IncidentSerializer,
+               description="Permission: incidencias.registrar. Description requires at least 10 characters. User and timestamp are assigned by the server.",
+               responses={201: IncidentSerializer, 503: OpenApiResponse(description="Incident could not be saved; nothing was committed."), **docs.ERRORS})
 @api_view(["GET", "POST"])
 @requiere_permiso("incidencias.registrar")
 def register_incident(request):

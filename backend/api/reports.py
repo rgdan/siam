@@ -8,6 +8,8 @@ from rest_framework import serializers
 from rest_framework.decorators import api_view
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
+from . import schema as docs
 
 from .models import Evento, User
 from .permissions import (
@@ -36,6 +38,9 @@ def validar_fecha_reporte(valor, campo):
 
 # SIAM-17: compara la asistencia esperada y la real.
 @never_cache
+@extend_schema(tags=["Reports"], summary="Compare expected and actual attendance",
+               description="Coordinator role only, including an explicit role check. Includes past non-cancelled events. Missing attendance is excluded from totals. Without dates, includes all finished events.",
+               parameters=docs.DATE_FILTERS, responses={200: docs.AttendanceReportSerializer, **docs.ERRORS})
 @api_view(["GET"])
 @requiere_permiso("eventos.generar_reportes")
 def attendance_report(request):
