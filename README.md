@@ -29,6 +29,18 @@ Requerimientos del Software · Tecnológico de Costa Rica
 
 La interfaz incluye **español e inglés**, **tema claro y oscuro** y navegación adaptable a dispositivos móviles. El acceso interno se controla mediante sesiones y permisos por rol: guarda, coordinador, museólogo, administrador general y administrador de sistema.
 
+## Galería
+
+Capturas con datos de demostración. Seleccione una imagen para verla en tamaño completo.
+
+| Información del museo | Calendario de eventos |
+| :---: | :---: |
+| [![Información del museo](docs/assets/screenshots/museum.png)](docs/assets/screenshots/museum.png) | [![Calendario de eventos](docs/assets/screenshots/calendar.png)](docs/assets/screenshots/calendar.png) |
+| **Colección** | **Incidencias** |
+| [![Colección](docs/assets/screenshots/collection.png)](docs/assets/screenshots/collection.png) | [![Incidencias](docs/assets/screenshots/incidents.png)](docs/assets/screenshots/incidents.png) |
+| **Registro de visitantes** | **Reportes consolidados** |
+| [![Registro de visitantes](docs/assets/screenshots/visitors.png)](docs/assets/screenshots/visitors.png) | [![Reportes consolidados](docs/assets/screenshots/reports.png)](docs/assets/screenshots/reports.png) |
+
 ## Docker
 
 Requiere Docker con Compose. No necesita instalar Python ni Node.js en el equipo.
@@ -55,39 +67,7 @@ SQLite se guarda en un volumen propio, separado de `backend/db.sqlite3`. Detener
 
 Esta configuración es para desarrollo y demostraciones locales; usa los servidores de desarrollo de Django y Vite.
 
-## Instalación sin Docker
-
-Requisitos: **Python 3.10 o posterior**, **Node.js 22.18 o posterior** y **npm**. Ejecute los comandos en Bash desde la raíz del repositorio, en dos terminales separadas.
-
-**Backend**
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex())')"
-python manage.py migrate
-python cargar_datos_demo.py
-python manage.py runserver 127.0.0.1:8000
-```
-
-Reutilice `DJANGO_SECRET_KEY` para conservar las sesiones entre reinicios. No incluya la clave en el repositorio.
-
-El historial de migraciones se reinició. Si tiene una base de datos de una versión anterior, debe recrearla; consulte el [procedimiento de reinicio](backend/README.md#reinicio-del-historial-de-migraciones). Se perderán los datos locales.
-
-**Frontend**
-
-```bash
-cd frontend
-npm ci
-cp .env.example .env
-npm run dev
-```
-
-Abra **[127.0.0.1:5173](http://127.0.0.1:5173/)**. El personal ingresa por **[/login](http://127.0.0.1:5173/login)** y accede directamente al calendario de eventos.
-
-Use `127.0.0.1` en ambos servidores. `VITE_API_BASE_URL` debe apuntar a `http://127.0.0.1:8000/api/`, incluida la barra final. Reinicie Vite si cambia esta variable.
+Para desarrollar sin contenedores, consulte la [guía de desarrollo local](docs/development.md).
 
 ## Cuentas de prueba
 

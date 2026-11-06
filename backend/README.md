@@ -1,53 +1,21 @@
 # Backend de SIAM
 
-API REST en Django y SQLite. Requiere **Python 3.10 o posterior**.
+API REST en Django y SQLite.
 
 ## Docker
 
-Para iniciar todo el sistema, siga la [guía de Docker](../README.md#docker). Desde la raíz del repositorio, puede cargar los datos con:
-
-```bash
-docker compose exec backend python cargar_datos_demo.py
-```
+Para iniciar todo el sistema, siga la [guía de Docker](../README.md#docker).
 
 El volumen de Docker usa una base independiente de `backend/db.sqlite3`.
 
-## Inicio local
-
-**1. Instalar.** Desde la raíz del repositorio, en Bash:
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-```
-
-**2. Preparar la base de datos.**
-
-```bash
-export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex())')"
-python manage.py migrate
-```
-
-**3. Iniciar la API.**
-
-```bash
-python manage.py runserver 127.0.0.1:8000
-```
-
-La API queda disponible en **http://127.0.0.1:8000/api/**.
-
-En una terminal nueva, active `.venv` y defina `DJANGO_SECRET_KEY` de nuevo. Reutilice la misma clave para conservar las sesiones; no la suba al repositorio.
-
-Para detenerlo: `Ctrl+C`. Para salir del entorno virtual: `deactivate`.
+Para trabajar sin contenedores, consulte la [guía de desarrollo local](../docs/development.md).
 
 ## Datos de demostración
 
-Desde `backend/`, con el entorno virtual y la clave activos:
+Desde la raíz del repositorio:
 
 ```bash
-python cargar_datos_demo.py
+docker compose exec backend python cargar_datos_demo.py
 ```
 
 Carga el escenario del **23–29 de noviembre de 2026** y las cuentas de prueba. Puede repetirse sin duplicar ni sobrescribir los registros existentes. Si falla, se revierte toda la carga.
@@ -88,26 +56,6 @@ Contraseña para todas las cuentas nuevas: **`Demo12345`**. Ingrese por `/login`
 | Administrador de sistema | `administrador_sistema@demo.siam.test` |
 
 Las cuentas existentes conservan sus datos y contraseñas.
-
-</details>
-
-## Reinicio del historial de migraciones
-
-<details>
-<summary>Recrear una base de datos de una versión anterior</summary>
-
-Cada aplicación tiene una única migración `0001_initial`. Las bases creadas con el historial anterior deben recrearse.
-
-**Este proceso elimina todos los datos locales.**
-
-1. Detenga el backend.
-2. Elimine `backend/db.sqlite3` y sus archivos `-wal` y `-shm`, si existen.
-3. Desde `backend/`, con `.venv` y `DJANGO_SECRET_KEY` activos, ejecute:
-
-```bash
-python manage.py migrate
-python cargar_datos_demo.py
-```
 
 </details>
 

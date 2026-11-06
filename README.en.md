@@ -29,6 +29,18 @@ Software Requirements · Tecnológico de Costa Rica
 
 The interface supports **Spanish and English**, **light and dark themes**, and layouts that adapt to mobile devices. Internal access uses sessions and role permissions: guard, coordinator, museologist, general administrator, and system administrator.
 
+## Gallery
+
+Screenshots with demo data. Select an image to view it at full size.
+
+| Museum information | Event calendar |
+| :---: | :---: |
+| [![Museum information](docs/assets/screenshots/museum.png)](docs/assets/screenshots/museum.png) | [![Event calendar](docs/assets/screenshots/calendar.png)](docs/assets/screenshots/calendar.png) |
+| **Collection** | **Incidents** |
+| [![Collection](docs/assets/screenshots/collection.png)](docs/assets/screenshots/collection.png) | [![Incidents](docs/assets/screenshots/incidents.png)](docs/assets/screenshots/incidents.png) |
+| **Visitor registration** | **Consolidated reports** |
+| [![Visitor registration](docs/assets/screenshots/visitors.png)](docs/assets/screenshots/visitors.png) | [![Consolidated reports](docs/assets/screenshots/reports.png)](docs/assets/screenshots/reports.png) |
+
 ## Docker
 
 Requires Docker with Compose. Python and Node.js do not need to be installed on the host.
@@ -55,39 +67,7 @@ SQLite uses its own volume, separate from `backend/db.sqlite3`. Stopping or recr
 
 This setup is for local development and demonstrations; it uses Django's and Vite's development servers.
 
-## Installation without Docker
-
-Requirements: **Python 3.10 or later**, **Node.js 22.18 or later**, and **npm**. Run the commands in Bash from the repository root, in two separate terminals.
-
-**Backend**
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex())')"
-python manage.py migrate
-python cargar_datos_demo.py
-python manage.py runserver 127.0.0.1:8000
-```
-
-Reuse `DJANGO_SECRET_KEY` to preserve sessions across restarts. Keep the key out of the repository.
-
-The migration history has been reset. Databases from earlier versions must be recreated; see the [reset procedure (Spanish)](backend/README.md#reinicio-del-historial-de-migraciones). This deletes local data.
-
-**Frontend**
-
-```bash
-cd frontend
-npm ci
-cp .env.example .env
-npm run dev
-```
-
-Open **[127.0.0.1:5173](http://127.0.0.1:5173/)**. Staff sign in at **[/login](http://127.0.0.1:5173/login)** and go directly to the event calendar.
-
-Use `127.0.0.1` for both servers. Set `VITE_API_BASE_URL` to `http://127.0.0.1:8000/api/`, including the trailing slash. Restart Vite after changing it.
+For development without containers, see the [local development guide](docs/development.en.md).
 
 ## Test accounts
 
