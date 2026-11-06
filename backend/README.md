@@ -2,6 +2,16 @@
 
 API REST en Django y SQLite. Requiere **Python 3.10 o posterior**.
 
+## Docker
+
+Para iniciar todo el sistema, siga la [guía de Docker](../README.md#docker). Desde la raíz del repositorio, puede cargar los datos con:
+
+```bash
+docker compose exec backend python cargar_datos_demo.py
+```
+
+El volumen de Docker usa una base independiente de `backend/db.sqlite3`.
+
 ## Inicio local
 
 **1. Instalar.** Desde la raíz del repositorio, en Bash:

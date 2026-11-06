@@ -28,7 +28,33 @@ Software Requirements · Tecnológico de Costa Rica
 
 The interface supports **Spanish and English**, **light and dark themes**, and layouts that adapt to mobile devices. Internal access uses sessions and role permissions: guard, coordinator, museologist, general administrator, and system administrator.
 
-## Local installation
+## Docker
+
+Requires Docker with Compose. Python and Node.js do not need to be installed on the host.
+
+**First run:** copy `.env.example` to `.env` and set `DJANGO_SECRET_KEY` to a random key of at least 32 characters. You can generate one with `openssl rand -hex 32`. This file is separate from `frontend/.env` and is excluded from Git.
+
+From the repository root:
+
+```bash
+docker compose up --build -d
+docker compose exec backend python cargar_datos_demo.py
+```
+
+Open **http://127.0.0.1:5173/**. Migrations run when the backend starts; the second command loads demo data.
+
+| Action | Command |
+| :--- | :--- |
+| View logs | `docker compose logs -f` |
+| Stop | `docker compose down` |
+| Start again | `docker compose up -d` |
+| Apply code or dependency changes | `docker compose up --build -d` |
+
+SQLite uses its own volume, separate from `backend/db.sqlite3`. Stopping or recreating containers preserves the data. `docker compose down -v` deletes the volume and its data.
+
+This setup is for local development and demonstrations; it uses Django's and Vite's development servers.
+
+## Installation without Docker
 
 Requirements: **Python 3.10 or later**, **Node.js 22.18 or later**, and **npm**. Run the commands in Bash from the repository root, in two separate terminals.
 

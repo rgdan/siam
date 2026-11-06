@@ -2,6 +2,10 @@
 
 Interfaz en Vue y Vite. Requiere **Node.js 22.18 o posterior**.
 
+## Docker
+
+La [guía de Docker](../README.md#docker) inicia el frontend y el backend juntos, sin instalar Node.js ni Python en el equipo. Abra **http://127.0.0.1:5173/**. La conexión con la API ya está configurada; no necesita crear `frontend/.env`.
+
 ## Inicio local
 
 Desde la raíz del repositorio:
