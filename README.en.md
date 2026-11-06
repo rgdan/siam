@@ -41,7 +41,7 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex())')"
 python manage.py migrate
-python crear_usuarios_demo.py
+python cargar_datos_demo.py
 python manage.py runserver 127.0.0.1:8000
 ```
 
@@ -64,7 +64,9 @@ Use `127.0.0.1` for both servers. Set `VITE_API_BASE_URL` to `http://127.0.0.1:8
 
 ## Test accounts
 
-The development script creates one account per role and preserves existing accounts. All use the password **`Demo12345`** and are **for local development only**.
+The script loads role accounts, pieces with sample images, events, visitor entries, incidents, and configuration for **November 23–29, 2026**. Earlier events support attendance report demonstrations. Rerunning it preserves existing records without duplicates or overwrites; see the [scenario details (Spanish)](backend/README.md#datos-de-demostración).
+
+All accounts use the password **`Demo12345`** and are **for local development only**.
 
 | Role | Email |
 | :--- | :--- |

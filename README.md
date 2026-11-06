@@ -41,7 +41,7 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex())')"
 python manage.py migrate
-python crear_usuarios_demo.py
+python cargar_datos_demo.py
 python manage.py runserver 127.0.0.1:8000
 ```
 
@@ -64,7 +64,9 @@ Use `127.0.0.1` en ambos servidores. `VITE_API_BASE_URL` debe apuntar a `http://
 
 ## Cuentas de prueba
 
-El script de desarrollo crea una cuenta por rol y conserva las cuentas existentes. Todas usan la contraseña **`Demo12345`** y son **solo para desarrollo local**.
+El script carga cuentas por rol, piezas con imágenes de muestra, eventos, ingresos, incidencias y configuración para la semana del **23–29 de noviembre de 2026**. Incluye eventos anteriores para demostrar reportes de asistencia. Puede repetirse sin duplicar ni sobrescribir los registros existentes; consulte los [detalles del escenario](backend/README.md#datos-de-demostración).
+
+Todas las cuentas usan la contraseña **`Demo12345`** y son **solo para desarrollo local**.
 
 | Rol | Correo |
 | :--- | :--- |
