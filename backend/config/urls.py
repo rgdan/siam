@@ -1,4 +1,5 @@
 
+from core import views as core_views
 from api import views
 from api import reports as report_views
 from api import consolidated_reports as consolidated_views
@@ -109,7 +110,7 @@ urlpatterns = [
     # Sistema y autenticación.
     path(
         "api/health/",
-        views.health,
+        core_views.health,
         name="health",
     ),
     path(
@@ -199,7 +200,7 @@ urlpatterns = [
 ]
 
 
-handler400 = views.bad_request
-handler403 = views.permission_denied
-handler404 = views.not_found
-handler500 = views.server_error
+handler400 = core_views.bad_request
+handler403 = core_views.permission_denied
+handler404 = core_views.not_found
+handler500 = core_views.server_error

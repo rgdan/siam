@@ -15,6 +15,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "api",
+    "core",
     "audit",
     "collection_integrity",
     "system_configuration",
@@ -36,7 +37,7 @@ CORS_ALLOWED_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"]
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 SESSION_COOKIE_HTTPONLY = True
-CSRF_FAILURE_VIEW = "api.views.csrf_failure"
+CSRF_FAILURE_VIEW = "core.views.csrf_failure"
 
 ROOT_URLCONF = "config.urls"
 TEMPLATES = [{

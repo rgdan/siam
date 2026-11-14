@@ -36,7 +36,7 @@ from .consolidated_reports import (
     obtener_fechas,
 )
 from .models import Evento
-from .permissions import requiere_permiso
+from core.permissions import requiere_permiso
 from .reports import validar_fecha_reporte
 
 

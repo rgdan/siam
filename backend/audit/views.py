@@ -1,4 +1,4 @@
-from api.permissions import permiso_requerido
+from core.permissions import permiso_requerido
 from api.schema import ERRORS
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import serializers

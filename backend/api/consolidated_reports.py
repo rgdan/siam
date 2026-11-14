@@ -16,7 +16,7 @@ from visitors.models import VisitorEntry
 from incidents.reports import incident_report_data
 
 from .models import Evento
-from .permissions import requiere_permiso
+from core.permissions import requiere_permiso
 from .reports import validar_fecha_reporte
 
 

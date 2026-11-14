@@ -2,7 +2,7 @@ import logging
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from api import schema as docs
 
-from api.permissions import requiere_permiso
+from core.permissions import requiere_permiso
 from audit.services import audited_create
 from django.views.decorators.cache import never_cache
 from rest_framework.decorators import api_view

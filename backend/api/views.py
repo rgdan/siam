@@ -4,7 +4,6 @@ from audit.services import audited_create, record, snapshot
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
-from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -20,7 +19,7 @@ from . import schema as docs
 
 from .authentication import SessionAuthentication
 from .models import Evento
-from .permissions import permisos_para, registrar_denegacion, requiere_permiso
+from core.permissions import permisos_para, registrar_denegacion, requiere_permiso
 from .serializers import (
     UserSerializer,
     UserUpdateSerializer,
@@ -35,11 +34,6 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(trim_whitespace=False, write_only=True)
 
 
-@extend_schema(tags=["System"], summary="Check API availability", auth=[], responses={200: docs.HEALTH})
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def health(request):
-    return Response({"estado": "ok"})
 
 
 @never_cache
@@ -552,31 +546,11 @@ def event_attendance(request, event_id):
         })
 
 
-def csrf_failure(request, reason=""):
-    return JsonResponse({
-        "detail": "Verificación CSRF fallida."
-    }, status=403)
 
 
-def bad_request(request, exception):
-    return JsonResponse({
-        "detail": "Solicitud incorrecta."
-    }, status=400)
 
 
-def permission_denied(request, exception):
-    return JsonResponse({
-        "detail": "Acceso denegado."
-    }, status=403)
 
 
-def not_found(request, exception):
-    return JsonResponse({
-        "detail": "Recurso no encontrado."
-    }, status=404)
 
 
-def server_error(request):
-    return JsonResponse({
-        "detail": "Error interno del servidor."
-    }, status=500)

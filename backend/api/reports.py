@@ -12,7 +12,7 @@ from drf_spectacular.utils import extend_schema
 from . import schema as docs
 
 from .models import Evento, User
-from .permissions import (
+from core.permissions import (
     registrar_denegacion,
     requiere_permiso,
 )

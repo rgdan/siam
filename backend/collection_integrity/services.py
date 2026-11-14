@@ -5,7 +5,7 @@ from audit.services import record, snapshot
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError, PermissionDenied
-from api.permissions import permisos_para
+from core.permissions import permisos_para
 
 from .models import Photo, Piece
 

@@ -3,7 +3,7 @@ from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_sche
 from drf_spectacular.types import OpenApiTypes
 from api import schema as docs
 
-from api.permissions import requiere_permiso
+from core.permissions import requiere_permiso
 from audit.services import audited_create
 from django.views.decorators.cache import never_cache
 from rest_framework.decorators import api_view
