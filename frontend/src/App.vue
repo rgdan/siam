@@ -14,6 +14,7 @@ import Bitacora from "./components/Bitacora.vue"
 import RegistrarIngreso from "./components/RegistrarIngreso.vue"
 import Incidencias from "./components/Incidencias.vue"
 import RegistrarEvento from "./components/RegistrarEvento.vue"
+import ConfiguracionMuseo from "./components/ConfiguracionMuseo.vue"
 import { solicitar, enviar } from "./api.js"
 
 // Traducciones de SIAM.
@@ -38,6 +39,7 @@ function navegar(ruta) {
 const rutasPublicas = ["/", "/informacion", "/horarios", "/eventos", "/privacidad"]
 
 const permisosPorRuta = {
+  "/interno/configuracion": "sistema.configurar",
   "/interno/coleccion": "piezas.crear",
   "/interno/usuarios": "usuarios.consultar",
   "/interno/bitacora": "bitacora.consultar",
@@ -280,6 +282,12 @@ onUnmounted(() => {
         <Coleccion
           v-else-if="rutaActual === '/interno/coleccion'"
           :usuario="usuario"
+          @sesion-expirada="sesionExpirada"
+          @sin-acceso="denegarAcceso"
+        />
+
+        <ConfiguracionMuseo
+          v-else-if="rutaActual === '/interno/configuracion'"
           @sesion-expirada="sesionExpirada"
           @sin-acceso="denegarAcceso"
         />

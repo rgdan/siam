@@ -158,6 +158,14 @@ function seleccionarTema(evento) {
           >
             {{ t("audit.title") }}
           </a>
+          <a
+            v-if="usuario?.permissions?.includes('sistema.configurar')"
+            href="/interno/configuracion"
+            :aria-current="props.rutaActual === '/interno/configuracion' ? 'page' : undefined"
+            @click="cerrarMenu"
+          >
+            {{ t("configuration.title") }}
+          </a>
         </nav>
 
         <div class="preferencias">

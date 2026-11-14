@@ -9,6 +9,7 @@ import museum from "./museum.js"
 import reports from "./reports.js"
 import privacy from "./privacy.js"
 import collection from "./collection.js"
+import configuration from "./configuration.js"
 
 // Recupera el idioma elegido anteriormente.
 function obtenerIdiomaInicial() {
@@ -41,6 +42,7 @@ export const i18n = createI18n({
       ...reports.es,
       ...privacy.es,
       ...collection.es,
+      ...configuration.es,
     },
     en: {
       ...common.en,
@@ -53,6 +55,7 @@ export const i18n = createI18n({
       ...reports.en,
       ...privacy.en,
       ...collection.en,
+      ...configuration.en,
     },
   },
   missingWarn: true,
