@@ -1,7 +1,7 @@
 import logging
 
 from core.permissions import requiere_permiso
-from api import schema as docs
+from . import schema as docs
 from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 from .reports import CollectionReportFilters
 from audit.models import AuditEntry

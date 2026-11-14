@@ -18,8 +18,6 @@ from core.permissions import (
 )
 
 
-
-
 # SIAM-17: compara la asistencia esperada y la real.
 @never_cache
 @extend_schema(tags=["Reports"], summary="Compare expected and actual attendance",

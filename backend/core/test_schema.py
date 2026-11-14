@@ -1,8 +1,8 @@
 from django.test import SimpleTestCase
-from django.urls import get_resolver
 from drf_spectacular.generators import SchemaGenerator
 from drf_spectacular.validation import validate_schema
 from rest_framework.test import APIClient
+from rest_framework.schemas.generators import EndpointEnumerator
 
 
 class APIDocumentationTests(SimpleTestCase):
@@ -15,23 +15,15 @@ class APIDocumentationTests(SimpleTestCase):
         validate_schema(self.schema)
         documented = self.schema["paths"]
         operation_ids = []
-        for pattern in get_resolver().url_patterns:
-            if pattern.name in {"schema", "swagger-ui"}:
+        for route, method, callback in EndpointEnumerator().get_api_endpoints():
+            if route in {"/api/schema/", "/api/docs/"}:
                 continue
-            route = "/" + str(pattern.pattern)
-            for converter in pattern.pattern.converters:
-                converter_type = "int" if converter.endswith("_id") else "str"
-                route = route.replace(f"<{converter_type}:{converter}>", "{" + converter + "}")
-            view = pattern.callback.cls
-            for method in view.http_method_names:
-                if method in {"options", "head"} or not hasattr(view, method):
-                    continue
-                with self.subTest(path=route, method=method):
-                    operation = documented[route][method]
-                    self.assertTrue(operation["summary"])
-                    self.assertTrue(operation["tags"])
-                    self.assertTrue(operation["responses"])
-                    operation_ids.append(operation["operationId"])
+            with self.subTest(path=route, method=method):
+                operation = documented[route][method.lower()]
+                self.assertTrue(operation["summary"])
+                self.assertTrue(operation["tags"])
+                self.assertTrue(operation["responses"])
+                operation_ids.append(operation["operationId"])
         self.assertEqual(len(operation_ids), len(set(operation_ids)))
 
     def test_schema_documents_authentication_pagination_and_binary_exports(self):

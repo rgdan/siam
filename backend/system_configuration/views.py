@@ -1,5 +1,5 @@
 from core.permissions import requiere_permiso
-from api import schema as docs
+from . import schema as docs
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from django.views.decorators.cache import never_cache
 from rest_framework.decorators import api_view, permission_classes

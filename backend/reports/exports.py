@@ -30,7 +30,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from .consolidated_reports import (
+from .consolidated import (
     datos_eventos,
     datos_visitantes,
     obtener_fechas,

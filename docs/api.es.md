@@ -47,7 +47,7 @@ La página publicada es de consulta. GitHub Pages aloja el HTML y el esquema; lo
 
 ## Actualizar la referencia
 
-Al cambiar un endpoint, actualice sus anotaciones `@extend_schema` y serializadores. `backend/api/schema.py` describe las respuestas que las vistas construyen directamente. No incluya datos reales de cuentas, cookies ni secretos en los ejemplos.
+Al cambiar un endpoint, actualice sus anotaciones `@extend_schema` y serializadores. Los archivos `schema.py` de cada módulo describen las respuestas que sus vistas construyen directamente. No incluya datos reales de cuentas, cookies ni secretos en los ejemplos.
 
 Desde la raíz del repositorio:
 

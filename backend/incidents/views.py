@@ -1,7 +1,7 @@
 import logging
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from drf_spectacular.types import OpenApiTypes
-from api import schema as docs
+from . import schema as docs
 
 from core.permissions import requiere_permiso
 from audit.services import audited_create

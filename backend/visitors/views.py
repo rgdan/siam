@@ -1,6 +1,6 @@
 import logging
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from api import schema as docs
+from core import schema as docs
 
 from core.permissions import requiere_permiso
 from audit.services import audited_create
