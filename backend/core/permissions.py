@@ -4,7 +4,7 @@ from audit.services import record
 from rest_framework.decorators import permission_classes
 from rest_framework.permissions import BasePermission, IsAuthenticated
 
-from api.models import User
+from accounts.models import User
 
 
 # Las consultas públicas no requieren sesión; todos los roles internos también las incluyen.

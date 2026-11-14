@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from api.models import User
+from accounts.models import User
 from audit.models import AuditEntry
 from collection.models import Piece, Photo
 from collection.services import decommission_piece, loan_piece, return_piece, mark_missing, change_piece_state

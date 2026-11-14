@@ -1,28 +1,16 @@
 from core.schema import ERRORS, DATE_FILTERS, CONFIRM, DETAIL, HEALTH
 """Response shapes that are assembled by views rather than model serializers."""
 
-from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, inline_serializer
-from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import inline_serializer
 from rest_framework import serializers as s
 
 from collection.serializers import PhotoSerializer, PieceSerializer
 from collection.models import Piece
 from incidents.serializers import IncidentSerializer
 from system_configuration.serializers import ConfigurationSerializer
-from .serializers import EventoSerializer, UserSerializer
+from .serializers import EventoSerializer
 
 PIECE_STATES = Piece._meta.get_field("state").choices
-
-
-CSRF = inline_serializer("CSRFToken", {"csrfToken": s.CharField()})
-LOGIN_RESULT = inline_serializer("LoginResult", {"detail": s.CharField(), "csrfToken": s.CharField()})
-
-
-class SessionUserSerializer(UserSerializer):
-    permissions = s.ListField(child=s.CharField())
-
-    class Meta(UserSerializer.Meta):
-        fields = ["id", "full_name", "email", "role", "permissions"]
 
 
 class PublicEventSerializer(EventoSerializer):
@@ -36,9 +24,6 @@ class InternalEventSerializer(EventoSerializer):
 
 
 EVENT_RESULT = inline_serializer("EventResult", {"detail": s.CharField(), "evento": EventoSerializer()})
-DELETE_USER = inline_serializer("DeleteUserResult", {
-    "detail": s.CharField(), "action": s.ChoiceField(choices=["deleted", "deactivated"]),
-})
 INCIDENT_PAGE = inline_serializer("IncidentPage", {
     "count": s.IntegerField(), "next": s.URLField(allow_null=True),
     "previous": s.URLField(allow_null=True), "results": IncidentSerializer(many=True),

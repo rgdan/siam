@@ -1,5 +1,6 @@
 
 from core import views as core_views
+from accounts import views as account_views
 from api import views
 from api import reports as report_views
 from api import consolidated_reports as consolidated_views
@@ -115,34 +116,34 @@ urlpatterns = [
     ),
     path(
         "api/auth/csrf/",
-        views.csrf,
+        account_views.csrf,
         name="csrf",
     ),
     path(
         "api/auth/login/",
-        views.sign_in,
+        account_views.sign_in,
         name="login",
     ),
     path(
         "api/auth/me/",
-        views.me,
+        account_views.me,
         name="me",
     ),
     path(
         "api/auth/logout/",
-        views.sign_out,
+        account_views.sign_out,
         name="logout",
     ),
 
     # Administración de usuarios.
     path(
         "api/users/",
-        views.users,
+        account_views.users,
         name="users",
     ),
     path(
         "api/users/<int:user_id>/",
-        views.user_detail,
+        account_views.user_detail,
         name="user-detail",
     ),
 

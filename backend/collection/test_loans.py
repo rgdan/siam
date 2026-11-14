@@ -5,7 +5,7 @@ from django.test import TestCase
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.test import APIClient
 
-from api.models import User
+from accounts.models import User
 from audit.models import AuditEntry
 from .models import Photo, Piece
 from .services import loan_piece, return_piece

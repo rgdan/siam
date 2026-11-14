@@ -6,7 +6,7 @@ from django.test import TestCase
 from openpyxl import load_workbook
 from rest_framework.test import APIClient
 
-from api.models import User
+from accounts.models import User
 from audit.models import AuditEntry
 from .models import Incident
 from .reports import incident_report_data

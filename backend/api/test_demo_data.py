@@ -14,7 +14,8 @@ from incidents.models import Incident
 from system_configuration.models import Parameter
 from visitors.models import VisitorEntry
 
-from .models import Evento, User
+from accounts.models import User
+from .models import Evento
 
 
 class DemoDataTests(TestCase):

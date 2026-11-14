@@ -9,4 +9,4 @@ class SessionAuthentication(DRFSessionAuthentication):
 
 
 class SIAMSessionScheme(SessionScheme):
-    target_class = "api.authentication.SessionAuthentication"
+    target_class = "accounts.authentication.SessionAuthentication"

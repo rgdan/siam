@@ -15,6 +15,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "api",
+    "accounts",
     "core",
     "audit",
     "collection",
@@ -22,7 +23,7 @@ INSTALLED_APPS = [
     "visitors",
     "incidents",
 ]
-AUTH_USER_MODEL = "api.User"
+AUTH_USER_MODEL = "accounts.User"
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.PBKDF2PasswordHasher"]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -65,7 +66,7 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
-    "DEFAULT_AUTHENTICATION_CLASSES": ["api.authentication.SessionAuthentication"],
+    "DEFAULT_AUTHENTICATION_CLASSES": ["accounts.authentication.SessionAuthentication"],
 }
 
 SPECTACULAR_SETTINGS = {

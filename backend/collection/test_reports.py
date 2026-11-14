@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
-from api.models import User
+from accounts.models import User
 from .models import Piece
 from .reports import collection_report_data
 

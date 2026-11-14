@@ -3,7 +3,7 @@ from rest_framework.test import APIClient
 
 from collection.models import Piece
 
-from .models import User
+from accounts.models import User
 
 
 class ConsolidatedReportAccessTests(TestCase):

@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from api.models import User
+from accounts.models import User
 from audit.models import AuditEntry
 from .models import Piece, Photo
 from .services import decommission_piece
