@@ -60,7 +60,7 @@ class Migration(migrations.Migration):
                 ('content', models.BinaryField()),
                 ('mime_type', models.CharField(default='image/jpeg', max_length=30)),
                 ('position', models.PositiveIntegerField(default=0)),
-                ('piece', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='photos', to='collection_integrity.piece')),
+                ('piece', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='photos', to='collection.piece')),
             ],
             options={
                 'ordering': ['position', 'id'],

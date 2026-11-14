@@ -3,7 +3,7 @@
 Santiago puede reutilizar la misma función en SIAM-27:
 
 ```python
-from collection_integrity.reports import collection_report_data
+from collection.reports import collection_report_data
 
 data = collection_report_data()
 filtered = collection_report_data(state="missing", collection="Arqueología")
@@ -30,4 +30,4 @@ La migración `0001_initial` crea directamente el esquema integrado de SIAM-21/2
 
 Si `total` es cero, la interfaz muestra «No hay piezas para los filtros seleccionados» (y su traducción al inglés). El reporte consolidado debe consumir estos valores sin recalcular las categorías para que ambos reportes coincidan.
 
-Las 43 pruebas de las funcionalidades y su integración se ejecutan con `python manage.py test collection_integrity`, usando la configuración de Django y `DJANGO_SECRET_KEY` del proyecto. Incluyen estados persistidos, comparación entre función y endpoint, conservación de fotos e historial, permisos, validaciones y rollback.
+Las 43 pruebas de las funcionalidades y su integración se ejecutan con `python manage.py test collection`, usando la configuración de Django y `DJANGO_SECRET_KEY` del proyecto. Incluyen estados persistidos, comparación entre función y endpoint, conservación de fotos e historial, permisos, validaciones y rollback.

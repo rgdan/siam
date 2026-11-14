@@ -97,7 +97,7 @@ class MissingPieceTests(TestCase):
         self.assertEqual(self.piece.state, "displayed")
 
     def test_audit_failure_rolls_back_entire_change(self):
-        with patch("collection_integrity.services.record", side_effect=RuntimeError("Audit unavailable")):
+        with patch("collection.services.record", side_effect=RuntimeError("Audit unavailable")):
             with self.assertRaises(RuntimeError):
                 self.client.post(self.url, self.payload, format="json")
         self.piece.refresh_from_db()
@@ -175,7 +175,7 @@ class MissingPieceTests(TestCase):
 
     def test_recovery_audit_failure_rolls_back(self):
         self.client.post(self.url, self.payload, format="json")
-        with patch("collection_integrity.services.record", side_effect=RuntimeError("Audit unavailable")):
+        with patch("collection.services.record", side_effect=RuntimeError("Audit unavailable")):
             with self.assertRaises(RuntimeError):
                 self.client.post(f"/api/pieces/{self.piece.pk}/recover/", {}, format="json")
         self.piece.refresh_from_db()

@@ -87,7 +87,7 @@ class LoanTests(TestCase):
         # record without requiring that PR's schema to verify the transition rule.
         for state in ["stolen", "lost"]:
             with self.subTest(state=state):
-                with patch("collection_integrity.services.Piece.objects.select_for_update") as locked:
+                with patch("collection.services.Piece.objects.select_for_update") as locked:
                     locked.return_value.get.return_value = Piece(pk=self.piece.pk, title="Original", state=state)
                     response = self.client.post(self.loan_url, self.payload, format="json")
                 self.assertEqual(response.status_code, 400)
@@ -104,14 +104,14 @@ class LoanTests(TestCase):
                     self.assertEqual(self.client.post(self.return_url, {}, format="json").status_code, 403)
 
     def test_loan_and_return_roll_back_if_audit_fails(self):
-        with patch("collection_integrity.services.record", side_effect=RuntimeError("Audit unavailable")):
+        with patch("collection.services.record", side_effect=RuntimeError("Audit unavailable")):
             with self.assertRaises(RuntimeError):
                 self.client.post(self.loan_url, self.payload, format="json")
         self.piece.refresh_from_db()
         self.assertEqual((self.piece.state, self.piece.location), ("displayed", "Room 1"))
         self.assertFalse(AuditEntry.objects.filter(entity="piece").exists())
         self.client.post(self.loan_url, self.payload, format="json")
-        with patch("collection_integrity.services.record", side_effect=RuntimeError("Audit unavailable")):
+        with patch("collection.services.record", side_effect=RuntimeError("Audit unavailable")):
             with self.assertRaises(RuntimeError):
                 self.client.post(self.return_url, {}, format="json")
         self.piece.refresh_from_db()

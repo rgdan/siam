@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from . import schema as docs
 
-from collection_integrity.reports import collection_report_data
+from collection.reports import collection_report_data
 from visitors.models import VisitorEntry
 from incidents.reports import incident_report_data
 

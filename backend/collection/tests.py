@@ -49,7 +49,7 @@ class DecommissionTests(TestCase):
             self.assertEqual(self.client.post(self.url, {"reason": "x", "confirmed": True}, format="json").status_code, 403)
 
     def test_audit_failure_rolls_back(self):
-        with patch("collection_integrity.services.record", side_effect=RuntimeError("audit failed")):
+        with patch("collection.services.record", side_effect=RuntimeError("audit failed")):
             with self.assertRaises(RuntimeError):
                 decommission_piece(user=self.user, piece_id=self.piece.pk, reason="Damage", confirmed=True)
         self.piece.refresh_from_db()
@@ -102,7 +102,7 @@ class DecommissionTests(TestCase):
 
     def test_reactivation_audit_failure_rolls_back(self):
         decommission_piece(user=self.user, piece_id=self.piece.pk, reason="Damage", confirmed=True)
-        with patch("collection_integrity.services.record", side_effect=RuntimeError("audit failed")):
+        with patch("collection.services.record", side_effect=RuntimeError("audit failed")):
             with self.assertRaises(RuntimeError):
                 self.client.post(f"/api/pieces/{self.piece.pk}/reactivate/", {}, format="json")
         self.piece.refresh_from_db()

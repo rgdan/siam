@@ -5,8 +5,8 @@ from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, inline_seri
 from drf_spectacular.types import OpenApiTypes
 from rest_framework import serializers as s
 
-from collection_integrity.serializers import PhotoSerializer, PieceSerializer
-from collection_integrity.models import Piece
+from collection.serializers import PhotoSerializer, PieceSerializer
+from collection.models import Piece
 from incidents.serializers import IncidentSerializer
 from system_configuration.serializers import ConfigurationSerializer
 from .serializers import EventoSerializer, UserSerializer

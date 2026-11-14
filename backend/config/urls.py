@@ -11,7 +11,7 @@ from incidents.views import register_incident
 from system_configuration import views as configuration_views
 from visitors.views import register_entry
 
-from collection_integrity import views as collection_views
+from collection import views as collection_views
 
 
 urlpatterns = [

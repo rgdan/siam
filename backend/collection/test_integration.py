@@ -6,9 +6,9 @@ from rest_framework.test import APIClient
 
 from api.models import User
 from audit.models import AuditEntry
-from collection_integrity.models import Piece, Photo
-from collection_integrity.services import decommission_piece, loan_piece, return_piece, mark_missing, change_piece_state
-from collection_integrity.reports import collection_report_data
+from collection.models import Piece, Photo
+from collection.services import decommission_piece, loan_piece, return_piece, mark_missing, change_piece_state
+from collection.reports import collection_report_data
 
 
 class IntegratedCollectionTests(TestCase):
@@ -96,7 +96,7 @@ class IntegratedCollectionTests(TestCase):
     def test_audit_failure_preserves_report_counts_and_previous_state(self):
         piece = self.piece('Rollback', 'displayed')
         before = collection_report_data()
-        with patch('collection_integrity.services.record', side_effect=RuntimeError('Audit failed')):
+        with patch('collection.services.record', side_effect=RuntimeError('Audit failed')):
             with self.assertRaises(RuntimeError):
                 decommission_piece(user=self.user, piece_id=piece.pk, reason='Error', confirmed=True)
         piece.refresh_from_db()

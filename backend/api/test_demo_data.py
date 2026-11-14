@@ -8,7 +8,7 @@ from PIL import Image
 from rest_framework.test import APIClient
 
 from audit.models import AuditEntry
-from collection_integrity.models import Photo, Piece
+from collection.models import Photo, Piece
 from cargar_datos_demo import INICIO_DEMO, cargar_datos_demo
 from incidents.models import Incident
 from system_configuration.models import Parameter
@@ -105,7 +105,7 @@ class DemoDataTests(TestCase):
         self.assertEqual(parameter.value, "Nombre personalizado")
 
     def test_failure_rolls_back_the_entire_load(self):
-        with patch("collection_integrity.services.register_piece", side_effect=RuntimeError("seed failed")):
+        with patch("collection.services.register_piece", side_effect=RuntimeError("seed failed")):
             with self.assertRaisesRegex(RuntimeError, "seed failed"):
                 self.seed()
         for model in (User, Parameter, Piece, Photo, Evento, VisitorEntry, Incident, AuditEntry):

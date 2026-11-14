@@ -17,7 +17,7 @@ INSTALLED_APPS = [
     "api",
     "core",
     "audit",
-    "collection_integrity",
+    "collection",
     "system_configuration",
     "visitors",
     "incidents",
@@ -87,7 +87,7 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "PieceStateEnum": "api.schema.PIECE_STATES",
         "MissingStateEnum": ["stolen", "lost"],
-        "CollectionReportStateEnum": "collection_integrity.reports.REPORT_STATES",
+        "CollectionReportStateEnum": "collection.reports.REPORT_STATES",
     },
     "SWAGGER_UI_DIST": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.1",
     "SWAGGER_UI_FAVICON_HREF": None,

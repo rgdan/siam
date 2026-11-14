@@ -12,8 +12,8 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from . import schema as docs
 
-from collection_integrity.reports import collection_report_data
-from collection_integrity.reports import CollectionReportFilters
+from collection.reports import collection_report_data
+from collection.reports import CollectionReportFilters
 from incidents.models import Incident
 from incidents.reports import incident_report_data
 from openpyxl import Workbook

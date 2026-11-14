@@ -1,7 +1,7 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from collection_integrity.models import Piece
+from collection.models import Piece
 
 from .models import User
 

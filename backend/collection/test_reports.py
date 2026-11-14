@@ -68,7 +68,7 @@ class CollectionReportTests(TestCase):
             for state, count in [("displayed", 1), ("stored", 2), ("loaned", 3), ("stolen", 4), ("lost", 5), ("decommissioned", 6)]
         ]
         groups.append({"state": "loaned", "decommissioned": True, "object_type": "Sculpture", "collection": "History", "count": 7})
-        with patch("collection_integrity.reports.Piece.objects.values") as values:
+        with patch("collection.reports.Piece.objects.values") as values:
             values.return_value.annotate.return_value.order_by.return_value = groups
             data = collection_report_data()
             self.assertEqual(data["total"], 28)

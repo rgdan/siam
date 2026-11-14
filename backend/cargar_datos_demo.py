@@ -56,8 +56,8 @@ def cargar_datos_demo():
     from api.models import Evento, User
     from audit.models import AuditEntry
     from audit.services import audited_create
-    from collection_integrity.models import Piece
-    from collection_integrity.services import register_piece
+    from collection.models import Piece
+    from collection.services import register_piece
     from incidents.models import Incident
     from system_configuration.defaults import DEFAULTS, default_for
     from system_configuration.models import Parameter
