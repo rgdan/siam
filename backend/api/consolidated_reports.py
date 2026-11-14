@@ -15,9 +15,9 @@ from collection.reports import collection_report_data
 from visitors.models import VisitorEntry
 from incidents.reports import incident_report_data
 
-from .models import Evento
+from events.models import Evento
 from core.permissions import requiere_permiso
-from .reports import validar_fecha_reporte
+from reports.filters import validar_fecha_reporte
 
 
 def obtener_fechas(request):

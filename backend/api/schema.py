@@ -8,22 +8,15 @@ from collection.serializers import PhotoSerializer, PieceSerializer
 from collection.models import Piece
 from incidents.serializers import IncidentSerializer
 from system_configuration.serializers import ConfigurationSerializer
-from .serializers import EventoSerializer
+from events.schema import AttendanceTotalsSerializer
 
 PIECE_STATES = Piece._meta.get_field("state").choices
 
 
-class PublicEventSerializer(EventoSerializer):
-    class Meta(EventoSerializer.Meta):
-        fields = ["id", "fecha", "descripcion", "ubicacion", "tipo"]
 
 
-class InternalEventSerializer(EventoSerializer):
-    class Meta(EventoSerializer.Meta):
-        fields = [*PublicEventSerializer.Meta.fields, "asistentes_esperados", "asistentes_reales"]
 
 
-EVENT_RESULT = inline_serializer("EventResult", {"detail": s.CharField(), "evento": EventoSerializer()})
 INCIDENT_PAGE = inline_serializer("IncidentPage", {
     "count": s.IntegerField(), "next": s.URLField(allow_null=True),
     "previous": s.URLField(allow_null=True), "results": IncidentSerializer(many=True),
@@ -67,10 +60,6 @@ class VisitorTotalsSerializer(s.Serializer):
     mensaje = s.CharField(allow_null=True)
 
 
-class AttendanceTotalsSerializer(s.Serializer):
-    asistentes_esperados = s.IntegerField()
-    asistentes_reales = s.IntegerField()
-    cumplimiento_porcentaje = s.FloatField(allow_null=True)
 
 
 class EventAttendanceTotalsSerializer(AttendanceTotalsSerializer):
@@ -107,21 +96,5 @@ class ConsolidatedReportSerializer(s.Serializer):
     colecciones = ConsolidatedCollectionSerializer()
 
 
-class AttendanceRowSerializer(s.Serializer):
-    id = s.IntegerField()
-    fecha = s.DateTimeField()
-    descripcion = s.CharField()
-    tipo = s.CharField()
-    asistentes_esperados = s.IntegerField()
-    asistentes_reales = s.IntegerField(allow_null=True)
-    estado_asistencia = s.CharField()
-    cumplimiento_porcentaje = s.FloatField(allow_null=True)
 
 
-class AttendanceReportSerializer(s.Serializer):
-    titulo = s.CharField()
-    filtros = s.DictField(child=s.DateField(allow_null=True))
-    eventos = AttendanceRowSerializer(many=True)
-    totales = AttendanceTotalsSerializer()
-    resumen = s.DictField(child=s.IntegerField())
-    mensaje = s.CharField(allow_null=True)

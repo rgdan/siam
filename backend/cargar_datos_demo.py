@@ -54,7 +54,7 @@ def cargar_datos_demo():
     from django.db import transaction
     from django.utils import timezone
     from accounts.models import User
-    from api.models import Evento
+    from events.models import Evento
     from audit.models import AuditEntry
     from audit.services import audited_create
     from collection.models import Piece

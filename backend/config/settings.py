@@ -16,6 +16,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "api",
     "accounts",
+    "events",
     "core",
     "audit",
     "collection",

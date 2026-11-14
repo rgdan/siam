@@ -1,8 +1,8 @@
 
 from core import views as core_views
 from accounts import views as account_views
-from api import views
-from api import reports as report_views
+from events import views
+from events import reports as report_views
 from api import consolidated_reports as consolidated_views
 from api import export_reports as export_views
 from audit.views import AuditList

@@ -35,9 +35,9 @@ from .consolidated_reports import (
     datos_visitantes,
     obtener_fechas,
 )
-from .models import Evento
+from events.models import Evento
 from core.permissions import requiere_permiso
-from .reports import validar_fecha_reporte
+from reports.filters import validar_fecha_reporte
 
 
 def agregar_resumen(secciones, titulo, datos):

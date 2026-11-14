@@ -15,7 +15,7 @@ from system_configuration.models import Parameter
 from visitors.models import VisitorEntry
 
 from accounts.models import User
-from .models import Evento
+from events.models import Evento
 
 
 class DemoDataTests(TestCase):

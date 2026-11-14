@@ -1,6 +1,5 @@
+from reports.filters import validar_fecha_reporte
 
-from datetime import date
-import re
 
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -11,29 +10,14 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from . import schema as docs
 
-from .models import Evento, User
+from accounts.models import User
+from .models import Evento
 from core.permissions import (
     registrar_denegacion,
     requiere_permiso,
 )
 
 
-# SIAM-17: valida las fechas opcionales del reporte.
-def validar_fecha_reporte(valor, campo):
-    if valor is None or valor == "":
-        return None
-
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", valor):
-        raise serializers.ValidationError({
-            campo: "La fecha debe tener el formato AAAA-MM-DD."
-        })
-
-    try:
-        return date.fromisoformat(valor)
-    except ValueError:
-        raise serializers.ValidationError({
-            campo: "Ingrese una fecha válida."
-        }) from None
 
 
 # SIAM-17: compara la asistencia esperada y la real.

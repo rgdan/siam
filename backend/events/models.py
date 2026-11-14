@@ -1,4 +1,4 @@
-from accounts.models import User
+from django.conf import settings
 
 from django.db import models
 
@@ -25,7 +25,7 @@ class Evento(models.Model):
         default=Estado.PROGRAMADO,
     )
     creado_por = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="eventos_creados",
     )
