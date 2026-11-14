@@ -6,102 +6,7 @@ import { solicitar } from "../api.js"
 import { formatearFecha, formatearHora } from "../i18n/index.js"
 
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-const { locale } = useI18n({ useScope: "global" })
-
-const textos = {
-  es: {
-    titulo: "Calendario de eventos",
-    descripcion: "Consulte los eventos públicos y privados del museo.",
-    actualizar: "Actualizar eventos",
-    cargando: "Cargando eventos...",
-    error: "No se pudieron cargar los eventos.",
-    anterior: "Mes anterior",
-    siguiente: "Mes siguiente",
-    hoy: "Hoy",
-    cantidad: "eventos",
-    sinEventosDia: "No hay eventos programados para este día.",
-    proximos: "Próximos eventos",
-    sinProximos: "No hay próximos eventos programados.",
-    ubicacion: "Ubicación",
-    publico: "Público",
-    privado: "Privado",
-    editar: "Editar",
-    cancelar: "Cancelar evento",
-    editarTitulo: "Modificar evento",
-    fecha: "Fecha y hora",
-    descripcionEvento: "Descripción",
-    tipoEvento: "Tipo de evento",
-    asistentes: "Asistentes esperados",
-    guardar: "Guardar cambios",
-    descartar: "Descartar cambios",
-    guardando: "Procesando...",
-    confirmarTitulo: "Confirmar cancelación",
-    confirmarMensaje: "¿Está seguro de que desea cancelar este evento? Esta acción no se puede deshacer.",
-    confirmar: "Sí, cancelar evento",
-    volver: "Volver",
-    modificado: "Evento modificado correctamente.",
-    cancelado: "Evento cancelado correctamente.",
-    errorOperacion: "No se pudo completar la operación.",
-    sinPermiso: "No tiene permiso para realizar esta operación.",
-    fechaInvalida: "Seleccione una fecha y hora futuras.",
-    registrarAsistencia: "Registrar asistencia",
-    corregirAsistencia: "Corregir asistencia",
-    asistenciaTitulo: "Asistencia real del evento",
-    asistentesReales: "Asistentes reales",
-    noRegistrada: "No registrada",
-    asistenciaGuardada: "Asistencia real guardada correctamente.",
-    asistenciaInvalida: "Indique un número entero mayor o igual a 0.",
-    eventoPasado: "La asistencia solo puede registrarse en eventos pasados.",
-  },
-  en: {
-    titulo: "Event calendar",
-    descripcion: "View the museum's public and private events.",
-    actualizar: "Refresh events",
-    cargando: "Loading events...",
-    error: "Events could not be loaded.",
-    anterior: "Previous month",
-    siguiente: "Next month",
-    hoy: "Today",
-    cantidad: "events",
-    sinEventosDia: "There are no scheduled events for this day.",
-    proximos: "Upcoming events",
-    sinProximos: "There are no upcoming scheduled events.",
-    ubicacion: "Location",
-    publico: "Public",
-    privado: "Private",
-    editar: "Edit",
-    cancelar: "Cancel event",
-    editarTitulo: "Edit event",
-    fecha: "Date and time",
-    descripcionEvento: "Description",
-    tipoEvento: "Event type",
-    asistentes: "Expected attendees",
-    guardar: "Save changes",
-    descartar: "Discard changes",
-    guardando: "Processing...",
-    confirmarTitulo: "Confirm cancellation",
-    confirmarMensaje: "Are you sure you want to cancel this event? This action cannot be undone.",
-    confirmar: "Yes, cancel event",
-    volver: "Go back",
-    modificado: "Event updated successfully.",
-    cancelado: "Event cancelled successfully.",
-    errorOperacion: "The operation could not be completed.",
-    sinPermiso: "You do not have permission to perform this operation.",
-    fechaInvalida: "Select a future date and time.",
-    registrarAsistencia: "Record attendance",
-    corregirAsistencia: "Correct attendance",
-    asistenciaTitulo: "Actual event attendance",
-    asistentesReales: "Actual attendees",
-    noRegistrada: "Not recorded",
-    asistenciaGuardada: "Actual attendance saved successfully.",
-    asistenciaInvalida: "Enter a whole number greater than or equal to 0.",
-    eventoPasado: "Attendance can only be recorded for past events.",
-  },
-}
-
-const texto = computed(() =>
-  textos[locale.value === "en" ? "en" : "es"]
-)
+const { t, te, locale } = useI18n({ useScope: "global" })
 
 const idiomaRegional = computed(() =>
   locale.value === "en" ? "en-US" : "es-CR"
@@ -272,8 +177,8 @@ function volverHoy() {
 
 function nombreTipo(tipo) {
   return tipo === "privado"
-    ? texto.value.privado
-    : texto.value.publico
+    ? t('internalEvents.privado')
+    : t('internalEvents.publico')
 }
 
 // SIAM-15: lleva al usuario al formulario abierto.
@@ -380,13 +285,13 @@ async function obtenerCsrf() {
   const respuesta = await solicitar("auth/csrf/")
 
   if (!respuesta.ok) {
-    throw new Error(texto.value.errorOperacion)
+    throw new Error('internalEvents.errorOperacion')
   }
 
   const datos = await respuesta.json()
 
   if (!datos.csrfToken) {
-    throw new Error(texto.value.errorOperacion)
+    throw new Error('internalEvents.errorOperacion')
   }
 
   return datos.csrfToken
@@ -466,12 +371,12 @@ async function guardarAsistencia() {
     !Number.isSafeInteger(cantidad) ||
     cantidad > 2147483647
   ) {
-    errorOperacion.value = texto.value.asistenciaInvalida
+    errorOperacion.value = 'internalEvents.asistenciaInvalida'
     return
   }
 
   if (!esEventoPasado(eventoAsistencia.value)) {
-    errorOperacion.value = texto.value.eventoPasado
+    errorOperacion.value = 'internalEvents.eventoPasado'
     return
   }
 
@@ -490,7 +395,7 @@ async function guardarAsistencia() {
     }
 
     if (respuesta.status === 403) {
-      errorOperacion.value = texto.value.sinPermiso
+      errorOperacion.value = 'internalEvents.sinPermiso'
       await cargarUsuario()
       return
     }
@@ -502,9 +407,9 @@ async function guardarAsistencia() {
 
     cerrarAsistencia()
     await cargarEventos()
-    mensaje.value = texto.value.asistenciaGuardada
+    mensaje.value = 'internalEvents.asistenciaGuardada'
   } catch {
-    errorOperacion.value = texto.value.errorOperacion
+    errorOperacion.value = 'internalEvents.errorOperacion'
   } finally {
     procesando.value = false
   }
@@ -533,13 +438,13 @@ async function iniciarEdicion(evento) {
     }
 
     if (!respuesta.ok) {
-      throw new Error(texto.value.errorOperacion)
+      throw new Error('internalEvents.errorOperacion')
     }
 
     const datos = await respuesta.json()
 
     if (datos.estado !== "programado" || !esEventoFuturo(datos)) {
-      throw new Error(texto.value.errorOperacion)
+      throw new Error('internalEvents.errorOperacion')
     }
 
     formulario.value = {
@@ -554,7 +459,7 @@ async function iniciarEdicion(evento) {
 
     await mostrarPanelGestion()
   } catch (error) {
-    errorOperacion.value = error.message || texto.value.errorOperacion
+    errorOperacion.value = error.message || 'internalEvents.errorOperacion'
   } finally {
     procesando.value = false
   }
@@ -570,16 +475,16 @@ async function obtenerMensajeError(respuesta) {
     }
 
     if (Array.isArray(datos)) {
-      return datos[0] || texto.value.errorOperacion
+      return datos[0] || 'internalEvents.errorOperacion'
     }
 
     const mensajes = Object.values(datos)
       .flat()
       .filter(valor => typeof valor === "string")
 
-    return mensajes[0] || texto.value.errorOperacion
+    return mensajes[0] || 'internalEvents.errorOperacion'
   } catch {
-    return texto.value.errorOperacion
+    return 'internalEvents.errorOperacion'
   }
 }
 
@@ -595,7 +500,7 @@ async function guardarCambios() {
     Number.isNaN(nuevaFecha.getTime()) ||
     nuevaFecha.getTime() <= Date.now()
   ) {
-    errorOperacion.value = texto.value.fechaInvalida
+    errorOperacion.value = 'internalEvents.fechaInvalida'
     return
   }
 
@@ -622,7 +527,7 @@ async function guardarCambios() {
     }
 
     if (respuesta.status === 403) {
-      errorOperacion.value = texto.value.sinPermiso
+      errorOperacion.value = 'internalEvents.sinPermiso'
       await cargarUsuario()
       return
     }
@@ -634,9 +539,9 @@ async function guardarCambios() {
 
     cerrarEdicion()
     await cargarEventos()
-    mensaje.value = texto.value.modificado
+    mensaje.value = 'internalEvents.modificado'
   } catch {
-    errorOperacion.value = texto.value.errorOperacion
+    errorOperacion.value = 'internalEvents.errorOperacion'
   } finally {
     procesando.value = false
   }
@@ -674,7 +579,7 @@ async function confirmarCancelacion() {
     }
 
     if (respuesta.status === 403) {
-      errorOperacion.value = texto.value.sinPermiso
+      errorOperacion.value = 'internalEvents.sinPermiso'
       await cargarUsuario()
       return
     }
@@ -686,9 +591,9 @@ async function confirmarCancelacion() {
 
     cerrarCancelacion()
     await cargarEventos()
-    mensaje.value = texto.value.cancelado
+    mensaje.value = 'internalEvents.cancelado'
   } catch {
-    errorOperacion.value = texto.value.errorOperacion
+    errorOperacion.value = 'internalEvents.errorOperacion'
   } finally {
     procesando.value = false
   }
@@ -704,8 +609,8 @@ onMounted(async () => {
   <section class="eventos-internos">
     <header class="encabezado-eventos">
       <div>
-        <h2>{{ texto.titulo }}</h2>
-        <p>{{ texto.descripcion }}</p>
+        <h2>{{ t('internalEvents.titulo') }}</h2>
+        <p>{{ t('internalEvents.descripcion') }}</p>
       </div>
 
       <button
@@ -713,16 +618,16 @@ onMounted(async () => {
         :disabled="cargando || procesando"
         @click="cargarEventos"
       >
-        {{ texto.actualizar }}
+        {{ t('internalEvents.actualizar') }}
       </button>
     </header>
 
     <p v-if="mensaje" role="status" class="mensaje-exito">
-      {{ mensaje }}
+      {{ t(mensaje) }}
     </p>
 
     <p v-if="errorOperacion" role="alert" class="mensaje-error">
-      {{ errorOperacion }}
+      {{ te(errorOperacion) ? t(errorOperacion) : errorOperacion }}
     </p>
 
     <!-- SIAM-15: formulario para modificar eventos -->
@@ -730,13 +635,13 @@ onMounted(async () => {
       v-if="eventoEditando"
       ref="panelGestion"
       class="panel-gestion"
-      :aria-label="texto.editarTitulo"
+      :aria-label="t('internalEvents.editarTitulo')"
     >
-      <h3>{{ texto.editarTitulo }}</h3>
+      <h3>{{ t('internalEvents.editarTitulo') }}</h3>
 
       <form class="formulario-evento" @submit.prevent="guardarCambios">
         <div class="campo">
-          <label for="editar-fecha">{{ texto.fecha }}</label>
+          <label for="editar-fecha">{{ t('internalEvents.fecha') }}</label>
           <input
             id="editar-fecha"
             v-model="formulario.fecha"
@@ -748,7 +653,7 @@ onMounted(async () => {
 
         <div class="campo">
           <label for="editar-descripcion">
-            {{ texto.descripcionEvento }}
+            {{ t('internalEvents.descripcionEvento') }}
           </label>
           <textarea
             id="editar-descripcion"
@@ -761,7 +666,7 @@ onMounted(async () => {
         </div>
 
         <div class="campo">
-          <label for="editar-ubicacion">{{ texto.ubicacion }}</label>
+          <label for="editar-ubicacion">{{ t('internalEvents.ubicacion') }}</label>
           <input
             id="editar-ubicacion"
             v-model="formulario.ubicacion"
@@ -773,19 +678,19 @@ onMounted(async () => {
         </div>
 
         <div class="campo">
-          <label for="editar-tipo">{{ texto.tipoEvento }}</label>
+          <label for="editar-tipo">{{ t('internalEvents.tipoEvento') }}</label>
           <select
             id="editar-tipo"
             v-model="formulario.tipo"
             :disabled="procesando"
           >
-            <option value="publico">{{ texto.publico }}</option>
-            <option value="privado">{{ texto.privado }}</option>
+            <option value="publico">{{ t('internalEvents.publico') }}</option>
+            <option value="privado">{{ t('internalEvents.privado') }}</option>
           </select>
         </div>
 
         <div class="campo">
-          <label for="editar-asistentes">{{ texto.asistentes }}</label>
+          <label for="editar-asistentes">{{ t('internalEvents.asistentes') }}</label>
           <input
             id="editar-asistentes"
             v-model.number="formulario.asistentes_esperados"
@@ -799,7 +704,7 @@ onMounted(async () => {
 
         <div class="acciones-evento">
           <button type="submit" :disabled="procesando">
-            {{ procesando ? texto.guardando : texto.guardar }}
+            {{ procesando ? t('internalEvents.guardando') : t('internalEvents.guardar') }}
           </button>
 
           <button
@@ -808,7 +713,7 @@ onMounted(async () => {
             :disabled="procesando"
             @click="cerrarEdicion"
           >
-            {{ texto.descartar }}
+            {{ t('internalEvents.descartar') }}
           </button>
         </div>
       </form>
@@ -820,11 +725,11 @@ onMounted(async () => {
       ref="panelGestion"
       class="panel-gestion"
       role="group"
-      :aria-label="texto.confirmarTitulo"
+      :aria-label="t('internalEvents.confirmarTitulo')"
     >
-      <h3>{{ texto.confirmarTitulo }}</h3>
+      <h3>{{ t('internalEvents.confirmarTitulo') }}</h3>
 
-      <p>{{ texto.confirmarMensaje }}</p>
+      <p>{{ t('internalEvents.confirmarMensaje') }}</p>
       <p><strong>{{ eventoCancelando.descripcion }}</strong></p>
       <p>{{ formatearFecha(eventoCancelando.fecha) }}</p>
 
@@ -835,7 +740,7 @@ onMounted(async () => {
           :disabled="procesando"
           @click="confirmarCancelacion"
         >
-          {{ procesando ? texto.guardando : texto.confirmar }}
+          {{ procesando ? t('internalEvents.guardando') : t('internalEvents.confirmar') }}
         </button>
 
         <button
@@ -844,7 +749,7 @@ onMounted(async () => {
           :disabled="procesando"
           @click="cerrarCancelacion"
         >
-          {{ texto.volver }}
+          {{ t('internalEvents.volver') }}
         </button>
       </div>
     </section>
@@ -854,9 +759,9 @@ onMounted(async () => {
       v-if="eventoAsistencia"
       ref="panelGestion"
       class="panel-gestion"
-      :aria-label="texto.asistenciaTitulo"
+      :aria-label="t('internalEvents.asistenciaTitulo')"
     >
-      <h3>{{ texto.asistenciaTitulo }}</h3>
+      <h3>{{ t('internalEvents.asistenciaTitulo') }}</h3>
 
       <p>
         <strong>{{ eventoAsistencia.descripcion }}</strong>
@@ -871,7 +776,7 @@ onMounted(async () => {
       <form class="formulario-evento" @submit.prevent="guardarAsistencia">
         <div class="campo">
           <label for="asistencia-real">
-            {{ texto.asistentesReales }}
+            {{ t('internalEvents.asistentesReales') }}
           </label>
 
           <input
@@ -889,7 +794,7 @@ onMounted(async () => {
 
         <div class="acciones-evento">
           <button type="submit" :disabled="procesando">
-            {{ procesando ? texto.guardando : texto.guardar }}
+            {{ procesando ? t('internalEvents.guardando') : t('internalEvents.guardar') }}
           </button>
 
           <button
@@ -898,42 +803,42 @@ onMounted(async () => {
             :disabled="procesando"
             @click="cerrarAsistencia"
           >
-            {{ texto.descartar }}
+            {{ t('internalEvents.descartar') }}
           </button>
         </div>
       </form>
     </section>
 
     <p v-if="cargando" role="status">
-      {{ texto.cargando }}
+      {{ t('internalEvents.cargando') }}
     </p>
 
     <p v-else-if="error" role="alert" class="mensaje-error">
-      {{ texto.error }}
+      {{ t('internalEvents.error') }}
     </p>
 
     <template v-else>
       <!-- SIAM-14: calendario interno -->
-      <section class="calendario" :aria-label="texto.titulo">
+      <section class="calendario" :aria-label="t('internalEvents.titulo')">
         <div class="navegacion-calendario">
           <h3 class="titulo-mes">{{ tituloMes }}</h3>
 
           <div class="controles-calendario">
             <button
               type="button"
-              :aria-label="texto.anterior"
+              :aria-label="t('internalEvents.anterior')"
               @click="cambiarMes(-1)"
             >
               <span aria-hidden="true">‹</span>
             </button>
 
             <button type="button" @click="volverHoy">
-              {{ texto.hoy }}
+              {{ t('internalEvents.hoy') }}
             </button>
 
             <button
               type="button"
-              :aria-label="texto.siguiente"
+              :aria-label="t('internalEvents.siguiente')"
               @click="cambiarMes(1)"
             >
               <span aria-hidden="true">›</span>
@@ -970,7 +875,7 @@ onMounted(async () => {
                 'es-hoy': mismoDia(fecha, new Date()),
               }"
               :aria-pressed="mismoDia(fecha, diaSeleccionado)"
-              :aria-label="`${formatearFecha(fecha)}. ${eventosDelDia(fecha).length} ${texto.cantidad}`"
+              :aria-label="`${formatearFecha(fecha)}. ${eventosDelDia(fecha).length} ${t('internalEvents.cantidad')}`"
               @click="seleccionarDia(fecha)"
             >
               <span>{{ fecha.getDate() }}</span>
@@ -1004,7 +909,7 @@ onMounted(async () => {
         <h3>{{ tituloDiaSeleccionado }}</h3>
 
         <p v-if="eventosSeleccionados.length === 0">
-          {{ texto.sinEventosDia }}
+          {{ t('internalEvents.sinEventosDia') }}
         </p>
 
         <div v-else class="lista-eventos">
@@ -1027,17 +932,17 @@ onMounted(async () => {
             <h4>{{ evento.descripcion }}</h4>
 
             <p>
-              <strong>{{ texto.ubicacion }}:</strong>
+              <strong>{{ t('internalEvents.ubicacion') }}:</strong>
               {{ evento.ubicacion }}
             </p>
 
             <!-- SIAM-16: mostrar asistencia en eventos pasados -->
             <p v-if="esEventoPasado(evento)">
-              <strong>{{ texto.asistentesReales }}:</strong>
+              <strong>{{ t('internalEvents.asistentesReales') }}:</strong>
               {{
                 tieneAsistencia(evento)
                   ? evento.asistentes_reales
-                  : texto.noRegistrada
+                  : t('internalEvents.noRegistrada')
               }}
             </p>
 
@@ -1053,8 +958,8 @@ onMounted(async () => {
               >
                 {{
                   tieneAsistencia(evento)
-                    ? texto.corregirAsistencia
-                    : texto.registrarAsistencia
+                    ? t('internalEvents.corregirAsistencia')
+                    : t('internalEvents.registrarAsistencia')
                 }}
               </button>
             </div>
@@ -1070,7 +975,7 @@ onMounted(async () => {
                 :disabled="procesando"
                 @click="iniciarEdicion(evento)"
               >
-                {{ texto.editar }}
+                {{ t('internalEvents.editar') }}
               </button>
 
               <button
@@ -1080,7 +985,7 @@ onMounted(async () => {
                 :disabled="procesando"
                 @click="iniciarCancelacion(evento)"
               >
-                {{ texto.cancelar }}
+                {{ t('internalEvents.cancelar') }}
               </button>
             </div>
           </article>
@@ -1089,10 +994,10 @@ onMounted(async () => {
 
       <!-- Próximos eventos públicos y privados -->
       <section class="proximos-eventos">
-        <h3>{{ texto.proximos }}</h3>
+        <h3>{{ t('internalEvents.proximos') }}</h3>
 
         <p v-if="proximosEventos.length === 0" role="status">
-          {{ texto.sinProximos }}
+          {{ t('internalEvents.sinProximos') }}
         </p>
 
         <div v-else class="lista-eventos">
@@ -1116,7 +1021,7 @@ onMounted(async () => {
             <h4>{{ evento.descripcion }}</h4>
 
             <p>
-              <strong>{{ texto.ubicacion }}:</strong>
+              <strong>{{ t('internalEvents.ubicacion') }}:</strong>
               {{ evento.ubicacion }}
             </p>
 
@@ -1130,7 +1035,7 @@ onMounted(async () => {
                 :disabled="procesando"
                 @click="iniciarEdicion(evento)"
               >
-                {{ texto.editar }}
+                {{ t('internalEvents.editar') }}
               </button>
 
               <button
@@ -1140,7 +1045,7 @@ onMounted(async () => {
                 :disabled="procesando"
                 @click="iniciarCancelacion(evento)"
               >
-                {{ texto.cancelar }}
+                {{ t('internalEvents.cancelar') }}
               </button>
             </div>
           </article>

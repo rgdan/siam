@@ -3,11 +3,10 @@ import { computed, ref, onMounted } from "vue"
 import { useI18n } from "vue-i18n"
 import { solicitar, enviar } from "../api.js"
 import CollectionReport from "./CollectionReport.vue"
-import messages from "./collectionMessages.js"
 const props = defineProps({ usuario: Object })
 const canManageCollection = computed(() => props.usuario?.permissions?.includes("piezas.actualizar"))
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-const { t, te, locale } = useI18n({ messages, useScope: "local" })
+const { t, te, locale } = useI18n({ useScope: "global" })
 const fields = [
   "title",
   "collection",
@@ -20,7 +19,7 @@ const fields = [
   "distinguishing_features",
 ]
 const label = (key) =>
-  t(key === "title" ? "pieceTitle" : key === "photos" ? "photosField" : key)
+  t(`collection.${key === "title" ? "pieceTitle" : key === "photos" ? "photosField" : key}`)
 const pieces = ref([]),
   selected = ref(null),
   mode = ref("list"),
@@ -145,7 +144,7 @@ function fieldError(field) {
   const value = Array.isArray(errors.value[field])
     ? errors.value[field][0]
     : errors.value[field]
-  return t(["required", "positive", "invalid_loan_period", "invalid_date", "recipient_too_long", "future_date", "invalid_state", "confirmation_required"].includes(value) ? value : "invalid")
+  return t(`collection.${["required", "positive", "invalid_loan_period", "invalid_date", "recipient_too_long", "future_date", "invalid_state", "confirmation_required"].includes(value) ? value : "invalid"}`)
 }
 async function upload(event) {
   const input = event.target,
@@ -256,7 +255,7 @@ function beginLoan() {
 }
 function loanFailure() {
   const code = errors.value.detail
-  return t(typeof code === 'string' && te(code) ? code : 'error')
+  return t(typeof code === "string" && te(`collection.${code}`) ? `collection.${code}` : "collection.error")
 }
 async function saveLoan(returning = false) {
   if (busy.value || (!returning && invalidLoanPeriod.value)) return
@@ -275,7 +274,7 @@ async function saveLoan(returning = false) {
   finally { busy.value = false }
 }
 function loanDate(value) {
-  return value ? new Date(`${value}T12:00:00`).toLocaleDateString(locale.value) : t('notRecorded')
+  return value ? new Date(`${value}T12:00:00`).toLocaleDateString(locale.value) : t('collection.notRecorded')
 }
 const missingDialog = ref(null), missingForm = ref({})
 function today() {
@@ -358,50 +357,50 @@ onMounted(load)
 </script>
 <template>
   <section class="collection" :class="{ 'collection-list': mode === 'list' }" :aria-busy="busy">
-    <p v-if="busy" role="status">{{ t("loading") }}</p>
-    <p v-if="notice" role="status">{{ t(notice) }}</p>
-    <p v-if="failure" role="alert" class="error">{{ t("error") }}</p>
+    <p v-if="busy" role="status">{{ t('collection.loading') }}</p>
+    <p v-if="notice" role="status">{{ t(`collection.${notice}`) }}</p>
+    <p v-if="failure" role="alert" class="error">{{ t('collection.error') }}</p>
     <template v-if="mode === 'report'">
-      <button class="back-link" @click="backToCollection">{{ t('back') }}</button>
+      <button class="back-link" @click="backToCollection">{{ t('collection.back') }}</button>
       <CollectionReport @sesion-expirada="emit('sesion-expirada')" @sin-acceso="emit('sin-acceso')" />
     </template>
     <template v-else-if="mode === 'list'">
       <header class="collection-heading">
         <div>
-          <h2>{{ t("listTitle") }}</h2>
-          <p v-if="!busy && !failure" class="piece-count">{{ t(filter ? "filteredCount" : "pieceCount", { count: pieces.length }) }}</p>
+          <h2>{{ t('collection.listTitle') }}</h2>
+          <p v-if="!busy && !failure" class="piece-count">{{ t(`collection.${filter ? "filteredCount" : "pieceCount"}`, { count: pieces.length }) }}</p>
         </div>
         <div class="list-actions">
-          <button v-if="props.usuario?.permissions?.includes('colecciones.generar_reportes')" :disabled="busy" @click="openReport">{{ t('report') }}</button>
-          <button class="refresh-list" :disabled="busy" :aria-label="t('refresh')" :title="t('refresh')" @click="load">
+          <button v-if="props.usuario?.permissions?.includes('colecciones.generar_reportes')" :disabled="busy" @click="openReport">{{ t('collection.report') }}</button>
+          <button class="refresh-list" :disabled="busy" :aria-label="t('collection.refresh')" :title="t('collection.refresh')" @click="load">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3a7 7 0 0 0 11.5-1" /></svg>
           </button>
           <button class="new-piece" :disabled="busy" @click="edit(true)">
-            <span aria-hidden="true">+</span>{{ t("new") }}
+            <span aria-hidden="true">+</span>{{ t('collection.new') }}
           </button>
         </div>
       </header>
-      <div class="collection-table" role="region" :aria-label="t('listTitle')" tabindex="0">
+      <div class="collection-table" role="region" :aria-label="t('collection.listTitle')" tabindex="0">
         <table>
           <thead>
             <tr>
-              <th scope="col" class="identifier-column">{{ t("id") }}</th>
-              <th scope="col" class="title-column">{{ t("pieceTitle") }}</th>
-              <th scope="col">{{ t("typeColumn") }}</th>
-              <th scope="col">{{ t("authorColumn") }}</th>
+              <th scope="col" class="identifier-column">{{ t('collection.id') }}</th>
+              <th scope="col" class="title-column">{{ t('collection.pieceTitle') }}</th>
+              <th scope="col">{{ t('collection.typeColumn') }}</th>
+              <th scope="col">{{ t('collection.authorColumn') }}</th>
               <th scope="col">
-                <select id="state-filter" v-model="filter" class="table-state-filter" :aria-label="t('state')" :disabled="busy" @change="load">
-                  <option value="">{{ t("state") }}</option>
-                  <option value="stored">{{ t("stored") }}</option>
-                  <option value="displayed">{{ t("displayed") }}</option>
-                  <option value="stolen">{{ t("stolen") }}</option>
-                  <option value="lost">{{ t("lost") }}</option>
-                  <option value="decommissioned">{{ t("decommissioned") }}</option>
-                  <option value="loaned">{{ t("loaned") }}</option>
+                <select id="state-filter" v-model="filter" class="table-state-filter" :aria-label="t('collection.state')" :disabled="busy" @change="load">
+                  <option value="">{{ t('collection.state') }}</option>
+                  <option value="stored">{{ t('collection.stored') }}</option>
+                  <option value="displayed">{{ t('collection.displayed') }}</option>
+                  <option value="stolen">{{ t('collection.stolen') }}</option>
+                  <option value="lost">{{ t('collection.lost') }}</option>
+                  <option value="decommissioned">{{ t('collection.decommissioned') }}</option>
+                  <option value="loaned">{{ t('collection.loaned') }}</option>
                 </select>
               </th>
-              <th scope="col">{{ t("location") }}</th>
-              <th scope="col" class="actions-column"><span class="sr-only">{{ t("edit") }}</span></th>
+              <th scope="col">{{ t('collection.location') }}</th>
+              <th scope="col" class="actions-column"><span class="sr-only">{{ t('collection.edit') }}</span></th>
             </tr>
           </thead>
           <tbody>
@@ -412,10 +411,10 @@ onMounted(load)
               </th>
               <td>{{ piece.object_type }}</td>
               <td>{{ piece.author_maker }}</td>
-              <td><span class="piece-state" :class="piece.state">{{ t(piece.state) }}</span></td>
-              <td>{{ piece.location || t("noLocation") }}</td>
+              <td><span class="piece-state" :class="piece.state">{{ t(`collection.${piece.state}`) }}</span></td>
+              <td>{{ piece.location || t('collection.noLocation') }}</td>
               <td class="row-actions">
-                <button v-if="!piece.decommissioned || canManageCollection" class="edit-piece" :disabled="busy" :aria-label="t('editPiece', { title: piece.title })" :title="t('edit')" @click="open(piece.id, true)">
+                <button v-if="!piece.decommissioned || canManageCollection" class="edit-piece" :disabled="busy" :aria-label="t('collection.editPiece', { title: piece.title })" :title="t('collection.edit')" @click="open(piece.id, true)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M13.5 5.5 18.5 10.5M4 20l4.5-1 12-12a2.1 2.1 0 0 0-3-3l-12 12L4 20Z" />
                     <path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7" />
@@ -424,23 +423,23 @@ onMounted(load)
               </td>
             </tr>
             <tr v-if="!pieces.length">
-              <td colspan="7" class="empty-collection">{{ t(busy ? "loading" : failure ? "error" : "empty") }}</td>
+              <td colspan="7" class="empty-collection">{{ t(`collection.${busy ? "loading" : failure ? "error" : "empty"}`) }}</td>
             </tr>
           </tbody>
         </table>
       </div>
     </template>
     <template v-else-if="mode === 'new' || mode === 'edit'">
-      <button class="back-link" :disabled="busy" @click="backToCollection">{{ t("back") }}</button>
+      <button class="back-link" :disabled="busy" @click="backToCollection">{{ t('collection.back') }}</button>
       <header class="editor-heading">
-        <h2>{{ t(mode === "new" ? "new" : "editHeading") }}</h2>
-        <p>{{ mode === 'new' ? t('newDescription') : selected.title }}</p>
+        <h2>{{ t(`collection.${mode === "new" ? "new" : "editHeading"}`) }}</h2>
+        <p>{{ mode === 'new' ? t('collection.newDescription') : selected.title }}</p>
       </header>
       <form class="piece-editor" novalidate @submit.prevent="save()">
         <div class="editor-layout">
         <section class="record-panel">
         <fieldset :disabled="busy || (mode === 'edit' && selected.decommissioned)" class="fields">
-          <legend>{{ t("catalogDetails") }}</legend>
+          <legend>{{ t('collection.catalogDetails') }}</legend>
           <div v-for="field in fields" :key="field" :class="{ 'wide-field': !['title', 'object_type', 'author_maker', 'date_period'].includes(field) }">
             <label :for="field">{{ label(field) }}{{ field === 'collection' ? '' : ' *' }}</label
             ><input
@@ -465,7 +464,7 @@ onMounted(load)
             </p>
           </div>
           <div class="measurement-fields wide-field">
-            <div><label for="measurement">{{ t("measurements") }} *</label
+            <div><label for="measurement">{{ t('collection.measurements') }} *</label
             ><input
               id="measurement"
               v-model="form.measurement_value"
@@ -484,7 +483,7 @@ onMounted(load)
               {{ fieldError("measurement_value") }}
             </p>
             </div>
-            <div><label for="unit">{{ t("measurement_unit") }}</label
+            <div><label for="unit">{{ t('collection.measurement_unit') }}</label
             ><select id="unit" v-model="form.measurement_unit">
               <option v-for="unit in ['mm', 'cm', 'm', 'g', 'kg']" :key="unit">
                 {{ unit }}
@@ -497,14 +496,14 @@ onMounted(load)
         <aside class="editor-sidebar">
         <section class="record-panel state-editor">
         <fieldset :disabled="busy">
-          <legend>{{ t("stateAndLocation") }}</legend>
-          <label for="piece-state">{{ t("state") }}</label>
+          <legend>{{ t('collection.stateAndLocation') }}</legend>
+          <label for="piece-state">{{ t('collection.state') }}</label>
           <select id="piece-state" v-model="form.state" :disabled="mode === 'new' || selected.decommissioned || !['stored', 'displayed'].includes(selected.state)">
-            <option v-if="mode === 'edit' && !['stored', 'displayed'].includes(selected.state)" :value="selected.state">{{ t(selected.state) }}</option>
-            <option value="stored">{{ t("stored") }}</option>
-            <option v-if="mode === 'edit'" value="displayed">{{ t("displayed") }}</option></select
+            <option v-if="mode === 'edit' && !['stored', 'displayed'].includes(selected.state)" :value="selected.state">{{ t(`collection.${selected.state}`) }}</option>
+            <option value="stored">{{ t('collection.stored') }}</option>
+            <option v-if="mode === 'edit'" value="displayed">{{ t('collection.displayed') }}</option></select
           ><template v-if="['stored', 'displayed'].includes(form.state) && (mode === 'new' || !selected.decommissioned)"
-            ><label for="location">{{ t("location") }}{{ form.state === 'displayed' ? ' *' : '' }}</label
+            ><label for="location">{{ t('collection.location') }}{{ form.state === 'displayed' ? ' *' : '' }}</label
             ><input
               id="location"
               v-model="form.location"
@@ -518,24 +517,24 @@ onMounted(load)
             </p></template>
           <template v-if="mode === 'edit' && canManageCollection">
             <div class="actions state-actions">
-              <button v-if="selected.state !== 'loaned'" type="button" :disabled="!!loanBlockReason" :title="loanBlockReason ? t(loanBlockReason) : undefined" @click="beginLoan">{{ t('registerLoan') }}</button>
-              <button v-if="!loanBlockReason && selected.state === 'loaned'" type="button" @click="saveLoan(true)">{{ t('returnLoan') }}</button>
-              <button v-if="!selected.decommissioned && !['stolen', 'lost'].includes(selected.state)" type="button" @click="beginMissing">{{ t('markMissing') }}</button>
-              <button v-if="!selected.decommissioned && ['stolen', 'lost'].includes(selected.state)" type="button" @click="beginRecovery">{{ t('recoverPiece') }}</button>
-              <button v-if="selected.decommissioned" type="button" @click="beginRecovery">{{ t('reactivatePiece') }}</button>
-              <button v-if="!selected.decommissioned" type="button" @click="beginDecommission">{{ t('decommission') }}</button>
+              <button v-if="selected.state !== 'loaned'" type="button" :disabled="!!loanBlockReason" :title="loanBlockReason ? t(`collection.${loanBlockReason}`) : undefined" @click="beginLoan">{{ t('collection.registerLoan') }}</button>
+              <button v-if="!loanBlockReason && selected.state === 'loaned'" type="button" @click="saveLoan(true)">{{ t('collection.returnLoan') }}</button>
+              <button v-if="!selected.decommissioned && !['stolen', 'lost'].includes(selected.state)" type="button" @click="beginMissing">{{ t('collection.markMissing') }}</button>
+              <button v-if="!selected.decommissioned && ['stolen', 'lost'].includes(selected.state)" type="button" @click="beginRecovery">{{ t('collection.recoverPiece') }}</button>
+              <button v-if="selected.decommissioned" type="button" @click="beginRecovery">{{ t('collection.reactivatePiece') }}</button>
+              <button v-if="!selected.decommissioned" type="button" @click="beginDecommission">{{ t('collection.decommission') }}</button>
             </div>
             <p v-if="failure && !loanDialog?.open" class="error" role="alert">{{ loanFailure() }}</p>
           </template>
         </fieldset>
         </section>
         <section v-if="mode === 'edit' && !selected.decommissioned" class="record-panel photo-editor">
-      <h3>{{ t("photos") }}</h3>
-      <p v-if="selected.photos.length" class="photo-note">{{ t('photoOrderHelp') }}</p>
-      <p v-if="!selected.photos.length">{{ t("noPhotos") }}</p>
+      <h3>{{ t('collection.photos') }}</h3>
+      <p v-if="selected.photos.length" class="photo-note">{{ t('collection.photoOrderHelp') }}</p>
+      <p v-if="!selected.photos.length">{{ t('collection.noPhotos') }}</p>
       <div class="photos">
         <figure v-for="(photo, index) in selected.photos" :key="photo.id" class="editable-photo">
-        <span class="photo-position">{{ index === 0 ? t('coverPhoto') : t('photoPosition', { position: index + 1 }) }}</span>
+        <span class="photo-position">{{ index === 0 ? t('collection.coverPhoto') : t('collection.photoPosition', { position: index + 1 }) }}</span>
         <button
           type="button"
           :disabled="busy"
@@ -545,15 +544,15 @@ onMounted(load)
         </button>
         <figcaption>{{ photo.name }}</figcaption>
         <div class="photo-order-controls">
-          <button type="button" :disabled="busy || index === 0" :aria-label="t('movePhotoEarlier', { name: photo.name })" @click="movePhoto(index, -1)"><span aria-hidden="true">‹</span></button>
-          <button type="button" :disabled="busy || index === selected.photos.length - 1" :aria-label="t('movePhotoLater', { name: photo.name })" @click="movePhoto(index, 1)"><span aria-hidden="true">›</span></button>
+          <button type="button" :disabled="busy || index === 0" :aria-label="t('collection.movePhotoEarlier', { name: photo.name })" @click="movePhoto(index, -1)"><span aria-hidden="true">‹</span></button>
+          <button type="button" :disabled="busy || index === selected.photos.length - 1" :aria-label="t('collection.movePhotoLater', { name: photo.name })" @click="movePhoto(index, 1)"><span aria-hidden="true">›</span></button>
         </div>
-        <button class="delete-photo" type="button" :disabled="busy" :aria-label="t('deletePhotoNamed', { name: photo.name })" @click="confirmPhotoDelete(photo)">{{ t('deletePhoto') }}</button>
+        <button class="delete-photo" type="button" :disabled="busy" :aria-label="t('collection.deletePhotoNamed', { name: photo.name })" @click="confirmPhotoDelete(photo)">{{ t('collection.deletePhoto') }}</button>
         </figure>
       </div>
-      <label for="photos">{{ t("addPhotos") }}</label>
-      <p id="photo-help">{{ t("photoHelp") }}</p>
-      <p class="photo-note">{{ t("photosImmediate") }}</p>
+      <label for="photos">{{ t('collection.addPhotos') }}</label>
+      <p id="photo-help">{{ t('collection.photoHelp') }}</p>
+      <p class="photo-note">{{ t('collection.photosImmediate') }}</p>
       <input
         id="photos"
         type="file"
@@ -565,42 +564,42 @@ onMounted(load)
       />
       <ul aria-live="polite">
         <li v-for="(result, index) in photoResults" :key="index">
-          {{ result.name }}: {{ t(result.code) }}
+          {{ result.name }}: {{ t(`collection.${result.code}`) }}
         </li>
       </ul>
         </section>
         <section class="record-panel editor-note">
-          <h3>{{ t("identifier") }}</h3>
+          <h3>{{ t('collection.identifier') }}</h3>
           <p v-if="mode === 'edit'" class="record-identifier">{{ selected.identifier }}</p>
-          <p v-else>{{ t("identifierAssigned") }}</p>
+          <p v-else>{{ t('collection.identifierAssigned') }}</p>
         </section>
         </aside>
         </div>
         <footer class="editor-footer">
-          <p>{{ t("requiredFields") }}</p>
+          <p>{{ t('collection.requiredFields') }}</p>
           <div class="actions">
-            <button type="button" :disabled="busy" @click="cancelEdit">{{ t("cancel") }}</button>
-            <button class="primary-action" :disabled="busy || (mode === 'edit' && selected.decommissioned)">{{ t("save") }}</button>
+            <button type="button" :disabled="busy" @click="cancelEdit">{{ t('collection.cancel') }}</button>
+            <button class="primary-action" :disabled="busy || (mode === 'edit' && selected.decommissioned)">{{ t('collection.save') }}</button>
           </div>
         </footer>
       </form>
     </template>
     <template v-else-if="selected">
-      <button class="back-link" :disabled="busy" @click="backToCollection">{{ t("back") }}</button>
+      <button class="back-link" :disabled="busy" @click="backToCollection">{{ t('collection.back') }}</button>
       <article class="piece-sheet">
         <header class="piece-heading">
-          <p class="piece-category">{{ selected.object_type || t('notRecorded') }}</p>
+          <p class="piece-category">{{ selected.object_type || t('collection.notRecorded') }}</p>
           <h2>{{ selected.title }}</h2>
-          <p class="piece-attribution">{{ selected.author_maker || t('notRecorded') }}<span v-if="selected.date_period"> · {{ selected.date_period }}</span></p>
-          <span class="piece-state" :class="selected.state">{{ t(selected.state) }}</span>
-          <span v-if="selected.decommissioned && selected.state !== 'decommissioned'" class="inactive-piece">{{ t('decommissioned') }}</span>
+          <p class="piece-attribution">{{ selected.author_maker || t('collection.notRecorded') }}<span v-if="selected.date_period"> · {{ selected.date_period }}</span></p>
+          <span class="piece-state" :class="selected.state">{{ t(`collection.${selected.state}`) }}</span>
+          <span v-if="selected.decommissioned && selected.state !== 'decommissioned'" class="inactive-piece">{{ t('collection.decommissioned') }}</span>
         </header>
         <div class="piece-overview">
-          <section class="piece-gallery" :aria-label="t('photos')">
-            <button v-if="selected.photos.length" class="hero-photo" :aria-label="t('enlargePhoto')" @click="showPhoto(selected.photos[0])">
+          <section class="piece-gallery" :aria-label="t('collection.photos')">
+            <button v-if="selected.photos.length" class="hero-photo" :aria-label="t('collection.enlargePhoto')" @click="showPhoto(selected.photos[0])">
               <img :src="selected.photos[0].data" :alt="selected.photos[0].name" />
             </button>
-            <div v-else class="no-photo"><p>{{ t('noPhotos') }}</p></div>
+            <div v-else class="no-photo"><p>{{ t('collection.noPhotos') }}</p></div>
             <div v-if="selected.photos.length > 1" class="photos gallery-thumbnails">
               <button v-for="photo in selected.photos" :key="photo.id" @click="showPhoto(photo)">
                 <img :src="photo.data" :alt="photo.name" />
@@ -608,117 +607,117 @@ onMounted(load)
             </div>
           </section>
           <section class="piece-description">
-            <h3>{{ t('subject') }}</h3>
-            <p class="piece-subject">{{ selected.subject || t('notRecorded') }}</p>
+            <h3>{{ t('collection.subject') }}</h3>
+            <p class="piece-subject">{{ selected.subject || t('collection.notRecorded') }}</p>
             <dl class="piece-facts">
-              <div><dt>{{ t('materials_techniques') }}</dt><dd>{{ selected.materials_techniques || t('notRecorded') }}</dd></div>
-              <div><dt>{{ t('measurements') }}</dt><dd>{{ selected.measurement_value === null ? t('notRecorded') : `${selected.measurement_value} ${selected.measurement_unit}` }}</dd></div>
-              <div><dt>{{ t('location') }}</dt><dd>{{ selected.location || t('noLocation') }}</dd></div>
+              <div><dt>{{ t('collection.materials_techniques') }}</dt><dd>{{ selected.materials_techniques || t('collection.notRecorded') }}</dd></div>
+              <div><dt>{{ t('collection.measurements') }}</dt><dd>{{ selected.measurement_value === null ? t('collection.notRecorded') : `${selected.measurement_value} ${selected.measurement_unit}` }}</dd></div>
+              <div><dt>{{ t('collection.location') }}</dt><dd>{{ selected.location || t('collection.noLocation') }}</dd></div>
             </dl>
           </section>
         </div>
         <section class="piece-documentation">
-          <h3>{{ t('documentation') }}</h3>
-          <p>{{ t('collection') }}: {{ selected.collection || t('unassignedCollection') }}</p>
+          <h3>{{ t('collection.documentation') }}</h3>
+          <p>{{ t('collection.collection') }}: {{ selected.collection || t('collection.unassignedCollection') }}</p>
           <dl class="documentation-grid">
             <div v-for="field in ['inscriptions_marks', 'distinguishing_features']" :key="field">
-              <dt>{{ label(field) }}</dt><dd>{{ selected[field] || t('notRecorded') }}</dd>
+              <dt>{{ label(field) }}</dt><dd>{{ selected[field] || t('collection.notRecorded') }}</dd>
             </div>
-            <div class="identifier-fact"><dt>{{ t('identifier') }}</dt><dd class="record-identifier">{{ selected.identifier }}</dd></div>
+            <div class="identifier-fact"><dt>{{ t('collection.identifier') }}</dt><dd class="record-identifier">{{ selected.identifier }}</dd></div>
           </dl>
         </section>
         <section v-if="selected.state === 'loaned' || selected.decommissioned || selected.event_date" class="piece-documentation">
-          <h3 v-if="selected.state === 'loaned'">{{ t('loanDetails') }}</h3>
+          <h3 v-if="selected.state === 'loaned'">{{ t('collection.loanDetails') }}</h3>
           <dl v-if="selected.state === 'loaned'" class="documentation-grid">
-            <div><dt>{{ t('loan_to') }}</dt><dd>{{ selected.loan_to }}</dd></div>
-            <div><dt>{{ t('loan_start') }}</dt><dd>{{ loanDate(selected.loan_start) }}</dd></div>
-            <div><dt>{{ t('loan_end') }}</dt><dd>{{ loanDate(selected.loan_end) }}</dd></div>
+            <div><dt>{{ t('collection.loan_to') }}</dt><dd>{{ selected.loan_to }}</dd></div>
+            <div><dt>{{ t('collection.loan_start') }}</dt><dd>{{ loanDate(selected.loan_start) }}</dd></div>
+            <div><dt>{{ t('collection.loan_end') }}</dt><dd>{{ loanDate(selected.loan_end) }}</dd></div>
           </dl>
           <dl v-if="selected.decommissioned">
-            <dt>{{ t('decommissionReason') }}</dt><dd>{{ selected.decommission_reason || t('notRecorded') }}</dd>
-            <dt>{{ t('recordedAt') }}</dt><dd>{{ selected.decommissioned_at ? new Date(selected.decommissioned_at).toLocaleString(locale) : t('notRecorded') }}</dd>
-            <dt>{{ t('recordedBy') }}</dt><dd>{{ selected.decommissioned_user || t('notRecorded') }}</dd>
+            <dt>{{ t('collection.decommissionReason') }}</dt><dd>{{ selected.decommission_reason || t('collection.notRecorded') }}</dd>
+            <dt>{{ t('collection.recordedAt') }}</dt><dd>{{ selected.decommissioned_at ? new Date(selected.decommissioned_at).toLocaleString(locale) : t('collection.notRecorded') }}</dd>
+            <dt>{{ t('collection.recordedBy') }}</dt><dd>{{ selected.decommissioned_user || t('collection.notRecorded') }}</dd>
           </dl>
           <dl v-if="selected.event_date">
-            <dt>{{ t('event_date') }}</dt><dd>{{ eventDate(selected.event_date) }}</dd>
-            <dt>{{ t('event_observations') }}</dt><dd>{{ selected.event_observations || t('notRecorded') }}</dd>
+            <dt>{{ t('collection.event_date') }}</dt><dd>{{ eventDate(selected.event_date) }}</dd>
+            <dt>{{ t('collection.event_observations') }}</dt><dd>{{ selected.event_observations || t('collection.notRecorded') }}</dd>
           </dl>
         </section>
       </article>
     </template>
     <dialog ref="loanDialog" class="delete-photo-dialog" aria-labelledby="loan-heading" :aria-busy="busy" @cancel="busy && $event.preventDefault()">
       <form @submit.prevent="saveLoan(false)">
-        <h3 id="loan-heading">{{ t('registerLoan') }}</h3>
+        <h3 id="loan-heading">{{ t('collection.registerLoan') }}</h3>
         <fieldset :disabled="busy">
-          <label for="loan-recipient">{{ t('loan_to') }} *</label>
+          <label for="loan-recipient">{{ t('collection.loan_to') }} *</label>
           <input id="loan-recipient" v-model="loanForm.recipient" required maxlength="200" :aria-invalid="!!errors.recipient" aria-describedby="loan-recipient-error" />
           <p v-if="errors.recipient" id="loan-recipient-error" class="error">{{ fieldError('recipient') }}</p>
-          <label for="loan-start">{{ t('loan_start') }} *</label>
+          <label for="loan-start">{{ t('collection.loan_start') }} *</label>
           <input id="loan-start" v-model="loanForm.start_date" type="date" required :aria-invalid="!!errors.start_date" aria-describedby="loan-start-error" />
           <p v-if="errors.start_date" id="loan-start-error" class="error">{{ fieldError('start_date') }}</p>
-          <label for="loan-end">{{ t('loan_end') }} *</label>
+          <label for="loan-end">{{ t('collection.loan_end') }} *</label>
           <input id="loan-end" v-model="loanForm.end_date" type="date" required :min="loanForm.start_date" :aria-invalid="!!errors.end_date || !!invalidLoanPeriod" aria-describedby="loan-end-error" />
-          <p v-if="errors.end_date || invalidLoanPeriod" id="loan-end-error" class="error">{{ errors.end_date ? fieldError('end_date') : t('invalid_loan_period') }}</p>
+          <p v-if="errors.end_date || invalidLoanPeriod" id="loan-end-error" class="error">{{ errors.end_date ? fieldError('end_date') : t('collection.invalid_loan_period') }}</p>
         </fieldset>
         <p v-if="failure" role="alert" class="error">{{ loanFailure() }}</p>
         <div class="actions">
-          <button type="button" :disabled="busy" @click="loanDialog.close()">{{ t('cancel') }}</button>
-          <button :disabled="busy">{{ t('save') }}</button>
+          <button type="button" :disabled="busy" @click="loanDialog.close()">{{ t('collection.cancel') }}</button>
+          <button :disabled="busy">{{ t('collection.save') }}</button>
         </div>
       </form>
     </dialog>
     <dialog ref="missingDialog" class="delete-photo-dialog" aria-labelledby="missing-heading" @cancel="busy && $event.preventDefault()">
       <form @submit.prevent="saveMissing">
-        <h3 id="missing-heading">{{ t('markMissing') }}</h3>
+        <h3 id="missing-heading">{{ t('collection.markMissing') }}</h3>
         <fieldset :disabled="busy">
-          <label for="missing-state">{{ t('state') }} *</label>
+          <label for="missing-state">{{ t('collection.state') }} *</label>
           <select id="missing-state" v-model="missingForm.state" required :aria-invalid="!!errors.state" aria-describedby="missing-state-error">
-            <option disabled value="">{{ t('chooseState') }}</option>
-            <option value="stolen">{{ t('stolen') }}</option><option value="lost">{{ t('lost') }}</option>
+            <option disabled value="">{{ t('collection.chooseState') }}</option>
+            <option value="stolen">{{ t('collection.stolen') }}</option><option value="lost">{{ t('collection.lost') }}</option>
           </select>
           <p v-if="errors.state" id="missing-state-error" class="error">{{ fieldError('state') }}</p>
-          <label for="event-date">{{ t('event_date') }} *</label>
+          <label for="event-date">{{ t('collection.event_date') }} *</label>
           <input id="event-date" v-model="missingForm.event_date" type="date" required :max="today()" :aria-invalid="!!errors.event_date" aria-describedby="event-date-error" />
           <p v-if="errors.event_date" id="event-date-error" class="error">{{ fieldError('event_date') }}</p>
-          <label for="observations">{{ t('observations') }}</label>
+          <label for="observations">{{ t('collection.observations') }}</label>
           <textarea id="observations" v-model="missingForm.observations" />
-          <label><input v-model="missingForm.confirmed" class="confirmation" type="checkbox" required /> {{ t('missingConfirm') }}</label>
+          <label><input v-model="missingForm.confirmed" class="confirmation" type="checkbox" required /> {{ t('collection.missingConfirm') }}</label>
           <p v-if="errors.confirmed" class="error">{{ fieldError('confirmed') }}</p>
         </fieldset>
-        <p v-if="failure" role="alert" class="error">{{ t('error') }}</p>
-        <div class="actions"><button type="button" :disabled="busy" @click="missingDialog.close()">{{ t('cancel') }}</button><button :disabled="busy">{{ t('confirm') }}</button></div>
+        <p v-if="failure" role="alert" class="error">{{ t('collection.error') }}</p>
+        <div class="actions"><button type="button" :disabled="busy" @click="missingDialog.close()">{{ t('collection.cancel') }}</button><button :disabled="busy">{{ t('collection.confirm') }}</button></div>
       </form>
     </dialog>
     <dialog ref="recoveryDialog" class="delete-photo-dialog" aria-labelledby="recovery-heading" @cancel="busy && $event.preventDefault()">
-      <h3 id="recovery-heading">{{ t(selected?.decommissioned ? 'reactivatePiece' : 'recoverPiece') }}</h3>
-      <p>{{ t(selected?.decommissioned ? 'reactivationConfirm' : 'recoveryConfirm') }}</p>
+      <h3 id="recovery-heading">{{ t(`collection.${selected?.decommissioned ? 'reactivatePiece' : 'recoverPiece'}`) }}</h3>
+      <p>{{ t(`collection.${selected?.decommissioned ? 'reactivationConfirm' : 'recoveryConfirm'}`) }}</p>
       <p v-if="failure" role="alert" class="error">{{ loanFailure() }}</p>
       <div class="actions">
-        <button type="button" :disabled="busy" autofocus @click="recoveryDialog.close()">{{ t('cancel') }}</button>
-        <button type="button" :disabled="busy" @click="recoverPiece">{{ t('confirm') }}</button>
+        <button type="button" :disabled="busy" autofocus @click="recoveryDialog.close()">{{ t('collection.cancel') }}</button>
+        <button type="button" :disabled="busy" @click="recoverPiece">{{ t('collection.confirm') }}</button>
       </div>
     </dialog>
     <dialog ref="lifecycleDialog" class="delete-photo-dialog" aria-labelledby="lifecycle-heading" @cancel="busy && $event.preventDefault()">
       <form @submit.prevent="decommission">
-        <h3 id="lifecycle-heading">{{ t('decommission') }}</h3>
-        <p>{{ t('decommissionWarning') }}</p>
-        <label for="decommission-reason">{{ t('decommissionReason') }} *</label>
+        <h3 id="lifecycle-heading">{{ t('collection.decommission') }}</h3>
+        <p>{{ t('collection.decommissionWarning') }}</p>
+        <label for="decommission-reason">{{ t('collection.decommissionReason') }} *</label>
         <textarea id="decommission-reason" v-model="reason" required :disabled="busy" />
-        <p v-if="failure" role="alert" class="error">{{ t('error') }}</p>
+        <p v-if="failure" role="alert" class="error">{{ t('collection.error') }}</p>
         <div class="actions">
-          <button type="button" :disabled="busy" autofocus @click="lifecycleDialog.close()">{{ t('cancel') }}</button>
-          <button :disabled="busy || !reason.trim()">{{ t('confirm') }}</button>
+          <button type="button" :disabled="busy" autofocus @click="lifecycleDialog.close()">{{ t('collection.cancel') }}</button>
+          <button :disabled="busy || !reason.trim()">{{ t('collection.confirm') }}</button>
         </div>
       </form>
     </dialog>
     <dialog ref="deleteDialog" class="delete-photo-dialog" aria-labelledby="delete-photo-heading" :aria-busy="busy" @cancel="busy && $event.preventDefault()">
-      <h3 id="delete-photo-heading">{{ t('deletePhoto') }}</h3>
-      <p>{{ t('deletePhotoConfirm', { name: photoToDelete?.name }) }}</p>
-      <p class="photo-note">{{ t('deletePhotoWarning') }}</p>
-      <p v-if="deleteFailure" role="alert" class="error">{{ t('deletePhotoError') }}</p>
+      <h3 id="delete-photo-heading">{{ t('collection.deletePhoto') }}</h3>
+      <p>{{ t('collection.deletePhotoConfirm', { name: photoToDelete?.name }) }}</p>
+      <p class="photo-note">{{ t('collection.deletePhotoWarning') }}</p>
+      <p v-if="deleteFailure" role="alert" class="error">{{ t('collection.deletePhotoError') }}</p>
       <div class="actions">
-        <button type="button" :disabled="busy" autofocus @click="deleteDialog.close()">{{ t('cancel') }}</button>
-        <button class="primary-action" type="button" :disabled="busy" @click="deletePhoto">{{ t('deletePhoto') }}</button>
+        <button type="button" :disabled="busy" autofocus @click="deleteDialog.close()">{{ t('collection.cancel') }}</button>
+        <button class="primary-action" type="button" :disabled="busy" @click="deletePhoto">{{ t('collection.deletePhoto') }}</button>
       </div>
     </dialog>
     <dialog
@@ -729,7 +728,7 @@ onMounted(load)
         }
       "
     >
-      <button @click="dialog.close()">{{ t("close") }}</button
+      <button @click="dialog.close()">{{ t('collection.close') }}</button
       ><img v-if="enlarged" :src="enlarged.data" :alt="enlarged.name" />
     </dialog>
   </section>

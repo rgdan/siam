@@ -17,152 +17,6 @@ const filtroAplicado = ref(false)
 const descargando = ref("")
 const errorExportacion = ref("")
 
-const textos = {
-  es: {
-    titulo: "Reportes consolidados",
-    descripcion: "Resumen general de visitantes, eventos, colecciones e incidencias del museo.",
-    totalIncidencias: "Total de incidencias",
-    porCategoria: "Por categoría",
-    filtros: "Período del reporte",
-    inicio: "Fecha inicial",
-    fin: "Fecha final",
-    generar: "Generar reporte",
-    limpiar: "Mes actual",
-    cargando: "Cargando información...",
-    error: "No se pudo cargar el reporte. Intentá nuevamente.",
-    fechasInvalidas: "La fecha final no puede ser anterior a la inicial.",
-    sinDatos: "Sin datos para el período",
-    visitantes: "Visitantes",
-    totalIngresos: "Total de ingresos",
-    nacionalidad: "Por nacionalidad",
-    nacional: "Nacionales",
-    extranjero: "Extranjeros",
-    sexo: "Por sexo",
-    masculino: "Masculino",
-    femenino: "Femenino",
-    edad: "Por rango de edad",
-    mayor: "Mayores",
-    menor: "Menores",
-    eventos: "Eventos",
-    totalEventos: "Total de eventos",
-    publicos: "Públicos",
-    privados: "Privados",
-    cancelados: "Cancelados",
-    asistencia: "Asistencia de eventos finalizados",
-    finalizados: "Eventos finalizados",
-    conRegistro: "Con asistencia registrada",
-    sinRegistro: "Sin asistencia registrada",
-    esperados: "Asistentes esperados",
-    reales: "Asistentes reales",
-    cumplimiento: "Cumplimiento",
-    colecciones: "Colecciones",
-    totalPiezas: "Total de piezas",
-    activas: "Piezas activas",
-    estados: "Piezas por estado",
-    displayed: "En exhibición",
-    stored: "Almacenadas",
-    loaned: "En préstamo",
-    missing: "Robadas o extraviadas",
-    decommissioned: "Dadas de baja",
-    porTipo: "Por tipo de objeto",
-    porColeccion: "Por colección",
-    sinAsignar: "Sin asignar",
-    generado: "Generado",
-    periodo: "Período",
-    todasFechas: "Todas las fechas",
-    nota:
-      "La asistencia esperada y real considera únicamente eventos finalizados con asistencia registrada. Los eventos sin registro no participan en esos totales.",
-    noCumplimiento: "Sin registro",
-
-    exportar: "Exportar reporte consolidado",
-    descargarPdf: "Descargar PDF",
-    descargarExcel: "Descargar Excel",
-    descargando: "Generando archivo...",
-    errorDescarga: "No se pudo descargar el archivo. Intentá nuevamente.",
-    sinDatosExportar: "No hay información disponible para exportar.",
-
-    exportarAsistencia: "Exportar reporte de asistencia",
-    pdfAsistencia: "Descargar PDF de asistencia",
-    excelAsistencia: "Descargar Excel de asistencia",
-    sinAsistencia:
-      "No hay eventos finalizados en este período para exportar.",
-  },
-
-  en: {
-    titulo: "Consolidated reports",
-    descripcion: "General overview of museum visitors, events, collections and incidents.",
-    totalIncidencias: "Total incidents",
-    porCategoria: "By category",
-    filtros: "Report period",
-    inicio: "Start date",
-    fin: "End date",
-    generar: "Generate report",
-    limpiar: "Current month",
-    cargando: "Loading information...",
-    error: "The report could not be loaded. Please try again.",
-    fechasInvalidas: "The end date cannot be before the start date.",
-    sinDatos: "No data for the selected period",
-    visitantes: "Visitors",
-    totalIngresos: "Total entries",
-    nacionalidad: "By nationality",
-    nacional: "National",
-    extranjero: "Foreign",
-    sexo: "By sex",
-    masculino: "Male",
-    femenino: "Female",
-    edad: "By age group",
-    mayor: "Adults",
-    menor: "Minors",
-    eventos: "Events",
-    totalEventos: "Total events",
-    publicos: "Public",
-    privados: "Private",
-    cancelados: "Cancelled",
-    asistencia: "Attendance at finished events",
-    finalizados: "Finished events",
-    conRegistro: "With recorded attendance",
-    sinRegistro: "Without recorded attendance",
-    esperados: "Expected attendees",
-    reales: "Actual attendees",
-    cumplimiento: "Attendance rate",
-    colecciones: "Collections",
-    totalPiezas: "Total pieces",
-    activas: "Active pieces",
-    estados: "Pieces by status",
-    displayed: "On display",
-    stored: "Stored",
-    loaned: "On loan",
-    missing: "Stolen or missing",
-    decommissioned: "Decommissioned",
-    porTipo: "By object type",
-    porColeccion: "By collection",
-    sinAsignar: "Unassigned",
-    generado: "Generated",
-    periodo: "Period",
-    todasFechas: "All dates",
-    nota:
-      "Expected and actual attendance includes only finished events with recorded attendance. Events without attendance records are excluded from these totals.",
-    noCumplimiento: "Not recorded",
-
-    exportar: "Export consolidated report",
-    descargarPdf: "Download PDF",
-    descargarExcel: "Download Excel",
-    descargando: "Generating file...",
-    errorDescarga: "The file could not be downloaded. Please try again.",
-    sinDatosExportar: "No information is available for export.",
-
-    exportarAsistencia: "Export attendance report",
-    pdfAsistencia: "Download attendance PDF",
-    excelAsistencia: "Download attendance Excel",
-    sinAsistencia:
-      "There are no completed events in this period to export.",
-  },
-}
-
-function traducir(clave) {
-  return textos[locale.value === "en" ? "en" : "es"][clave] || clave
-}
-
 function numero(valor) {
   return new Intl.NumberFormat(
     locale.value === "en" ? "en-US" : "es-CR"
@@ -171,7 +25,7 @@ function numero(valor) {
 
 function porcentaje(valor) {
   if (valor === null || valor === undefined) {
-    return traducir("noCumplimiento")
+    return t('consolidatedReport.noCumplimiento')
   }
 
   return `${new Intl.NumberFormat(
@@ -181,7 +35,7 @@ function porcentaje(valor) {
 }
 
 function fechaLegible(valor) {
-  if (!valor) return traducir("todasFechas")
+  if (!valor) return t('consolidatedReport.todasFechas')
 
   const [anio, mes, dia] = valor.split("-").map(Number)
 
@@ -372,7 +226,7 @@ function restablecerFiltros() {
 }
 
 function nombreCategoria(nombre) {
-  return nombre || traducir("sinAsignar")
+  return nombre || t('consolidatedReport.sinAsignar')
 }
 
 onMounted(generarReporte)
@@ -381,17 +235,17 @@ onMounted(generarReporte)
 <template>
   <div class="reporte-consolidado">
     <header class="encabezado-reporte">
-      <h1>{{ traducir("titulo") }}</h1>
-      <p>{{ traducir("descripcion") }}</p>
+      <h1>{{ t('consolidatedReport.titulo') }}</h1>
+      <p>{{ t('consolidatedReport.descripcion') }}</p>
     </header>
 
     <form class="panel-filtros" @submit.prevent="aplicarFiltros">
-      <h2>{{ traducir("filtros") }}</h2>
+      <h2>{{ t('consolidatedReport.filtros') }}</h2>
 
       <div class="fila-filtros">
         <div class="campo">
           <label for="consolidado-fecha-inicio">
-            {{ traducir("inicio") }}
+            {{ t('consolidatedReport.inicio') }}
           </label>
           <input
             id="consolidado-fecha-inicio"
@@ -403,7 +257,7 @@ onMounted(generarReporte)
 
         <div class="campo">
           <label for="consolidado-fecha-fin">
-            {{ traducir("fin") }}
+            {{ t('consolidatedReport.fin') }}
           </label>
           <input
             id="consolidado-fecha-fin"
@@ -417,7 +271,7 @@ onMounted(generarReporte)
           type="submit"
           :disabled="cargando || Boolean(descargando)"
         >
-          {{ traducir("generar") }}
+          {{ t('consolidatedReport.generar') }}
         </button>
 
         <button
@@ -426,41 +280,41 @@ onMounted(generarReporte)
           :disabled="cargando || Boolean(descargando)"
           @click="restablecerFiltros"
         >
-          {{ traducir("limpiar") }}
+          {{ t('consolidatedReport.limpiar') }}
         </button>
       </div>
     </form>
 
     <p v-if="cargando" role="status">
-      {{ traducir("cargando") }}
+      {{ t('consolidatedReport.cargando') }}
     </p>
 
     <p v-if="error" class="mensaje-error" role="alert">
       {{
         error === "fechas"
-          ? traducir("fechasInvalidas")
-          : traducir("error")
+          ? t('consolidatedReport.fechasInvalidas')
+          : t('consolidatedReport.error')
       }}
     </p>
 
     <template v-if="reporte">
       <div class="informacion-periodo">
         <p>
-          <strong>{{ traducir("periodo") }}:</strong>
+          <strong>{{ t('consolidatedReport.periodo') }}:</strong>
           {{ fechaLegible(reporte.filtros.fecha_inicio) }}
           —
           {{ fechaLegible(reporte.filtros.fecha_fin) }}
         </p>
 
         <p>
-          <strong>{{ traducir("generado") }}:</strong>
+          <strong>{{ t('consolidatedReport.generado') }}:</strong>
           {{ fechaGeneracion(reporte.fecha_generacion) }}
         </p>
       </div>
 
       <!-- SIAM-29: exportación del reporte consolidado -->
       <section class="panel-exportacion">
-        <h2>{{ traducir("exportar") }}</h2>
+        <h2>{{ t('consolidatedReport.exportar') }}</h2>
 
         <div class="botones-exportacion">
           <button
@@ -470,8 +324,8 @@ onMounted(generarReporte)
           >
             {{
               descargando === "consolidated-pdf"
-                ? traducir("descargando")
-                : traducir("descargarPdf")
+                ? t('consolidatedReport.descargando')
+                : t('consolidatedReport.descargarPdf')
             }}
           </button>
 
@@ -482,74 +336,74 @@ onMounted(generarReporte)
           >
             {{
               descargando === "consolidated-xlsx"
-                ? traducir("descargando")
-                : traducir("descargarExcel")
+                ? t('consolidatedReport.descargando')
+                : t('consolidatedReport.descargarExcel')
             }}
           </button>
         </div>
 
         <p v-if="!hayDatos" class="ayuda-exportacion">
-          {{ traducir("sinDatosExportar") }}
+          {{ t('consolidatedReport.sinDatosExportar') }}
         </p>
       </section>
 
       <!-- Visitantes -->
       <section class="seccion-reporte">
-        <h2>{{ traducir("visitantes") }}</h2>
+        <h2>{{ t('consolidatedReport.visitantes') }}</h2>
 
         <p
           v-if="reporte.visitantes.total === 0"
           class="mensaje-vacio"
         >
-          {{ traducir("sinDatos") }}
+          {{ t('consolidatedReport.sinDatos') }}
         </p>
 
         <template v-else>
           <div class="tarjetas">
             <article class="tarjeta tarjeta-destacada">
-              <h3>{{ traducir("totalIngresos") }}</h3>
+              <h3>{{ t('consolidatedReport.totalIngresos') }}</h3>
               <p>{{ numero(reporte.visitantes.total) }}</p>
             </article>
           </div>
 
           <div class="grupos">
             <article class="grupo-estadisticas">
-              <h3>{{ traducir("nacionalidad") }}</h3>
+              <h3>{{ t('consolidatedReport.nacionalidad') }}</h3>
               <dl>
                 <div>
-                  <dt>{{ traducir("nacional") }}</dt>
+                  <dt>{{ t('consolidatedReport.nacional') }}</dt>
                   <dd>{{ numero(reporte.visitantes.por_nacionalidad.nacional) }}</dd>
                 </div>
                 <div>
-                  <dt>{{ traducir("extranjero") }}</dt>
+                  <dt>{{ t('consolidatedReport.extranjero') }}</dt>
                   <dd>{{ numero(reporte.visitantes.por_nacionalidad.extranjero) }}</dd>
                 </div>
               </dl>
             </article>
 
             <article class="grupo-estadisticas">
-              <h3>{{ traducir("sexo") }}</h3>
+              <h3>{{ t('consolidatedReport.sexo') }}</h3>
               <dl>
                 <div>
-                  <dt>{{ traducir("masculino") }}</dt>
+                  <dt>{{ t('consolidatedReport.masculino') }}</dt>
                   <dd>{{ numero(reporte.visitantes.por_sexo.masculino) }}</dd>
                 </div>
                 <div>
-                  <dt>{{ traducir("femenino") }}</dt>
+                  <dt>{{ t('consolidatedReport.femenino') }}</dt>
                   <dd>{{ numero(reporte.visitantes.por_sexo.femenino) }}</dd>
                 </div>
               </dl>
             </article>
 
             <article class="grupo-estadisticas">
-              <h3>{{ traducir("edad") }}</h3>
+              <h3>{{ t('consolidatedReport.edad') }}</h3>
               <dl>
                 <div>
-                  <dt>{{ traducir("mayor") }}</dt>
+                  <dt>{{ t('consolidatedReport.mayor') }}</dt>
                   <dd>{{ numero(reporte.visitantes.por_edad.mayor) }}</dd>
                 </div>
                 <div>
-                  <dt>{{ traducir("menor") }}</dt>
+                  <dt>{{ t('consolidatedReport.menor') }}</dt>
                   <dd>{{ numero(reporte.visitantes.por_edad.menor) }}</dd>
                 </div>
               </dl>
@@ -560,62 +414,62 @@ onMounted(generarReporte)
 
       <!-- Eventos -->
       <section class="seccion-reporte">
-        <h2>{{ traducir("eventos") }}</h2>
+        <h2>{{ t('consolidatedReport.eventos') }}</h2>
 
         <p
           v-if="reporte.eventos.total === 0"
           class="mensaje-vacio"
         >
-          {{ traducir("sinDatos") }}
+          {{ t('consolidatedReport.sinDatos') }}
         </p>
 
         <template v-else>
           <div class="tarjetas">
             <article class="tarjeta tarjeta-destacada">
-              <h3>{{ traducir("totalEventos") }}</h3>
+              <h3>{{ t('consolidatedReport.totalEventos') }}</h3>
               <p>{{ numero(reporte.eventos.total) }}</p>
             </article>
             <article class="tarjeta">
-              <h3>{{ traducir("publicos") }}</h3>
+              <h3>{{ t('consolidatedReport.publicos') }}</h3>
               <p>{{ numero(reporte.eventos.publicos) }}</p>
             </article>
             <article class="tarjeta">
-              <h3>{{ traducir("privados") }}</h3>
+              <h3>{{ t('consolidatedReport.privados') }}</h3>
               <p>{{ numero(reporte.eventos.privados) }}</p>
             </article>
             <article class="tarjeta">
-              <h3>{{ traducir("cancelados") }}</h3>
+              <h3>{{ t('consolidatedReport.cancelados') }}</h3>
               <p>{{ numero(reporte.eventos.cancelados) }}</p>
             </article>
           </div>
 
           <h3 class="subtitulo">
-            {{ traducir("asistencia") }}
+            {{ t('consolidatedReport.asistencia') }}
           </h3>
 
           <div class="tarjetas">
             <article class="tarjeta">
-              <h3>{{ traducir("finalizados") }}</h3>
+              <h3>{{ t('consolidatedReport.finalizados') }}</h3>
               <p>{{ numero(reporte.eventos.asistencia.eventos_finalizados) }}</p>
             </article>
             <article class="tarjeta">
-              <h3>{{ traducir("conRegistro") }}</h3>
+              <h3>{{ t('consolidatedReport.conRegistro') }}</h3>
               <p>{{ numero(reporte.eventos.asistencia.eventos_con_registro) }}</p>
             </article>
             <article class="tarjeta">
-              <h3>{{ traducir("sinRegistro") }}</h3>
+              <h3>{{ t('consolidatedReport.sinRegistro') }}</h3>
               <p>{{ numero(reporte.eventos.asistencia.eventos_sin_registro) }}</p>
             </article>
             <article class="tarjeta">
-              <h3>{{ traducir("esperados") }}</h3>
+              <h3>{{ t('consolidatedReport.esperados') }}</h3>
               <p>{{ numero(reporte.eventos.asistencia.asistentes_esperados) }}</p>
             </article>
             <article class="tarjeta">
-              <h3>{{ traducir("reales") }}</h3>
+              <h3>{{ t('consolidatedReport.reales') }}</h3>
               <p>{{ numero(reporte.eventos.asistencia.asistentes_reales) }}</p>
             </article>
             <article class="tarjeta">
-              <h3>{{ traducir("cumplimiento") }}</h3>
+              <h3>{{ t('consolidatedReport.cumplimiento') }}</h3>
               <p class="valor-porcentaje">
                 {{ porcentaje(reporte.eventos.asistencia.cumplimiento_porcentaje) }}
               </p>
@@ -623,12 +477,12 @@ onMounted(generarReporte)
           </div>
 
           <p class="nota-reporte">
-            {{ traducir("nota") }}
+            {{ t('consolidatedReport.nota') }}
           </p>
 
           <!-- SIAM-29: exportación de asistencia -->
           <section class="panel-exportacion exportacion-asistencia">
-            <h3>{{ traducir("exportarAsistencia") }}</h3>
+            <h3>{{ t('consolidatedReport.exportarAsistencia') }}</h3>
 
             <div class="botones-exportacion">
               <button
@@ -638,8 +492,8 @@ onMounted(generarReporte)
               >
                 {{
                   descargando === "attendance-pdf"
-                    ? traducir("descargando")
-                    : traducir("pdfAsistencia")
+                    ? t('consolidatedReport.descargando')
+                    : t('consolidatedReport.pdfAsistencia')
                 }}
               </button>
 
@@ -650,14 +504,14 @@ onMounted(generarReporte)
               >
                 {{
                   descargando === "attendance-xlsx"
-                    ? traducir("descargando")
-                    : traducir("excelAsistencia")
+                    ? t('consolidatedReport.descargando')
+                    : t('consolidatedReport.excelAsistencia')
                 }}
               </button>
             </div>
 
             <p v-if="!hayDatosAsistencia" class="ayuda-exportacion">
-              {{ traducir("sinAsistencia") }}
+              {{ t('consolidatedReport.sinAsistencia') }}
             </p>
           </section>
         </template>
@@ -665,43 +519,43 @@ onMounted(generarReporte)
 
       <!-- Colecciones -->
       <section class="seccion-reporte">
-        <h2>{{ traducir("colecciones") }}</h2>
+        <h2>{{ t('consolidatedReport.colecciones') }}</h2>
 
         <p
           v-if="reporte.colecciones.total === 0"
           class="mensaje-vacio"
         >
-          {{ traducir("sinDatos") }}
+          {{ t('consolidatedReport.sinDatos') }}
         </p>
 
         <template v-else>
           <div class="tarjetas">
             <article class="tarjeta tarjeta-destacada">
-              <h3>{{ traducir("totalPiezas") }}</h3>
+              <h3>{{ t('consolidatedReport.totalPiezas') }}</h3>
               <p>{{ numero(reporte.colecciones.total) }}</p>
             </article>
             <article class="tarjeta">
-              <h3>{{ traducir("activas") }}</h3>
+              <h3>{{ t('consolidatedReport.activas') }}</h3>
               <p>{{ numero(reporte.colecciones.active) }}</p>
             </article>
           </div>
 
           <div class="grupos">
             <article class="grupo-estadisticas">
-              <h3>{{ traducir("estados") }}</h3>
+              <h3>{{ t('consolidatedReport.estados') }}</h3>
               <dl>
                 <div
                   v-for="(cantidad, estado) in reporte.colecciones.by_state"
                   :key="estado"
                 >
-                  <dt>{{ traducir(estado) }}</dt>
+                  <dt>{{ t(`consolidatedReport.${estado}`) }}</dt>
                   <dd>{{ numero(cantidad) }}</dd>
                 </div>
               </dl>
             </article>
 
             <article class="grupo-estadisticas">
-              <h3>{{ traducir("porTipo") }}</h3>
+              <h3>{{ t('consolidatedReport.porTipo') }}</h3>
               <dl>
                 <div
                   v-for="(cantidad, tipo) in reporte.colecciones.by_object_type"
@@ -714,7 +568,7 @@ onMounted(generarReporte)
             </article>
 
             <article class="grupo-estadisticas">
-              <h3>{{ traducir("porColeccion") }}</h3>
+              <h3>{{ t('consolidatedReport.porColeccion') }}</h3>
               <dl>
                 <div
                   v-for="(cantidad, coleccion) in reporte.colecciones.by_collection"
@@ -730,17 +584,17 @@ onMounted(generarReporte)
       </section>
       <section class="seccion-reporte">
         <h2>{{ t("incidents.listTitle") }}</h2>
-        <p v-if="reporte.incidencias.total === 0" class="mensaje-vacio">{{ traducir("sinDatos") }}</p>
+        <p v-if="reporte.incidencias.total === 0" class="mensaje-vacio">{{ t('consolidatedReport.sinDatos') }}</p>
         <template v-else>
           <div class="tarjetas">
             <article class="tarjeta tarjeta-destacada">
-              <h3>{{ traducir("totalIncidencias") }}</h3>
+              <h3>{{ t('consolidatedReport.totalIncidencias') }}</h3>
               <p>{{ numero(reporte.incidencias.total) }}</p>
             </article>
           </div>
           <div class="grupos">
             <article class="grupo-estadisticas">
-              <h3>{{ traducir("porCategoria") }}</h3>
+              <h3>{{ t('consolidatedReport.porCategoria') }}</h3>
               <dl>
                 <div v-for="(cantidad, categoria) in reporte.incidencias.por_categoria" :key="categoria">
                   <dt>{{ t(`incidents.categories.${categoria}`) }}</dt>
@@ -754,7 +608,7 @@ onMounted(generarReporte)
     </template>
 
     <p v-if="errorExportacion" class="mensaje-error" role="alert">
-      {{ traducir("errorDescarga") }}
+      {{ t('consolidatedReport.errorDescarga') }}
     </p>
   </div>
 </template>

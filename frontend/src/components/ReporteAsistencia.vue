@@ -6,72 +6,7 @@ import { solicitar } from "../api.js"
 import { formatearFecha } from "../i18n/index.js"
 
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-const { locale } = useI18n({ useScope: "global" })
-
-const textos = {
-  es: {
-    titulo: "Reporte comparativo de asistencia",
-    descripcion: "Compare la asistencia esperada y real de los eventos finalizados del museo.",
-    fechaInicio: "Fecha inicial",
-    fechaFin: "Fecha final",
-    generar: "Generar reporte",
-    limpiar: "Quitar filtros",
-    cargando: "Generando reporte...",
-    error: "No se pudo generar el reporte.",
-    sinEventos: "No hay eventos para el rango seleccionado",
-    fechaInvalida: "La fecha final no puede ser anterior a la fecha inicial.",
-    evento: "Evento",
-    fecha: "Fecha",
-    tipo: "Tipo",
-    esperados: "Asistentes esperados",
-    reales: "Asistentes reales",
-    cumplimiento: "Cumplimiento",
-    total: "Total",
-    publico: "Público",
-    privado: "Privado",
-    sinRegistro: "Sin registro",
-    eventosMostrados: "Eventos mostrados",
-    conRegistro: "Con asistencia registrada",
-    sinRegistroCantidad: "Pendientes de registrar",
-    nota: "Los eventos sin asistencia registrada aparecen en el reporte, pero no participan en los totales ni en el cumplimiento general.",
-    sinFiltro: "Todos los eventos finalizados",
-    desde: "Desde",
-    hasta: "Hasta",
-  },
-  en: {
-    titulo: "Attendance comparison report",
-    descripcion: "Compare expected and actual attendance for completed museum events.",
-    fechaInicio: "Start date",
-    fechaFin: "End date",
-    generar: "Generate report",
-    limpiar: "Clear filters",
-    cargando: "Generating report...",
-    error: "The report could not be generated.",
-    sinEventos: "No events found for the selected date range",
-    fechaInvalida: "The end date cannot be earlier than the start date.",
-    evento: "Event",
-    fecha: "Date",
-    tipo: "Type",
-    esperados: "Expected attendees",
-    reales: "Actual attendees",
-    cumplimiento: "Fulfilment",
-    total: "Total",
-    publico: "Public",
-    privado: "Private",
-    sinRegistro: "Not recorded",
-    eventosMostrados: "Events displayed",
-    conRegistro: "Attendance recorded",
-    sinRegistroCantidad: "Pending attendance",
-    nota: "Events without recorded attendance are displayed but excluded from totals and overall fulfilment.",
-    sinFiltro: "All completed events",
-    desde: "From",
-    hasta: "To",
-  },
-}
-
-const texto = computed(() =>
-  textos[locale.value === "en" ? "en" : "es"]
-)
+const { t, te, locale } = useI18n({ useScope: "global" })
 
 const idiomaRegional = computed(() =>
   locale.value === "en" ? "en-US" : "es-CR"
@@ -113,12 +48,12 @@ const periodoAplicado = computed(() => {
   const inicio = filtrosAplicados.value.fecha_inicio
   const fin = filtrosAplicados.value.fecha_fin
 
-  if (!inicio && !fin) return texto.value.sinFiltro
+  if (!inicio && !fin) return t('attendanceReport.sinFiltro')
 
   const partes = []
 
-  if (inicio) partes.push(`${texto.value.desde}: ${inicio}`)
-  if (fin) partes.push(`${texto.value.hasta}: ${fin}`)
+  if (inicio) partes.push(`${t('attendanceReport.desde')}: ${inicio}`)
+  if (fin) partes.push(`${t('attendanceReport.hasta')}: ${fin}`)
 
   return partes.join(" · ")
 })
@@ -148,8 +83,8 @@ function numero(valor) {
 
 function tipoEvento(tipo) {
   return tipo === "privado"
-    ? texto.value.privado
-    : texto.value.publico
+    ? t('attendanceReport.privado')
+    : t('attendanceReport.publico')
 }
 
 function asistenciaReal(evento) {
@@ -157,7 +92,7 @@ function asistenciaReal(evento) {
     evento.asistentes_reales === null ||
     evento.asistentes_reales === undefined
   ) {
-    return texto.value.sinRegistro
+    return t('attendanceReport.sinRegistro')
   }
 
   return numero(evento.asistentes_reales)
@@ -175,9 +110,9 @@ async function obtenerError(respuesta) {
       .flat()
       .filter(valor => typeof valor === "string")
 
-    return mensajes[0] || texto.value.error
+    return mensajes[0] || 'attendanceReport.error'
   } catch {
-    return texto.value.error
+    return 'attendanceReport.error'
   }
 }
 
@@ -191,7 +126,7 @@ async function generarReporte() {
     fechaFin.value &&
     fechaInicio.value > fechaFin.value
   ) {
-    error.value = texto.value.fechaInvalida
+    error.value = 'attendanceReport.fechaInvalida'
     return
   }
 
@@ -236,7 +171,7 @@ async function generarReporte() {
       !datos.totales ||
       !datos.resumen
     ) {
-      throw new Error(texto.value.error)
+      throw new Error('attendanceReport.error')
     }
 
     reporte.value = datos
@@ -246,7 +181,7 @@ async function generarReporte() {
     }
   } catch (fallo) {
     reporte.value = null
-    error.value = fallo.message || texto.value.error
+    error.value = fallo.message || 'attendanceReport.error'
   } finally {
     cargando.value = false
   }
@@ -264,14 +199,14 @@ onMounted(generarReporte)
 <template>
   <section class="reporte-asistencia">
     <header class="encabezado">
-      <h2>{{ texto.titulo }}</h2>
-      <p>{{ texto.descripcion }}</p>
+      <h2>{{ t('attendanceReport.titulo') }}</h2>
+      <p>{{ t('attendanceReport.descripcion') }}</p>
     </header>
 
     <form class="filtros" @submit.prevent="generarReporte">
       <div class="campo">
         <label for="reporte-fecha-inicio">
-          {{ texto.fechaInicio }}
+          {{ t('attendanceReport.fechaInicio') }}
         </label>
 
         <input
@@ -284,7 +219,7 @@ onMounted(generarReporte)
 
       <div class="campo">
         <label for="reporte-fecha-fin">
-          {{ texto.fechaFin }}
+          {{ t('attendanceReport.fechaFin') }}
         </label>
 
         <input
@@ -297,7 +232,7 @@ onMounted(generarReporte)
 
       <div class="acciones-filtros">
         <button type="submit" :disabled="cargando">
-          {{ texto.generar }}
+          {{ t('attendanceReport.generar') }}
         </button>
 
         <button
@@ -306,17 +241,17 @@ onMounted(generarReporte)
           :disabled="cargando"
           @click="limpiarFiltros"
         >
-          {{ texto.limpiar }}
+          {{ t('attendanceReport.limpiar') }}
         </button>
       </div>
     </form>
 
     <p v-if="error" class="mensaje-error" role="alert">
-      {{ error }}
+      {{ te(error) ? t(error) : error }}
     </p>
 
     <p v-if="cargando" role="status">
-      {{ texto.cargando }}
+      {{ t('attendanceReport.cargando') }}
     </p>
 
     <template v-else-if="reporte">
@@ -325,37 +260,37 @@ onMounted(generarReporte)
       </p>
 
       <div v-if="eventos.length === 0" class="sin-datos" role="status">
-        {{ texto.sinEventos }}
+        {{ t('attendanceReport.sinEventos') }}
       </div>
 
       <template v-else>
         <div class="resumen">
           <div class="tarjeta-resumen">
-            <span>{{ texto.eventosMostrados }}</span>
+            <span>{{ t('attendanceReport.eventosMostrados') }}</span>
             <strong>{{ numero(resumen.eventos_mostrados) }}</strong>
           </div>
 
           <div class="tarjeta-resumen">
-            <span>{{ texto.conRegistro }}</span>
+            <span>{{ t('attendanceReport.conRegistro') }}</span>
             <strong>{{ numero(resumen.eventos_con_registro) }}</strong>
           </div>
 
           <div class="tarjeta-resumen">
-            <span>{{ texto.sinRegistroCantidad }}</span>
+            <span>{{ t('attendanceReport.sinRegistroCantidad') }}</span>
             <strong>{{ numero(resumen.eventos_sin_registro) }}</strong>
           </div>
         </div>
 
-        <div class="tabla-contenedor" tabindex="0" role="region" :aria-label="texto.titulo">
+        <div class="tabla-contenedor" tabindex="0" role="region" :aria-label="t('attendanceReport.titulo')">
           <table>
             <thead>
               <tr>
-                <th scope="col">{{ texto.fecha }}</th>
-                <th scope="col">{{ texto.evento }}</th>
-                <th scope="col">{{ texto.tipo }}</th>
-                <th scope="col" class="numero">{{ texto.esperados }}</th>
-                <th scope="col" class="numero">{{ texto.reales }}</th>
-                <th scope="col" class="numero">{{ texto.cumplimiento }}</th>
+                <th scope="col">{{ t('attendanceReport.fecha') }}</th>
+                <th scope="col">{{ t('attendanceReport.evento') }}</th>
+                <th scope="col">{{ t('attendanceReport.tipo') }}</th>
+                <th scope="col" class="numero">{{ t('attendanceReport.esperados') }}</th>
+                <th scope="col" class="numero">{{ t('attendanceReport.reales') }}</th>
+                <th scope="col" class="numero">{{ t('attendanceReport.cumplimiento') }}</th>
               </tr>
             </thead>
 
@@ -374,7 +309,7 @@ onMounted(generarReporte)
 
             <tfoot>
               <tr>
-                <th scope="row" colspan="3">{{ texto.total }}</th>
+                <th scope="row" colspan="3">{{ t('attendanceReport.total') }}</th>
                 <td class="numero">{{ numero(totales.asistentes_esperados) }}</td>
                 <td class="numero">{{ numero(totales.asistentes_reales) }}</td>
                 <td class="numero">
@@ -386,7 +321,7 @@ onMounted(generarReporte)
         </div>
 
         <p class="nota">
-          {{ texto.nota }}
+          {{ t('attendanceReport.nota') }}
         </p>
       </template>
     </template>

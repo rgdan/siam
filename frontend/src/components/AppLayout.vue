@@ -65,7 +65,7 @@ function seleccionarTema(evento) {
             :aria-current="props.rutaActual === '/interno/coleccion' ? 'page' : undefined"
             @click="cerrarMenu"
           >
-            {{ locale === "en" ? "Collection" : "Colección" }}
+            {{ t('common.collection') }}
           </a>
 
           <a
@@ -89,7 +89,7 @@ function seleccionarTema(evento) {
             :aria-current="props.rutaActual === '/privacidad' ? 'page' : undefined"
             @click="cerrarMenu"
           >
-            {{ locale === "en" ? "Privacy policy" : "Política de privacidad" }}
+            {{ t('common.privacy') }}
           </a>
 
           <a
@@ -111,7 +111,7 @@ function seleccionarTema(evento) {
             :aria-current="props.rutaActual === '/interno/reportes/asistencia' ? 'page' : undefined"
             @click="cerrarMenu"
           >
-            {{ locale === "en" ? "Attendance report" : "Reporte de asistencia" }}
+            {{ t('common.attendanceReport') }}
           </a>
 
           <a
@@ -120,7 +120,7 @@ function seleccionarTema(evento) {
             :aria-current="props.rutaActual === '/interno/reportes/consolidados' ? 'page' : undefined"
             @click="cerrarMenu"
           >
-            {{ locale === "en" ? "Consolidated reports" : "Reportes consolidados" }}
+            {{ t('common.consolidatedReports') }}
           </a>
 
           <a

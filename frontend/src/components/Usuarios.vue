@@ -5,7 +5,7 @@ import { enviar, solicitar } from "../api.js"
 
 const props = defineProps({ usuarioActual: { type: Object, required: true } })
 const emit = defineEmits(["sesion-expirada", "sin-acceso", "cuenta-actualizada"])
-const { t } = useI18n({ useScope: "global" })
+const { t, te } = useI18n({ useScope: "global" })
 const roles = ["guarda", "coordinador", "museologo", "administrador_general", "administrador_sistema"]
 const cuentas = ref([])
 const cargando = ref(true)
@@ -33,7 +33,7 @@ async function cargar() {
   try {
     cuentas.value = await leer(await solicitar("users/"))
   } catch {
-    error.value ||= t("users.loadError")
+    error.value ||= "users.loadError"
   } finally {
     cargando.value = false
   }
@@ -66,11 +66,11 @@ async function guardar() {
   try {
     await leer(await enviar(id ? `users/${id}/` : "users/", datos, id ? "PATCH" : "POST"))
     formulario.value = null
-    mensaje.value = t("users.saved")
+    mensaje.value = "users.saved"
     await cargar()
     if (id === props.usuarioActual.id) emit("cuenta-actualizada")
   } catch {
-    error.value ||= t("users.saveError")
+    error.value ||= "users.saveError"
   } finally {
     if (formulario.value) formulario.value.password = ""
     guardando.value = false
@@ -91,10 +91,10 @@ async function eliminar() {
   try {
     const resultado = await leer(await enviar(`users/${formulario.value.id}/`, { confirm: true }, "DELETE"))
     formulario.value = null
-    mensaje.value = t(resultado.action === "deactivated" ? "users.deactivated" : "users.deleted")
+    mensaje.value = resultado.action === "deactivated" ? "users.deactivated" : "users.deleted"
     await cargar()
   } catch {
-    error.value ||= t("users.saveError")
+    error.value ||= "users.saveError"
   } finally {
     confirmacion.value?.close()
     guardando.value = false
@@ -152,8 +152,8 @@ onMounted(cargar)
         </div>
       </fieldset>
     </form>
-    <p role="status">{{ guardando ? t("common.processing") : mensaje }}</p>
-    <p role="alert" class="error">{{ error }}</p>
+    <p role="status">{{ guardando ? t("common.processing") : mensaje ? t(mensaje) : "" }}</p>
+    <p role="alert" class="error">{{ error && te(error) ? t(error) : error }}</p>
 
     <dialog ref="confirmacion" aria-labelledby="titulo-eliminar" :aria-busy="guardando" @cancel="guardando && $event.preventDefault()">
       <h3 id="titulo-eliminar">{{ t("users.confirmDelete") }}</h3>

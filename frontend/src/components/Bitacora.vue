@@ -3,10 +3,9 @@ import { onMounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { solicitar } from "../api.js"
 import { formatearFecha, formatearHora } from "../i18n/index.js"
-import collectionMessages from "./collectionMessages.js"
 
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-const { t, te, locale } = useI18n({ useScope: "global" })
+const { t, te } = useI18n({ useScope: "global" })
 const registros = ref([])
 const pagina = ref(1)
 const total = ref(0)
@@ -26,8 +25,7 @@ function nombreEntidad(registro) {
 function nombreCampo(campo, entidad) {
   if (entidad === "piece") {
     const key = campo === "title" ? "pieceTitle" : campo === "photos" ? "photosField" : campo
-    const label = collectionMessages[locale.value]?.[key]
-    if (label) return label
+    if (te(`collection.${key}`)) return t(`collection.${key}`)
   }
   return te(`audit.fields.${campo}`) ? t(`audit.fields.${campo}`) : campo.replaceAll("_", " ")
 }
@@ -43,7 +41,7 @@ function valor(value, campo) {
     return Object.entries(value).map(([key, item]) => `${nombreCampo(key)}: ${valor(item, key)}`).join("; ")
   if (campo === "role" && te(`roles.${value}`)) return t(`roles.${value}`)
   if (["timestamp", "last_login"].includes(campo)) return `${formatearFecha(value)} ${formatearHora(value)}`
-  if (campo === "state" && ["stored", "displayed"].includes(value)) return collectionMessages[locale.value][value]
+  if (campo === "state" && ["stored", "displayed"].includes(value)) return t(`collection.${value}`)
   if (te(`audit.values.${campo}.${value}`)) return t(`audit.values.${campo}.${value}`)
   return String(value)
 }

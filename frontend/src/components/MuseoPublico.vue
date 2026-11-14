@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n"
 import { museoProvisional } from "../data/museo.js"
 
 const museo = reactive(structuredClone(museoProvisional))
+const direccion = ref("")
 const errorConfiguracion = ref(false)
 const cargando = ref(true)
 
@@ -17,9 +18,8 @@ onMounted(async () => {
     museo.nombre = config.museum_name
     museo.localidad = config.location
     // La dirección de referencia ya tiene sus textos en español e inglés.
-    if (config.address !== museoProvisional.ubicacion.es) {
-      const ubicacion = `${config.address} ${config.location}`
-      museo.ubicacion = { es: ubicacion, en: ubicacion }
+    if (config.address !== t("museum.referenceAddress", {}, { locale: "es" })) {
+      direccion.value = `${config.address} ${config.location}`
     }
     museo.horarios = Object.entries(config.opening_hours)
       .map(([dia, hours]) => ({ dia: Number(dia), apertura: hours.opens, cierre: hours.closes }))
@@ -48,16 +48,6 @@ const dias = [
   "friday",
   "saturday",
 ]
-
-const historia = computed(() =>
-  museo.historia[locale.value] ??
-  museo.historia.es
-)
-
-const ubicacion = computed(() =>
-  museo.ubicacion[locale.value] ??
-  museo.ubicacion.es
-)
 
 function formatearHorario(hora) {
   if (!hora) return ""
@@ -97,7 +87,7 @@ const diasAbiertos = computed(() => horarios.value.filter(horario => !horario.ce
     </header>
 
     <p v-if="cargando" role="status">{{ t("common.processing") }}</p>
-    <p v-if="errorConfiguracion" role="alert">{{ locale === "en" ? "Current information could not be loaded. Showing reference information." : "No se pudo cargar la información actual. Se muestran datos de referencia." }}</p>
+    <p v-if="errorConfiguracion" role="alert">{{ t("museum.configurationError") }}</p>
 
     <dl class="resumen-museo">
       <div class="tarjeta-resumen">
@@ -127,9 +117,9 @@ const diasAbiertos = computed(() => horarios.value.filter(horario => !horario.ce
 
     <section class="seccion-museo" aria-labelledby="titulo-historia">
       <h2 id="titulo-historia">{{ t("museum.history") }}</h2>
-      <p>{{ historia }}</p>
+      <p>{{ t("museum.historyText") }}</p>
       <h3>{{ t("museum.location") }}</h3>
-      <p>{{ ubicacion }}</p>
+      <p>{{ direccion || t("museum.referenceAddress") }}</p>
     </section>
   </div>
 </template>

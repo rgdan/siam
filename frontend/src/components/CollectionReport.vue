@@ -3,12 +3,10 @@
 import { computed, ref, onMounted, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { solicitar } from "../api.js"
-import messages from "./collectionReportMessages.js"
 
 const emit = defineEmits(["sesion-expirada", "sin-acceso"])
-const { t, locale } = useI18n({ messages, useScope: "local" })
+const { t, locale } = useI18n({ useScope: "global" })
 
-// Filtros originales de Jorge.
 const filters = ref({
   state: null,
   object_type: null,
@@ -34,30 +32,6 @@ const groups = [
 const puedeExportar = ref(false)
 const descargando = ref("")
 const errorExportacion = ref(false)
-
-const textosExportacion = {
-  es: {
-    titulo: "Exportar reporte",
-    pdf: "Descargar PDF",
-    excel: "Descargar Excel",
-    descargando: "Generando archivo...",
-    error: "No se pudo descargar el archivo. Intentá nuevamente.",
-    sinDatos: "No hay piezas disponibles para exportar.",
-  },
-  en: {
-    titulo: "Export report",
-    pdf: "Download PDF",
-    excel: "Download Excel",
-    descargando: "Generating file...",
-    error: "The file could not be downloaded. Please try again.",
-    sinDatos: "No pieces are available for export.",
-  },
-}
-
-function textoExportacion(clave) {
-  const idioma = locale.value === "en" ? "en" : "es"
-  return textosExportacion[idioma][clave]
-}
 
 // Al modificar filtros, se invalida el reporte anterior.
 watch(
@@ -244,14 +218,14 @@ onMounted(() => {
 
 <template>
   <section class="report" :aria-busy="busy">
-    <h2>{{ t("title") }}</h2>
+    <h2>{{ t('collectionReport.title') }}</h2>
 
     <!-- Filtros originales del reporte de colecciones -->
     <form @submit.prevent="generate">
       <fieldset :disabled="busy || Boolean(descargando)">
         <div>
           <label for="report-state">
-            {{ t("state") }}
+            {{ t('collectionReport.state') }}
           </label>
 
           <select
@@ -259,7 +233,7 @@ onMounted(() => {
             v-model="filters.state"
           >
             <option :value="null">
-              {{ t("allStates") }}
+              {{ t('collectionReport.allStates') }}
             </option>
 
             <option
@@ -275,14 +249,14 @@ onMounted(() => {
               :key="state"
               :value="state"
             >
-              {{ t(state) }}
+              {{ t(`collectionReport.${state}`) }}
             </option>
           </select>
         </div>
 
         <div>
           <label for="report-type">
-            {{ t("objectType") }}
+            {{ t('collectionReport.objectType') }}
           </label>
 
           <select
@@ -290,7 +264,7 @@ onMounted(() => {
             v-model="filters.object_type"
           >
             <option :value="null">
-              {{ t("allTypes") }}
+              {{ t('collectionReport.allTypes') }}
             </option>
 
             <option
@@ -298,14 +272,14 @@ onMounted(() => {
               :key="value"
               :value="value"
             >
-              {{ value || t("unassignedType") }}
+              {{ value || t('collectionReport.unassignedType') }}
             </option>
           </select>
         </div>
 
         <div>
           <label for="report-collection">
-            {{ t("collection") }}
+            {{ t('collectionReport.collection') }}
           </label>
 
           <select
@@ -313,7 +287,7 @@ onMounted(() => {
             v-model="filters.collection"
           >
             <option :value="null">
-              {{ t("allCollections") }}
+              {{ t('collectionReport.allCollections') }}
             </option>
 
             <option
@@ -321,55 +295,55 @@ onMounted(() => {
               :key="value"
               :value="value"
             >
-              {{ value || t("unassignedCollection") }}
+              {{ value || t('collectionReport.unassignedCollection') }}
             </option>
           </select>
         </div>
 
         <button type="submit">
-          {{ t("generate") }}
+          {{ t('collectionReport.generate') }}
         </button>
       </fieldset>
     </form>
 
     <p v-if="busy" role="status">
-      {{ t("loading") }}
+      {{ t('collectionReport.loading') }}
     </p>
 
     <p v-else-if="failure" role="alert" class="error">
-      {{ t("error") }}
+      {{ t('collectionReport.error') }}
     </p>
 
     <p v-else-if="!report" role="status">
-      {{ t("pending") }}
+      {{ t('collectionReport.pending') }}
     </p>
 
     <template v-if="report">
       <p>
-        {{ t("generatedAt") }}:
+        {{ t('collectionReport.generatedAt') }}:
         <time :datetime="report.generated_at">
           {{ new Date(report.generated_at).toLocaleString(locale) }}
         </time>
       </p>
 
       <p class="report-total" role="status">
-        {{ t("total") }}:
+        {{ t('collectionReport.total') }}:
         <strong data-testid="report-total">
           {{ number(report.total) }}
         </strong>
       </p>
 
       <p v-if="!report.total" role="status">
-        {{ t("empty") }}
+        {{ t('collectionReport.empty') }}
       </p>
 
       <!-- SIAM-29: exportación exclusiva del administrador general -->
       <section
         v-if="puedeExportar"
         class="report-export"
-        :aria-label="textoExportacion('titulo')"
+        :aria-label="t('collectionReport.export.titulo')"
       >
-        <h3>{{ textoExportacion("titulo") }}</h3>
+        <h3>{{ t('collectionReport.export.titulo') }}</h3>
 
         <div class="export-actions">
           <button
@@ -379,8 +353,8 @@ onMounted(() => {
           >
             {{
               descargando === "pdf"
-                ? textoExportacion("descargando")
-                : textoExportacion("pdf")
+                ? t('collectionReport.export.descargando')
+                : t('collectionReport.export.pdf')
             }}
           </button>
 
@@ -391,14 +365,14 @@ onMounted(() => {
           >
             {{
               descargando === "xlsx"
-                ? textoExportacion("descargando")
-                : textoExportacion("excel")
+                ? t('collectionReport.export.descargando')
+                : t('collectionReport.export.excel')
             }}
           </button>
         </div>
 
         <p v-if="report.total === 0" class="export-help">
-          {{ textoExportacion("sinDatos") }}
+          {{ t('collectionReport.export.sinDatos') }}
         </p>
 
         <p
@@ -406,7 +380,7 @@ onMounted(() => {
           class="error"
           role="alert"
         >
-          {{ textoExportacion("error") }}
+          {{ t('collectionReport.export.error') }}
         </p>
       </section>
 
@@ -417,7 +391,7 @@ onMounted(() => {
           :key="group.key"
           :data-group="group.key"
         >
-          <h3>{{ t(group.title) }}</h3>
+          <h3>{{ t(`collectionReport.${group.title}`) }}</h3>
 
           <dl>
             <div
@@ -428,12 +402,12 @@ onMounted(() => {
               <dt>
                 {{
                   group.key === "by_state"
-                    ? t(name)
+                    ? t(`collectionReport.${name}`)
                     : name ||
                       t(
-                        group.key === "by_collection"
+                        `collectionReport.${group.key === "by_collection"
                           ? "unassignedCollection"
-                          : "unassignedType"
+                          : "unassignedType"}`
                       )
                 }}
               </dt>
