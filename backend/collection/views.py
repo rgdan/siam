@@ -127,6 +127,9 @@ def upload_photos(request, piece_id):
     return Response({"results": results})
 
 
+@extend_schema(tags=["Collections"], summary="Delete a piece photo", request=None,
+               description="Permission: piezas.actualizar. The photo must belong to the piece. Decommissioned pieces retain their photos. Deletion and its audit entry are atomic.",
+               responses={200: docs.PHOTO_DELETED, **docs.ERRORS})
 @api_view(["DELETE"])
 @requiere_permiso("piezas.actualizar")
 def delete_photo(request, piece_id, photo_id):

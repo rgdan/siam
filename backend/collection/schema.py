@@ -22,6 +22,7 @@ PHOTO_RESULTS = inline_serializer("PhotoUploadResult", {
 
 
 PHOTO_ORDER = inline_serializer("PhotoOrderResult", {"photos": s.ListField(child=s.IntegerField())})
+PHOTO_DELETED = inline_serializer("PhotoDeleteResult", {"deleted": s.IntegerField()})
 
 
 class CollectionReportSerializer(s.Serializer):

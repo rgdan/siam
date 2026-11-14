@@ -14,4 +14,5 @@ urlpatterns = [
     path('pieces/<int:piece_id>/', views.piece_detail, name='piece-detail'),
     path('pieces/<int:piece_id>/photos/', views.upload_photos, name='piece-photos'),
     path('pieces/<int:piece_id>/photos/order/', views.reorder_photos, name='piece-photo-order'),
+    path('pieces/<int:piece_id>/photos/<int:photo_id>/', views.delete_photo, name='piece-photo-delete'),
 ]
